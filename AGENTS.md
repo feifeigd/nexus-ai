@@ -2,7 +2,7 @@
 
 ## 项目目标
 
-NexusAI 是暂定名称。项目首先用于全栈面试作品，随后逐步演进为企业级 AI 应用开发框架，并内置多租户“企业知识库与智能工单”SaaS 参考应用。项目不是 MaaS；长期方向是 AI 应用框架 / AI PaaS。
+NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，并内置多租户“企业知识库与智能工单”SaaS 参考应用。项目不是 MaaS；长期方向是 AI 应用框架 / AI PaaS。
 
 ## 已确定的技术边界
 
@@ -27,24 +27,26 @@ NexusAI 是暂定名称。项目首先用于全栈面试作品，随后逐步演
 
 ## 当前进度
 
-当前分支：`feat/03-nextjs-skeleton`。
+当前分支：`feat/04-web-api-rest`。
 
-截至 2026-10-28，第 1、2 步已提交；第 3 步已完成并等待用户 review，尚未提交。
+截至 2026-10-28，第 1 至 3 步已提交；第 4 步已完成并等待用户 review，尚未提交。
 
 ### 已完成并提交
 
 1. 第 1 步提交 `87788d5 feat: add go-zero health service`：pnpm Monorepo 根结构、go-zero 最小服务、`GET /healthz`、`.api` 契约和 Handler 单元测试。已验证 Go 测试、静态检查、格式和真实 HTTP 响应。
 2. 第 2 步提交 `30e763e feat: add postgres and redis infrastructure`：Docker Compose 配置 PostgreSQL 17、pgvector 和 Redis 7.4。已验证容器健康检查、PostgreSQL 17.11、pgvector 0.8.7、真实向量运算及 Redis 读写。
+3. 第 3 步提交 `302f82e feat: add nextjs web skeleton`：Next.js 16.4.3、React 19.3.0、TypeScript、Tailwind CSS、ESLint、NexusAI 最小首页、页面测试和根级 Web 脚本。
 
 ### 当前待 review 增量
 
-第 3 步：Next.js 用户端骨架。
+第 4 步：前后端 REST 连通。
 
-- `apps/web` 使用 Next.js 16.4.3、React 19.3.0、TypeScript、Tailwind CSS 和 ESLint。
-- 已添加 NexusAI 最小首页、1 个页面渲染测试和根级 Web 脚本。
-- 已验证页面测试、ESLint、依赖对等检查、TypeScript 和生产构建。
-- 已验证 `npm run dev -- --port 7100`，真实首页返回 HTTP 200 且内容匹配。
-- 临时 Next.js 服务已停止，端口 7100 已释放。
+- Next.js 首页通过服务端 `fetch` 调用 go-zero `GET /healthz`，使用 `Suspense` 保留静态页面外壳。
+- 健康请求使用 `NEXUS_API_INTERNAL_URL`，默认地址为 `http://127.0.0.1:8080`，超时为 3 秒。
+- 页面区分 API 已连接和未连接状态，不在 TypeScript 层重复实现业务逻辑。
+- 已验证 3 个用户端测试、ESLint、Go 测试与静态检查、TypeScript 和生产构建。
+- 已同时启动前后端完成真实联调：后端响应符合契约，首页返回 HTTP 200，并显示“go-zero API 已连接”和“nexus-api · ok”。
+- 临时前后端服务已停止，端口 7100 和 8080 均已释放。
 
 ### 环境注意事项
 
@@ -56,6 +58,6 @@ NexusAI 是暂定名称。项目首先用于全栈面试作品，随后逐步演
 
 ## 下一步
 
-第四步：前后端 REST 连通。
+第五步：Ant Design Pro 管理后台骨架。
 
-后续步骤依次为：Ant Design Pro、CopilotKit Runtime、go-zero Mock AG-UI 流、完整 AI 流式闭环。
+后续步骤依次为：CopilotKit Runtime、go-zero Mock AG-UI 流、完整 AI 流式闭环。
