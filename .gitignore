@@ -1,0 +1,33 @@
+# Local toolchains
+.tools/
+
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+.next/
+coverage/
+services/api/nexus-api
+services/api/nexus-api.exe
+
+# Runtime
+*.log
+*.pid
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+
+# Keep shared VSCode configuration; ignore other local files.
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json

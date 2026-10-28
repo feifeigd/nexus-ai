@@ -1,0 +1,12 @@
+// API DSL reference: https://go-zero.dev/reference/api-dsl/
+syntax = "v1"
+
+type HealthResponse {
+	Status  string `json:"status"`
+	Service string `json:"service"`
+}
+
+service nexus-api {
+	@handler health
+	get /healthz returns (HealthResponse)
+}

@@ -1,0 +1,5 @@
+Name: nexus-api
+Host: 127.0.0.1
+Port: 8080
+Mode: dev
+Timeout: 3000

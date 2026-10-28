@@ -1,0 +1,13 @@
+{
+  "name": "nexus-ai",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.15.1",
+  "scripts": {
+    "dev:api": "cd services/api && go run .",
+    "test:api": "cd services/api && go test ./..."
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
