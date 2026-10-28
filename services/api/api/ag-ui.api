@@ -1,0 +1,19 @@
+// API DSL reference: https://go-zero.dev/reference/api-dsl/
+// AG-UI responses use text/event-stream rather than a single JSON response.
+syntax = "v1"
+
+type AGUIMessage {
+	Role    string `json:"role"`
+	Content any    `json:"content"`
+}
+
+type AGUIRunInput {
+	ThreadId string       `json:"threadId"`
+	RunId    string       `json:"runId"`
+	Messages []AGUIMessage `json:"messages"`
+}
+
+service nexus-api {
+	@handler agUI
+	post /ag-ui (AGUIRunInput)
+}
