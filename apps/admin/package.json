@@ -1,0 +1,62 @@
+{
+  "name": "admin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NexusAI administration console",
+  "scripts": {
+    "build": "max build",
+    "dev": "cross-env UMI_ENV=dev max dev",
+    "start": "cross-env UMI_ENV=dev max dev",
+    "openapi": "max openapi",
+    "lint": "npm run biome:lint && npm run tsc",
+    "biome:lint": "biome lint",
+    "biome": "biome check --write",
+    "test": "vitest run",
+    "doctor": "react-doctor .",
+    "tsc": "tsc --noEmit"
+  },
+  "browserslist": [
+    "defaults"
+  ],
+  "dependencies": {
+    "@ant-design/icons": "^6.3.4",
+    "@ant-design/pro-components": "^3.1.14-2",
+    "antd": "^6.6.7",
+    "antd-style": "^4.1.0",
+    "clsx": "^2.1.1",
+    "dayjs": "^1.11.23",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@ant-design/cli": "^6.6.7",
+    "@biomejs/biome": "^2.6.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/react-helmet": "^6.1.11",
+    "@umijs/max": "^4.7.27",
+    "@umijs/max-plugin-openapi": "^2.0.3",
+    "cross-env": "^10.1.0",
+    "mockjs": "^1.1.0",
+    "react-doctor": "^0.9.18",
+    "typescript": "^7.0.2",
+    "vitest": "5.0.5"
+  },
+  "overrides": {
+    "@umijs/plugins": {
+      "@ant-design/pro-components": "$@ant-design/pro-components",
+      "axios": "^1.19.0"
+    },
+    "dva-immer": {
+      "immer": "^9.0.6"
+    },
+    "cosmiconfig": {
+      "js-yaml": "^4.3.1"
+    },
+    "postcss": "^8.5.23"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
