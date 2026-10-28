@@ -5,7 +5,11 @@
   "packageManager": "pnpm@11.15.1",
   "scripts": {
     "dev:api": "cd services/api && go run .",
-    "test:api": "cd services/api && go test ./..."
+    "test:api": "cd services/api && go test ./...",
+    "dev:web": "pnpm --filter web dev",
+    "build:web": "pnpm --filter web build",
+    "test:web": "pnpm --filter web test",
+    "lint:web": "pnpm --filter web lint"
   },
   "engines": {
     "node": ">=20.0.0"

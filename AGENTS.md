@@ -27,27 +27,35 @@ NexusAI 是暂定名称。项目首先用于全栈面试作品，随后逐步演
 
 ## 当前进度
 
-当前分支：`feat/01-go-zero-health`。
+当前分支：`feat/03-nextjs-skeleton`。
 
-截至 2026-10-28，尚无 Git 提交，第一步正在等待用户 review。
+截至 2026-10-28，第 1、2 步已提交；第 3 步已完成并等待用户 review，尚未提交。
 
-已完成：
+### 已完成并提交
 
-1. pnpm Monorepo 根结构与根级 API 脚本。
-2. go-zero 最小服务及 `GET /healthz`。
-3. `services/api/api/health.api` 契约。
-4. Handler 单元测试。
-5. 已验证 `go test ./...`、`go vet ./...`、gofmt 和真实 HTTP 请求。
-6. 真实响应为 `{"status":"ok","service":"nexus-api"}`。
+1. 第 1 步提交 `87788d5 feat: add go-zero health service`：pnpm Monorepo 根结构、go-zero 最小服务、`GET /healthz`、`.api` 契约和 Handler 单元测试。已验证 Go 测试、静态检查、格式和真实 HTTP 响应。
+2. 第 2 步提交 `30e763e feat: add postgres and redis infrastructure`：Docker Compose 配置 PostgreSQL 17、pgvector 和 Redis 7.4。已验证容器健康检查、PostgreSQL 17.11、pgvector 0.8.7、真实向量运算及 Redis 读写。
 
-goctl 因依赖下载超时未用于第一步代码生成，当前采用与 go-zero 标准结构一致的手写最小实现，保留 `.api` 契约。
+### 当前待 review 增量
 
-项目已从原任务工作区移动到 `H:\git\nexus-ai`，未携带工具链缓存、编译产物或 `node_modules`。
+第 3 步：Next.js 用户端骨架。
+
+- `apps/web` 使用 Next.js 16.4.3、React 19.3.0、TypeScript、Tailwind CSS 和 ESLint。
+- 已添加 NexusAI 最小首页、1 个页面渲染测试和根级 Web 脚本。
+- 已验证页面测试、ESLint、依赖对等检查、TypeScript 和生产构建。
+- 已验证 `npm run dev -- --port 7100`，真实首页返回 HTTP 200 且内容匹配。
+- 临时 Next.js 服务已停止，端口 7100 已释放。
+
+### 环境注意事项
+
+- Go 已安装在 `C:\Program Files\Go\bin`，但当前 Shell 的 PATH 可能未包含它。
+- Docker Desktop 可用；需要时将 `C:\Program Files\Docker\Docker\resources\bin` 加入 PATH，以便 Compose 和凭据助手正常工作。
+- pnpm 未全局安装，可通过 `npx --yes pnpm@11.15.1 <命令>` 执行；Web 依赖已经安装。
+- goctl 因依赖下载超时未用于第 1 步代码生成，当前采用与 go-zero 标准结构一致的手写最小实现，保留 `.api` 契约。
+- 第 2 步验证容器已停止并删除，命名数据卷保留；当前无项目相关临时服务或后台进程。
 
 ## 下一步
 
-第二步：配置并验证 PostgreSQL、pgvector、Redis。
+第四步：前后端 REST 连通。
 
-当前环境曾检测到 Docker 不在 PATH，因此容器步骤需要先确认 Docker 是否已安装；如果无法运行容器，必须明确标记验证受阻，不能声称通过。
-
-后续步骤依次为：Next.js 骨架、前后端 REST 连通、Ant Design Pro、CopilotKit Runtime、go-zero Mock AG-UI 流、完整 AI 流式闭环。
+后续步骤依次为：Ant Design Pro、CopilotKit Runtime、go-zero Mock AG-UI 流、完整 AI 流式闭环。
