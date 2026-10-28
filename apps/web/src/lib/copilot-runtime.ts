@@ -4,6 +4,7 @@ import {
   InMemoryAgentRunner,
 } from "@copilotkit/runtime/v2";
 
+// 发给 services/api 进程
 export const NEXUS_AG_UI_AGENT_URL =
   process.env.NEXUS_AG_UI_AGENT_URL ?? "http://127.0.0.1:8080/ag-ui";
 
