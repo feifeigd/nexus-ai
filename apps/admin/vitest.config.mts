@@ -4,9 +4,9 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   resolve: {
     alias: {
-      '@': join(__dirname, 'src'),
-      '@root': join(__dirname),
-      '@@': join(__dirname, 'src', '.umi'),
+      '@': join(import.meta.dirname, 'src'),
+      '@root': join(import.meta.dirname),
+      '@@': join(import.meta.dirname, 'src', '.umi'),
     },
   },
   test: {

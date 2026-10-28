@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { defineConfig } from '@umijs/max';
 import defaultSettings from './defaultSettings';
@@ -51,13 +52,15 @@ export default defineConfig({
   request: {},
   access: {},
   plugins: ['@umijs/max-plugin-openapi'],
-  openAPI: [
-    {
-      requestLibPath: "import { request } from '@umijs/max'",
-      schemaPath: OPENAPI_SCHEMA_PATH,
-      mock: false,
-    },
-  ],
+  openAPI: existsSync(OPENAPI_SCHEMA_PATH)
+    ? [
+        {
+          requestLibPath: "import { request } from '@umijs/max'",
+          schemaPath: OPENAPI_SCHEMA_PATH,
+          mock: false,
+        },
+      ]
+    : [],
   headScripts: [
     { src: join(PUBLIC_PATH, 'scripts/loading.js'), async: true },
   ],
@@ -65,6 +68,7 @@ export default defineConfig({
     include: ['src/pages/**/_mock.ts'],
   },
   exportStatic: {},
+  esbuildMinifyIIFE: true,
   define: {
     'process.env.CI': process.env.CI,
     'process.env.COMMIT_HASH': process.env.COMMIT_HASH || '',

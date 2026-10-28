@@ -1,5 +1,5 @@
 import { message, notification } from 'antd';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { errorConfig } from './requestErrorConfig';
 
 vi.mock('antd', () => ({
@@ -26,6 +26,15 @@ describe('requestErrorConfig', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal('window', {
+      location: { href: '' },
+      stop: vi.fn(),
+    });
+    vi.stubGlobal('navigator', { onLine: true });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   describe('errorThrower', () => {

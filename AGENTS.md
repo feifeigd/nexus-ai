@@ -31,7 +31,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 当前分支：`feat/05-ant-design-pro`。
 
-截至 2026-10-28，第 1 至 4 步已合并到 `main` 并推送远端，合并提交为 `e01d7ef`。第 5 步正在开发，尚未提交，也未进入通过状态。
+截至 2026-10-28，第 1 至 4 步已合并到 `main` 并推送远端，合并提交为 `e01d7ef`。第 5 步代码快照已提交为 `e3070ed`，后续验证修复尚未提交，当前等待用户 review。
 
 ### 已完成并提交
 
@@ -40,29 +40,30 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 3. 第 3 步提交 `302f82e feat: add nextjs web skeleton`：Next.js 16.4.3、React 19.3.0、TypeScript、Tailwind CSS、ESLint、NexusAI 最小首页、页面测试和根级 Web 脚本。
 4. 第 4 步提交 `b0b33cc feat: connect web to go-zero health api`：Next.js 服务端请求 go-zero 健康接口，使用 `Suspense` 保留静态页面外壳，并区分 API 连接状态。已验证测试、静态检查、生产构建和真实前后端联调。
 
-### 当前开发增量
+### 当前待 review 增量
 
 第 5 步：Ant Design Pro 管理后台骨架。
 
-- 已从官方 Ant Design Pro v6 模板建立 `apps/admin`，保留 ProLayout、登录、权限和基础异常页面。
-- 已移除上游 AI 聊天演示、表格示例、Cloudflare Worker、Playwright、Tailwind 和上游 CI 等内容；后台正式 AI 聊天助手属于必需能力，不随演示页一起移除出项目规划。
-- 已添加 NexusAI 控制台首页、Node 环境 smoke test，以及根级 `dev:admin`、`build:admin`、`test:admin`、`lint:admin` 脚本。
+- 已从官方 Ant Design Pro v6 模板建立 `apps/admin`，保留 ProLayout、登录、权限和基础异常页面，并添加 NexusAI 控制台首页。
+- 已移除上游 AI 聊天演示、表格示例、Cloudflare Worker、Playwright、Tailwind 和上游 CI 等内容；后台正式 AI 聊天助手属于必需能力，后续按 NexusAI 技术路线实现。
+- 已添加后台及根级开发、测试、检查、构建、OpenAPI 生成和 React Doctor 命令；OpenAPI 支持通过 `OPENAPI_SCHEMA_PATH` 指定真实 JSON，缺少 Schema 时不会阻塞开发服务器。
 - 已在仓库根目录添加精简 GitHub Actions CI、Dependabot、Issue 表单和 PR 模板；YAML 语法检查已通过，GitHub Actions 尚未实际运行。
-- `git diff --check` 和根／后台 `package.json` JSON 解析已通过。
-- 依赖解析和 pnpm 锁文件更新已完成，但 H 盘大量小文件链接多次超过单次 300 秒执行限制，可执行入口尚未生成。
-- 后台测试、Biome、antd lint、TypeScript、生产构建和真实页面验证均尚未执行，不能视为已完成或提交。
+- 已验证 4 个测试文件共 28 个用例通过，Biome 和 TypeScript 检查通过，React Doctor 得分 100/100。
+- Ant Design 检查已执行，存在 8 条静态 `message`／`notification` 无法读取 `ConfigProvider` 上下文的用法警告，无弃用、无障碍或性能错误。
+- 生产构建通过；真实开发服务器根入口 `GET /` 返回 HTTP 200 并包含 `NexusAI Admin`。
+- 临时服务器已停止，端口 7100 和 8000 无监听，当前无项目相关 Node 进程。
 
 ### 环境注意事项
 
 - Go 已安装在 `C:\Program Files\Go\bin`，但当前 Shell 的 PATH 可能未包含它。
 - Docker Desktop 可用；需要时将 `C:\Program Files\Docker\Docker\resources\bin` 加入 PATH，以便 Compose 和凭据助手正常工作。
-- pnpm 未全局安装，可通过 `npx --yes pnpm@11.15.1 <命令>` 执行；Web 依赖已经安装。
+- pnpm 未全局安装，可通过 `npx --yes pnpm@11.15.1 <命令>` 执行；Web 和 Admin 依赖均已安装。
 - 当前 npm 默认源为 `https://registry.npmmirror.com`，后台依赖解析已使用官方源 `https://registry.npmjs.org` 完成。
 - goctl 因依赖下载超时未用于第 1 步代码生成，当前采用与 go-zero 标准结构一致的手写最小实现，保留 `.api` 契约。
 - 第 2 步验证容器已停止并删除，命名数据卷保留；当前无项目相关临时服务或后台进程。
 
 ## 下一步
 
-先完成后台依赖安装与全部验证，再暂停等待用户 review。
+等待用户 review 第 5 步验证修复；用户明确允许后提交当前增量。
 
 后续步骤依次为：用户端与管理后台 CopilotKit 接入、go-zero Mock AG-UI 流、后台 AI 工具调用与人工审批、完整 AI 流式闭环。

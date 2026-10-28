@@ -15,7 +15,7 @@
     "test:admin": "pnpm --filter admin test",
     "lint:admin": "pnpm --filter admin lint",
     "openapi:admin": "pnpm --filter admin openapi",
-    "doctor:admin": "pnpm --filter admin doctor"
+    "doctor:admin": "pnpm --filter admin run doctor"
   },
   "engines": {
     "node": ">=20.0.0"
