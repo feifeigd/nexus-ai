@@ -17,6 +17,12 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 当前不引入 NestJS、Python Agent 服务、Kubernetes 或复杂微服务体系。
 - 工具权限、租户隔离、参数校验、人工审批和审计必须以 go-zero 后端为权威，不能依赖模型输出或前端状态。
 
+## 依赖升级约束
+
+- 当前 `@copilotkit/runtime@1.81.0` 将 `@ag-ui/client`、`@ag-ui/core`、`@ag-ui/encoder` 固定为 `1.0.2`；`@copilotkit/core@1.81.0` 将 `@ag-ui/client` 固定为 `1.0.2`；`@copilotkit/react-core@1.81.0` 将 `@ag-ui/client`、`@ag-ui/core` 固定为 `1.0.2`。
+- 上述 CopilotKit 包仍固定 AG-UI `1.0.2` 时，禁止单独升级 AG-UI 依赖，也不要通过 pnpm overrides 等方式强行绕过版本约束。只有这些相关 CopilotKit 包全部升级、且其依赖声明共同兼容目标 AG-UI 版本后，才可同步升级 AG-UI。
+- AG-UI 或 CopilotKit 升级前必须核对实际包依赖声明；升级后必须确认锁文件不保留互不兼容的 AG-UI 重复版本，并执行 Web 测试、Lint 和生产构建，未实际执行的验证不得写成通过。
+
 ## 协作规则
 
 - 任务尽量拆细，每一步都必须可以运行和验证。
