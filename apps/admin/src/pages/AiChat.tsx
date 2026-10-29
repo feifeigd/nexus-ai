@@ -6,8 +6,8 @@ import type React from 'react';
 export const AiChatContent: React.FC = () => (
   <Card>
     <Alert
-      title="NexusAI Mock Agent"
-      description="当前仅提供 Mock 流式回复，不会执行后台操作；业务工具、权限校验和人工审批将在后续接入。"
+      title="NexusAI 管理助手"
+      description="支持 Mock 或 OpenAI 兼容模型，回复来源由 go-zero 配置；当前不会执行后台业务操作，业务工具、权限校验和人工审批将在后续接入。"
       type="info"
       showIcon
       style={{ marginBottom: 16 }}
@@ -18,8 +18,8 @@ export const AiChatContent: React.FC = () => (
         style={{ height: '100%' }}
         labels={{
           chatInputPlaceholder: '输入消息，按 Enter 发送…',
-          chatDisclaimerText: '当前为 Mock 流式回复，不会执行真实后台操作。',
-          welcomeMessageText: '向 NexusAI 管理后台 Mock Agent 发送一条消息。',
+          chatDisclaimerText: '回复来源由 go-zero 配置；不会执行真实后台操作。',
+          welcomeMessageText: '向 NexusAI 管理后台 AI 助手发送一条消息。',
           modalHeaderTitle: 'NexusAI 管理助手',
         }}
       />
