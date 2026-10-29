@@ -41,6 +41,7 @@ type chatCompletionChunk struct {
 		Delta struct {
 			Content string `json:"content"`
 		} `json:"delta"`
+		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
 	Error json.RawMessage `json:"error"`
 }
@@ -114,6 +115,7 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 64*1024), maxModelEventSize)
+	streamCompleted := false
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" || strings.HasPrefix(line, ":") || !strings.HasPrefix(line, "data:") {
@@ -121,6 +123,7 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 		}
 		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
 		if data == "[DONE]" {
+			streamCompleted = true
 			break
 		}
 		var chunk chatCompletionChunk
@@ -131,6 +134,9 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 			return fmt.Errorf("model provider returned a stream error")
 		}
 		for _, choice := range chunk.Choices {
+			if choice.FinishReason != "" {
+				streamCompleted = true
+			}
 			if choice.Delta.Content == "" {
 				continue
 			}
@@ -145,6 +151,9 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 	}
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("read model stream: %w", err)
+	}
+	if !streamCompleted {
+		return fmt.Errorf("model provider stream ended before completion")
 	}
 	if err := emit(types.AGUIEvent{Type: "TEXT_MESSAGE_END", MessageID: messageID}); err != nil {
 		return err

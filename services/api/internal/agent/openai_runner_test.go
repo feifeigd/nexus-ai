@@ -126,6 +126,105 @@ func TestOpenAIRunnerRejectsProviderErrorBeforeEmitting(t *testing.T) {
 	}
 }
 
+func TestOpenAIRunnerRejectsIncompleteStream(t *testing.T) {
+	tests := map[string]struct {
+		contentType string
+		body        string
+	}{
+		"truncated SSE": {
+			contentType: "text/event-stream",
+			body:        "data: {\"choices\":[{\"delta\":{\"content\":\"不完整\"}}]}\n\n",
+		},
+		"non-SSE response": {
+			contentType: "application/json",
+			body:        `{"choices":[]}`,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", test.contentType)
+				fmt.Fprint(w, test.body)
+			}))
+			defer server.Close()
+
+			runner, err := NewOpenAIRunner(OpenAIConfig{
+				BaseURL: server.URL,
+				Model:   "test-model",
+			}, server.Client())
+			if err != nil {
+				t.Fatalf("create OpenAI runner: %v", err)
+			}
+			input := types.AGUIRunInput{
+				ThreadID: "thread-1",
+				RunID:    "run-1",
+				Messages: []types.AGUIMessage{{Role: "user", Content: "你好"}},
+			}
+			var events []types.AGUIEvent
+			err = runner.Run(context.Background(), input, func(event types.AGUIEvent) error {
+				events = append(events, event)
+				return nil
+			})
+			if err == nil || !strings.Contains(err.Error(), "before completion") {
+				t.Fatalf("expected an incomplete stream error, got %v", err)
+			}
+			for _, event := range events {
+				if event.Type == "TEXT_MESSAGE_END" || event.Type == "RUN_FINISHED" {
+					t.Fatalf("incomplete stream must not emit successful completion events: %+v", events)
+				}
+			}
+		})
+	}
+}
+
+func TestOpenAIRunnerAcceptsFinishReasonWithoutDone(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"完整回答\"}}]}\n\n")
+		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n")
+	}))
+	defer server.Close()
+
+	runner, err := NewOpenAIRunner(OpenAIConfig{
+		BaseURL: server.URL,
+		Model:   "test-model",
+	}, server.Client())
+	if err != nil {
+		t.Fatalf("create OpenAI runner: %v", err)
+	}
+	input := types.AGUIRunInput{
+		ThreadID: "thread-1",
+		RunID:    "run-1",
+		Messages: []types.AGUIMessage{{Role: "user", Content: "你好"}},
+	}
+	var events []types.AGUIEvent
+	err = runner.Run(context.Background(), input, func(event types.AGUIEvent) error {
+		events = append(events, event)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("run stream with finish reason: %v", err)
+	}
+	wantTypes := []string{
+		"RUN_STARTED",
+		"TEXT_MESSAGE_START",
+		"TEXT_MESSAGE_CONTENT",
+		"TEXT_MESSAGE_END",
+		"RUN_FINISHED",
+	}
+	var gotTypes []string
+	for _, event := range events {
+		gotTypes = append(gotTypes, event.Type)
+	}
+	if !reflect.DeepEqual(gotTypes, wantTypes) {
+		t.Fatalf("expected events %v, got %v", wantTypes, gotTypes)
+	}
+	if got := events[2].Delta; got != "完整回答" {
+		t.Fatalf("unexpected reply text: %q", got)
+	}
+}
+
 func TestNewOpenAIRunnerRequiresModel(t *testing.T) {
 	if _, err := NewOpenAIRunner(OpenAIConfig{}, nil); err == nil {
 		t.Fatal("expected a missing model error")
