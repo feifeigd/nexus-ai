@@ -12,4 +12,9 @@ func RegisterHandlers(server *rest.Server) {
 		Path:    "/healthz",
 		Handler: HealthHandler(),
 	})
+	server.AddRoute(rest.Route{
+		Method:  http.MethodPost,
+		Path:    "/ag-ui",
+		Handler: AGUIHandler(),
+	})
 }

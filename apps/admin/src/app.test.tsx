@@ -32,6 +32,10 @@ vi.mock('@/components', () => ({
   VersionDropdown: () => null,
 }));
 
+vi.mock('@/components/CopilotProvider', () => ({
+  CopilotProvider: ({ children }: any) => children,
+}));
+
 vi.mock('@ant-design/pro-components', () => ({
   SettingDrawer: () => null,
 }));

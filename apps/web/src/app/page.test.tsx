@@ -1,13 +1,18 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import Home from "./page";
 
+vi.mock("./chat-panel", () => ({
+  default: () => <div data-testid="chat-panel" />,
+}));
+
 describe("Home", () => {
-  it("renders the NexusAI ready state", () => {
+  it("renders the NexusAI chat experience", () => {
     const html = renderToStaticMarkup(<Home />);
 
     expect(html).toContain("NexusAI");
-    expect(html).toContain("用户端 Web 骨架已就绪。");
+    expect(html).toContain("流式聊天链路已接通");
+    expect(html).toContain('data-testid="chat-panel"');
   });
 });
