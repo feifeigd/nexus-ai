@@ -2,13 +2,16 @@ package handler
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
 
+	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/types"
 )
 
@@ -25,7 +28,7 @@ func TestAGUIHandlerStreamsMockRun(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/ag-ui", strings.NewReader(body))
 	resp := httptest.NewRecorder()
 
-	AGUIHandler().ServeHTTP(resp, req)
+	AGUIHandler(agent.MockRunner{}).ServeHTTP(resp, req)
 
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, resp.Code, resp.Body.String())
@@ -80,7 +83,7 @@ func TestAGUIHandlerRejectsInvalidInput(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/ag-ui", strings.NewReader(body))
 			resp := httptest.NewRecorder()
 
-			AGUIHandler().ServeHTTP(resp, req)
+			AGUIHandler(agent.MockRunner{}).ServeHTTP(resp, req)
 
 			if resp.Code != http.StatusBadRequest {
 				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, resp.Code)
@@ -89,6 +92,57 @@ func TestAGUIHandlerRejectsInvalidInput(t *testing.T) {
 				t.Error("invalid input must be rejected before starting the event stream")
 			}
 		})
+	}
+}
+
+type runnerFunc func(context.Context, types.AGUIRunInput, agent.EmitFunc) error
+
+func (f runnerFunc) Run(ctx context.Context, input types.AGUIRunInput, emit agent.EmitFunc) error {
+	return f(ctx, input, emit)
+}
+
+func TestAGUIHandlerReturnsBadGatewayBeforeStream(t *testing.T) {
+	runner := runnerFunc(func(context.Context, types.AGUIRunInput, agent.EmitFunc) error {
+		return errors.New("provider unavailable")
+	})
+	req := httptest.NewRequest(http.MethodPost, "/ag-ui", strings.NewReader(
+		`{"threadId":"thread-1","runId":"run-1","messages":[{"role":"user","content":"hello"}]}`,
+	))
+	resp := httptest.NewRecorder()
+
+	AGUIHandler(runner).ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusBadGateway {
+		t.Fatalf("expected status %d, got %d", http.StatusBadGateway, resp.Code)
+	}
+	if strings.Contains(resp.Header().Get("Content-Type"), "text/event-stream") {
+		t.Fatal("provider failure must be rejected before starting SSE")
+	}
+}
+
+func TestAGUIHandlerEmitsRunErrorAfterStreamStarts(t *testing.T) {
+	runner := runnerFunc(func(_ context.Context, input types.AGUIRunInput, emit agent.EmitFunc) error {
+		if err := emit(types.AGUIEvent{Type: "RUN_STARTED", ThreadID: input.ThreadID, RunID: input.RunID}); err != nil {
+			return err
+		}
+		return errors.New("provider secret details")
+	})
+	req := httptest.NewRequest(http.MethodPost, "/ag-ui", strings.NewReader(
+		`{"threadId":"thread-1","runId":"run-1","messages":[{"role":"user","content":"hello"}]}`,
+	))
+	resp := httptest.NewRecorder()
+
+	AGUIHandler(runner).ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.Code)
+	}
+	events := decodeAGUIEvents(t, resp.Body.String())
+	if len(events) != 2 || events[1].Type != "RUN_ERROR" {
+		t.Fatalf("expected RUN_STARTED followed by RUN_ERROR, got %+v", events)
+	}
+	if events[1].Message != "agent run failed" || strings.Contains(resp.Body.String(), "provider secret details") {
+		t.Fatalf("unexpected public error event: %+v", events[1])
 	}
 }
 
