@@ -12,7 +12,11 @@ flowchart LR
     end
 
     subgraph WebApp["apps/web · Next.js :3000"]
-        Runtime["CopilotKit Runtime v2<br/>/api/copilotkit<br/>协议适配与 Agent 注册"]
+        WebRuntime["Web CopilotKit Runtime v2<br/>/api/copilotkit<br/>协议适配与 Agent 注册"]
+    end
+
+    subgraph RuntimeService["apps/agent-runtime · 独立 Node.js :4000"]
+        AdminRuntime["Admin CopilotKit Runtime v2<br/>/api/copilotkit<br/>协议适配与 Agent 注册"]
     end
 
     subgraph Backend["services/api · go-zero 模块化单体 :8080"]
@@ -24,9 +28,10 @@ flowchart LR
 
     Model["OpenAI 兼容模型服务<br/>POST /chat/completions"]
 
-    WebUI -->|"同源 HTTP / SSE"| Runtime
-    AdminUI -->|"开发代理到 Web :3000"| Runtime
-    Runtime -->|"HttpAgent · AG-UI"| AGUI
+    WebUI -->|"同源 HTTP / SSE"| WebRuntime
+    AdminUI -->|"同源请求 · 开发代理到 :4000"| AdminRuntime
+    WebRuntime -->|"HttpAgent · AG-UI"| AGUI
+    AdminRuntime -->|"HttpAgent · AG-UI"| AGUI
     Runner -.->|"openai 模式 · SSE"| Model
     WebUI -.->|"Next.js 服务端请求"| Health
 ```
@@ -35,14 +40,15 @@ flowchart LR
 
 | 组件 | 当前职责 | 明确不负责 |
 | --- | --- | --- |
-| `apps/web` | 用户端页面、聊天 UI、API 健康状态；承载 CopilotKit Runtime | 企业业务规则、权限最终判定 |
-| `apps/admin` | 管理后台页面与 AI 聊天 UI；开发环境代理 Runtime 请求 | 生产反向代理、业务权限权威 |
+| `apps/web` | 用户端页面、聊天 UI、API 健康状态；承载 Web 自己的 CopilotKit Runtime | 企业业务规则、权限最终判定、Admin Runtime 托管 |
+| `apps/admin` | 管理后台页面与 AI 聊天 UI；开发环境代理到独立 Runtime | 生产反向代理、业务权限权威 |
+| `apps/agent-runtime` | 独立运行的 Admin CopilotKit Runtime，默认监听 `127.0.0.1:4000` | 企业业务、模型调用、用户端页面托管 |
 | CopilotKit Runtime | Agent 发现、`default` Agent 注册、前端协议适配、AG-UI 转发 | 企业业务、模型调用、租户隔离、审批、审计 |
 | go-zero API | 请求校验、AG-UI SSE 响应、Agent Runner 选择 | 当前尚未接入真实业务工具与持久化 |
 | Agent Runner | Mock 流式回复，或调用 OpenAI 兼容模型并转换流式事件 | 绕过服务端直接执行后台操作 |
 | PostgreSQL / pgvector / Redis | Docker Compose 已提供本地基础设施 | 当前聊天链路尚未读写这些组件 |
 
-Runtime 仅允许转发 `authorization` 和 `x-tenant-id` 请求头，以减少浏览器请求头的无意泄露。请求头转发只是协议能力，不代表认证或租户隔离已经实现。
+Web 与 Admin 使用彼此独立的 Runtime 进程，关闭 Web 不会中断 Admin 的 AI 聊天链路。两个 Runtime 都只允许转发 `authorization` 和 `x-tenant-id` 请求头，以减少浏览器请求头的无意泄露。请求头转发只是协议能力，不代表认证或租户隔离已经实现。
 
 ## 2. 流式聊天时序
 
@@ -51,7 +57,7 @@ sequenceDiagram
     autonumber
     actor User as 用户
     participant UI as Web / Admin
-    participant Runtime as CopilotKit Runtime
+    participant Runtime as Web 内嵌 / Admin 独立 Runtime
     participant API as go-zero AG-UI
     participant Model as OpenAI 兼容服务
 
@@ -143,7 +149,7 @@ flowchart TB
 ### 4.1 一个权威后端
 
 - go-zero 是唯一企业业务与 Agent 后端。
-- Copilot Runtime 只存在于 Next.js 内，负责 CopilotKit 与 AG-UI 的协议适配，不重复实现企业业务。
+- Copilot Runtime 只负责 CopilotKit 与 AG-UI 的协议适配，不重复实现企业业务。Web 使用 Next.js 内嵌 Runtime，Admin 使用 `apps/agent-runtime` 独立服务；两者都不是新的 Agent 后端。
 - 第一阶段使用模块化单体，不引入 NestJS、Python Agent 服务、Kubernetes 或复杂微服务体系。
 
 ### 4.2 模型不是权限边界

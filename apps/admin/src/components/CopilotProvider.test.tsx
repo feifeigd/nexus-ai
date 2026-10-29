@@ -23,7 +23,7 @@ vi.mock('@copilotkit/react-core/v2', () => ({
 }));
 
 describe('CopilotProvider', () => {
-  it('connects to the shared runtime with separate agent endpoints', () => {
+  it('connects to the independent runtime with separate agent endpoints', () => {
     const html = renderToStaticMarkup(
       <CopilotProvider>
         <span>后台聊天</span>
