@@ -29,9 +29,9 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 当前进度
 
-当前分支：`feat/09-admin-copilotkit-chat`。
+当前分支：`feat/10-go-zero-real-model`。
 
-截至 2026-10-29，第 1 至 5 步已合并到 `main` 并推送远端。第 5 步合并提交为 `34a7467`，第 6 步提交为 `4fe5376`，第 7 步提交为 `1e0e7b0`，第 8 步提交为 `0ded9cf`。第 9 步已经用户批准，本次提交包含管理后台 Mock 聊天及后续启动修复。
+截至 2026-10-29，第 1 至 9 步已合并到 `main` 并推送远端。第 9 步提交为 `c810437`，合并提交为 `9f0d48b`；后续 CI 修复提交为 `8e747aa`。第 10 步实现和本地验证已完成，正在等待用户 review，尚未提交。
 
 ### 已完成并提交
 
@@ -43,7 +43,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 6. 第 6 步提交 `4fe5376 feat: add copilotkit runtime`：Next.js CopilotKit Runtime v2、用户端 Provider、`default` Agent 注册及 Agent 发现契约测试。已验证 Web 测试、ESLint、生产构建和真实 Runtime 端点。
 7. 第 7 步提交 `1e0e7b0 feat: add go-zero ag-ui mock stream`：go-zero `POST /ag-ui`、SSE Mock 事件流、请求校验、Go 测试和跨平台 Python 联调脚本。已验证直接及经 Runtime 的完整协议链路。
 8. 第 8 步提交 `0ded9cf feat: add web mock chat stream`：用户端 CopilotChat、响应式双栏首页和聊天测试。已验证 Web 测试、ESLint、生产构建和真实浏览器流式聊天闭环。
-9. 第 9 步（本次提交）：Admin 根容器接入 `CopilotKitProvider`，新增 `/ai-chat` Mock 流式聊天页面，复用 Web 同源 `/api/copilotkit` Runtime，不新增 Agent 后端。补充 Admin 开发代理、Provider 和页面测试、`swagger-ui-dist` 显式依赖、菜单国际化键、现代浏览器构建目标及 goctl VS Code 插件推荐。
+9. 第 9 步提交 `c810437 feat: add admin copilotkit chat`：Admin 根容器接入 `CopilotKitProvider`，新增 `/ai-chat` Mock 流式聊天页面，复用 Web 同源 `/api/copilotkit` Runtime，不新增 Agent 后端。补充 Admin 开发代理、Provider 和页面测试、`swagger-ui-dist` 显式依赖、菜单国际化键、现代浏览器构建目标及 goctl VS Code 插件推荐。
 
 ### 第 9 步验证记录
 
@@ -52,6 +52,15 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 最后的 ES2017 Webpack 输出目标修改已通过 TypeScript 检查，但随后的 3 次生产构建均在 5 分钟工具时限内未完成，不能标记为最新配置构建通过，后续需要重新验证。
 - 已在真实浏览器中验证 Admin Mock 流式聊天：`/info` 与 Agent `/run` 请求成功，中文消息收到完整 Mock 回复；发送消息过程中未捕获新的控制台错误。
 - 真实模型、知识库、业务工具、租户权限、人工审批和持久化尚未接入；本步没有验证真实后台认证或业务操作。
+
+### 第 10 步变更与验证记录
+
+- go-zero 新增可注入的 Agent `Runner`，保留默认 Mock 流，并新增 OpenAI 兼容 `POST /chat/completions` 流式客户端，将模型文本增量转换为 AG-UI 事件。
+- 通过 `NEXUS_AGENT_MODE`、`NEXUS_OPENAI_BASE_URL`、`NEXUS_OPENAI_API_KEY` 和 `NEXUS_OPENAI_MODEL` 配置模型；根目录 `.env.example` 提供示例。本地兼容服务允许不配置 API Key。
+- 模型请求在 SSE 开始前失败时返回 HTTP 502；流开始后失败时发送通用 `RUN_ERROR`，内部错误仅记录到服务端日志。
+- `go test ./...`、`go vet ./...`、gofmt 和 `git diff --check` 均已执行通过。
+- 已运行独立进程级验证：本地 OpenAI 兼容假服务收到正确的 `/v1/chat/completions` 路径、Bearer 测试密钥、模型名和消息；go-zero 输出两条中文文本增量及完整有序的 AG-UI 事件流。验证进程、假服务和临时脚本已清理。
+- 尚未使用真实供应商和真实密钥验证，也尚未重新验证 Next.js Runtime 到 Web、Admin 的真实模型浏览器闭环，不能声称这些验证已通过。
 
 ### 环境注意事项
 
@@ -62,9 +71,10 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - goctl 因依赖下载超时未用于第 1 步代码生成，当前采用与 go-zero 标准结构一致的手写最小实现，保留 `.api` 契约。
 - 第 2 步验证容器已停止并删除，命名数据卷保留。
 - 第 9 步临时 Web、Admin 静态服务、无头浏览器、脚本和日志已清理；用户自行启动的 API、Web 和 Admin 开发服务不在自动清理范围内。
+- 第 10 步进程级验证产生的临时服务、配置、二进制和脚本已清理。
 
 ## 下一步
 
-第 10 步：在 go-zero 中接入真实模型，保留 Mock 开关，通过环境变量配置 OpenAI 兼容端点、模型和密钥，补充后端测试，并验证 Web 与 Admin 的真实流式聊天闭环。
+等待用户 review 第 10 步；只有用户明确回复“通过并提交”后才可提交。真实供应商的 Web 与 Admin 浏览器闭环仍需配置有效模型端点和密钥后验证。
 
 后续步骤依次为：后台 AI 工具调用与人工审批、企业知识库与智能工单。

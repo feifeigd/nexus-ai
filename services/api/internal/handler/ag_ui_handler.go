@@ -4,15 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
+	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/types"
 )
 
 const maxAGUIRequestSize = 1 << 20
 
-func AGUIHandler() http.HandlerFunc {
+func AGUIHandler(runner agent.Runner) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var input types.AGUIRunInput
 		body := http.MaxBytesReader(w, r.Body, maxAGUIRequestSize)
@@ -25,8 +27,7 @@ func AGUIHandler() http.HandlerFunc {
 			return
 		}
 
-		prompt, ok := lastUserText(input.Messages)
-		if !ok {
+		if _, ok := agent.LastUserText(input.Messages); !ok {
 			http.Error(w, "a user message with plain text content is required", http.StatusBadRequest)
 			return
 		}
@@ -37,42 +38,44 @@ func AGUIHandler() http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-cache")
-		w.Header().Set("X-Accel-Buffering", "no")
-		w.WriteHeader(http.StatusOK)
-
-		messageID := input.RunID + "-assistant"
-		events := []types.AGUIEvent{
-			{Type: "RUN_STARTED", ThreadID: input.ThreadID, RunID: input.RunID},
-			{Type: "TEXT_MESSAGE_START", MessageID: messageID, Role: "assistant"},
-			{Type: "TEXT_MESSAGE_CONTENT", MessageID: messageID, Delta: "NexusAI Mock Agent 已收到："},
-			{Type: "TEXT_MESSAGE_CONTENT", MessageID: messageID, Delta: prompt},
-			{Type: "TEXT_MESSAGE_END", MessageID: messageID},
-			{Type: "RUN_FINISHED", ThreadID: input.ThreadID, RunID: input.RunID},
-		}
-
-		for _, event := range events {
-			if r.Context().Err() != nil {
-				return
+		started := false
+		err := runner.Run(r.Context(), input, func(event types.AGUIEvent) error {
+			if !started {
+				w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+				w.Header().Set("Cache-Control", "no-cache")
+				w.Header().Set("X-Accel-Buffering", "no")
+				w.WriteHeader(http.StatusOK)
+				started = true
 			}
 			if err := writeAGUIEvent(w, event); err != nil {
-				return
+				return err
 			}
 			flusher.Flush()
+			return nil
+		})
+		if err == nil {
+			if !started {
+				http.Error(w, "agent returned an empty run", http.StatusBadGateway)
+			}
+			return
 		}
-	}
-}
+		if r.Context().Err() != nil {
+			return
+		}
 
-func lastUserText(messages []types.AGUIMessage) (string, bool) {
-	for i := len(messages) - 1; i >= 0; i-- {
-		if messages[i].Role != "user" {
-			continue
+		log.Printf("AG-UI run %s failed: %v", input.RunID, err)
+		if !started {
+			http.Error(w, "agent run failed", http.StatusBadGateway)
+			return
 		}
-		text, ok := messages[i].Content.(string)
-		return text, ok
+		_ = writeAGUIEvent(w, types.AGUIEvent{
+			Type:     "RUN_ERROR",
+			ThreadID: input.ThreadID,
+			RunID:    input.RunID,
+			Message:  "agent run failed",
+		})
+		flusher.Flush()
 	}
-	return "", false
 }
 
 func writeAGUIEvent(w io.Writer, event types.AGUIEvent) error {
