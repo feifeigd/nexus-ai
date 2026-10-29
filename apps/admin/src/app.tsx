@@ -19,6 +19,7 @@ import {
   OfflineBanner,
   VersionDropdown,
 } from '@/components';
+import { CopilotProvider } from '@/components/CopilotProvider';
 import { currentUser as queryCurrentUser } from '@/services/ant-design-pro/api';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
@@ -196,9 +197,9 @@ export const request: RequestConfig = {
 
 export function rootContainer(container: React.ReactNode) {
   return (
-    <>
+    <CopilotProvider>
       <OfflineBanner />
       <ErrorBoundary>{container}</ErrorBoundary>
-    </>
+    </CopilotProvider>
   );
 }

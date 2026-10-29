@@ -92,7 +92,10 @@ def run_test(target: str, message: str) -> None:
 
     print("PASS: HTTP 200, SSE event sequence and reply text are correct.")
 
-
+# 直接测试 go-zero：
+#   python scripts/test-ag-ui.py api
+# 测试 Next.js Runtime 完整链路：
+#   python scripts/test-ag-ui.py runtime
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("target", choices=URLS, nargs="?", default="api")

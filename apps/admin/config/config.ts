@@ -69,6 +69,9 @@ export default defineConfig({
   },
   exportStatic: {},
   esbuildMinifyIIFE: true,
+  chainWebpack(config) {
+    config.target(['web', 'es2017']);
+  },
   define: {
     'process.env.CI': process.env.CI,
     'process.env.COMMIT_HASH': process.env.COMMIT_HASH || '',

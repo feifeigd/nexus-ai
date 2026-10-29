@@ -4,7 +4,7 @@ export default [
     layout: false,
     routes: [
       {
-        name: '登录',
+        name: 'login',
         path: '/user/login',
         component: './user/login',
       },
@@ -12,13 +12,19 @@ export default [
   },
   {
     path: '/welcome',
-    name: '欢迎',
+    name: 'welcome',
     icon: 'smile',
     component: './Welcome',
   },
   {
+    path: '/ai-chat',
+    name: 'chatbot',
+    icon: 'robot',
+    component: './AiChat',
+  },
+  {
     path: '/admin',
-    name: '管理页',
+    name: 'admin',
     icon: 'crown',
     access: 'canAdmin',
     routes: [
@@ -28,7 +34,7 @@ export default [
       },
       {
         path: '/admin/sub-page',
-        name: '二级管理页',
+        name: 'sub-page',
         component: './Admin',
       },
     ],

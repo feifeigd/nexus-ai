@@ -29,9 +29,9 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 当前进度
 
-当前分支：`feat/07-go-zero-ag-ui-mock`。
+当前分支：`feat/09-admin-copilotkit-chat`。
 
-截至 2026-10-29，第 1 至 5 步已合并到 `main` 并推送远端。第 5 步合并提交为 `34a7467`，第 6 步提交为 `4fe5376`。第 7 步变更尚未提交，当前等待用户 review。
+截至 2026-10-29，第 1 至 5 步已合并到 `main` 并推送远端。第 5 步合并提交为 `34a7467`，第 6 步提交为 `4fe5376`，第 7 步提交为 `1e0e7b0`，第 8 步提交为 `0ded9cf`。第 9 步已经用户批准，本次提交包含管理后台 Mock 聊天及后续启动修复。
 
 ### 已完成并提交
 
@@ -41,20 +41,17 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 4. 第 4 步提交 `b0b33cc feat: connect web to go-zero health api`：Next.js 服务端请求 go-zero 健康接口，使用 `Suspense` 保留静态页面外壳，并区分 API 连接状态。已验证测试、静态检查、生产构建和真实前后端联调。
 5. 第 5 步提交 `e3070ed`、`106da6e`：Ant Design Pro 管理后台骨架、登录与权限基础页面、OpenAPI 代码生成命令、项目 CI 配置及验证修复。合并提交为 `34a7467`。
 6. 第 6 步提交 `4fe5376 feat: add copilotkit runtime`：Next.js CopilotKit Runtime v2、用户端 Provider、`default` Agent 注册及 Agent 发现契约测试。已验证 Web 测试、ESLint、生产构建和真实 Runtime 端点。
+7. 第 7 步提交 `1e0e7b0 feat: add go-zero ag-ui mock stream`：go-zero `POST /ag-ui`、SSE Mock 事件流、请求校验、Go 测试和跨平台 Python 联调脚本。已验证直接及经 Runtime 的完整协议链路。
+8. 第 8 步提交 `0ded9cf feat: add web mock chat stream`：用户端 CopilotChat、响应式双栏首页和聊天测试。已验证 Web 测试、ESLint、生产构建和真实浏览器流式聊天闭环。
+9. 第 9 步（本次提交）：Admin 根容器接入 `CopilotKitProvider`，新增 `/ai-chat` Mock 流式聊天页面，复用 Web 同源 `/api/copilotkit` Runtime，不新增 Agent 后端。补充 Admin 开发代理、Provider 和页面测试、`swagger-ui-dist` 显式依赖、菜单国际化键、现代浏览器构建目标及 goctl VS Code 插件推荐。
 
-### 当前待 review 增量
+### 第 9 步验证记录
 
-第 7 步：go-zero Mock AG-UI 流。
-
-- 已添加 `POST /ag-ui` 和对应 `.api` 契约，接收包含 `threadId`、`runId`、`messages` 的 AG-UI RunAgentInput 子集。
-- 已实现 SSE 流式响应，依次发送 `RUN_STARTED`、`TEXT_MESSAGE_START`、两个 `TEXT_MESSAGE_CONTENT`、`TEXT_MESSAGE_END`、`RUN_FINISHED`。
-- Mock 回复会拼接最新一条纯文本用户消息，不调用模型，不实现业务工具、持久化、权限或租户逻辑。
-- 已限制请求体最大为 1 MiB，并在开始 SSE 前校验必填 ID 和纯文本用户消息。
-- 已添加正常事件序列、消息拼接、响应头和非法输入测试；`go test ./...`、`go vet ./...` 和 gofmt 均已执行通过。
-- 已添加跨平台 `scripts/test-ag-ui.py`，仅使用 Python 标准库，支持直接测试 go-zero 或通过 Next.js Runtime 测试，自动校验 HTTP 状态、SSE 事件序列和回复文本；两种模式均已实际执行通过。
-- 已真实验证直接 `POST http://127.0.0.1:8080/ag-ui` 返回 HTTP 200 和完整事件流。
-- 已真实验证通过 `POST http://127.0.0.1:7100/api/copilotkit/agent/default/run` 的 CopilotKit Runtime 链路返回 HTTP 200、相同完整事件序列和正确 Mock 文本。
-- 当前仅完成 Mock Agent 事件流；真实模型调用和 Web 聊天界面尚未实现，不能据此声称真实 AI 聊天已可用。
+- Admin 共 6 个测试文件、30 个用例均已执行通过；最近一次完整运行在前 28 项后超时，剩余 2 项单独运行通过。Biome 和 TypeScript 检查通过。
+- 第 9 步主体及补充 `swagger-ui-dist` 后的 Admin 生产构建均通过，并生成 `/ai-chat` 静态页面；Web 5 个测试、ESLint 和生产构建通过，Go 测试与 vet 通过。
+- 最后的 ES2017 Webpack 输出目标修改已通过 TypeScript 检查，但随后的 3 次生产构建均在 5 分钟工具时限内未完成，不能标记为最新配置构建通过，后续需要重新验证。
+- 已在真实浏览器中验证 Admin Mock 流式聊天：`/info` 与 Agent `/run` 请求成功，中文消息收到完整 Mock 回复；发送消息过程中未捕获新的控制台错误。
+- 真实模型、知识库、业务工具、租户权限、人工审批和持久化尚未接入；本步没有验证真实后台认证或业务操作。
 
 ### 环境注意事项
 
@@ -64,10 +61,10 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 当前 npm 默认源为 `https://registry.npmmirror.com`，依赖解析可使用官方源 `https://registry.npmjs.org`。
 - goctl 因依赖下载超时未用于第 1 步代码生成，当前采用与 go-zero 标准结构一致的手写最小实现，保留 `.api` 契约。
 - 第 2 步验证容器已停止并删除，命名数据卷保留。
-- 第 7 步临时 API 与 Web 联调服务及临时文件已清理，端口 7100 和 8080 无监听。用户此前在端口 3000 启动的 Web 开发服务器保持运行，未由本步停止。
+- 第 9 步临时 Web、Admin 静态服务、无头浏览器、脚本和日志已清理；用户自行启动的 API、Web 和 Admin 开发服务不在自动清理范围内。
 
 ## 下一步
 
-等待用户 review 第 7 步；用户明确允许后提交当前增量。
+第 10 步：在 go-zero 中接入真实模型，保留 Mock 开关，通过环境变量配置 OpenAI 兼容端点、模型和密钥，补充后端测试，并验证 Web 与 Admin 的真实流式聊天闭环。
 
-后续步骤依次为：完整 AI 流式聊天界面闭环、管理后台 CopilotKit Provider、真实模型接入、后台 AI 工具调用与人工审批。
+后续步骤依次为：后台 AI 工具调用与人工审批、企业知识库与智能工单。

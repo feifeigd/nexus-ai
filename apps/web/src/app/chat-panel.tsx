@@ -5,6 +5,7 @@ import { CopilotChat } from "@copilotkit/react-core/v2";
 export default function ChatPanel() {
   return (
     <CopilotChat
+      // 连接 default Agent
       agentId="default"
       className="h-full"
       labels={{
