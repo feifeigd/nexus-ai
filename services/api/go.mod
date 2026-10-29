@@ -2,7 +2,10 @@ module nexusai/services/api
 
 go 1.24.0
 
-require github.com/zeromicro/go-zero v1.10.3
+require (
+	github.com/joho/godotenv v1.5.1
+	github.com/zeromicro/go-zero v1.10.3
+)
 
 require (
 	github.com/beorn7/perks v1.0.1 // indirect

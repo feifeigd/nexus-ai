@@ -4,11 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 
 	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/handler"
 
+	"github.com/joho/godotenv"
 	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/rest"
 )
@@ -17,6 +19,10 @@ var configFile = flag.String("f", "etc/nexus-api.yaml", "the config file")
 
 func main() {
 	flag.Parse()
+
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		log.Fatalf("load .env: %v", err)
+	}
 
 	var c config.Config
 	conf.MustLoad(*configFile, &c)

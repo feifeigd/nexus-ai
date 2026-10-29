@@ -1,9 +1,15 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { loadEnvFile } from 'node:process';
 import { defineConfig } from '@umijs/max';
 import defaultSettings from './defaultSettings';
 import proxy from './proxy';
 import routes from './routes';
+
+const ENV_FILE_PATH = join(__dirname, '../.env');
+if (existsSync(ENV_FILE_PATH)) {
+  loadEnvFile(ENV_FILE_PATH);
+}
 
 const { UMI_ENV = 'dev' } = process.env;
 const PUBLIC_PATH = '/';

@@ -128,36 +128,36 @@ docker compose up -d postgres redis
 docker compose down
 ```
 
-## 配置真实模型
+## 进程环境配置与真实模型
 
-Agent 配置由 **go-zero 进程**读取。`.env.example` 是配置模板，应用不会自动加载根目录 `.env`，请将变量实际注入启动 API 的进程环境。
+各进程只读取自己目录下的 `.env`，终端显式设置的环境变量优先。本地配置文件与模板对应如下：
 
-Mock 模式无需密钥，也是默认模式：
+| 进程 | 本地配置 | 模板 | 配置边界 |
+| --- | --- | --- | --- |
+| go-zero | `services/api/.env` | `services/api/.env.example` | Agent 模式、模型地址、密钥与模型名 |
+| Admin 独立 Runtime | `apps/agent-runtime/.env` | `apps/agent-runtime/.env.example` | Runtime 监听地址与 go-zero AG-UI 地址 |
+| Admin | `apps/admin/.env` | `apps/admin/.env.example` | 开发代理目标；生产代理由网关配置 |
+| Web | `apps/web/.env` | `apps/web/.env.example` | Next.js 服务端使用的内部 API 与 AG-UI 地址 |
+
+首次配置可按需复制模板，例如：
 
 ```bash
-export NEXUS_AGENT_MODE=mock
-pnpm dev:api
+cp services/api/.env.example services/api/.env
+cp apps/agent-runtime/.env.example apps/agent-runtime/.env
+cp apps/admin/.env.example apps/admin/.env
+cp apps/web/.env.example apps/web/.env
 ```
 
-OpenAI 兼容模式的 Bash 示例：
+Mock 模式无需密钥，也是默认模式。需要 OpenAI 兼容模型时，只在 `services/api/.env` 中设置：
 
-```bash
-export NEXUS_AGENT_MODE=openai
-export NEXUS_OPENAI_BASE_URL=https://api.openai.com/v1
-export NEXUS_OPENAI_API_KEY=replace-with-your-key
-export NEXUS_OPENAI_MODEL=your-model-name
-pnpm dev:api
+```dotenv
+NEXUS_AGENT_MODE=openai
+NEXUS_OPENAI_BASE_URL=https://api.openai.com/v1
+NEXUS_OPENAI_API_KEY=replace-with-your-key
+NEXUS_OPENAI_MODEL=your-model-name
 ```
 
-PowerShell 示例：
-
-```powershell
-$env:NEXUS_AGENT_MODE = "openai"
-$env:NEXUS_OPENAI_BASE_URL = "https://api.openai.com/v1"
-$env:NEXUS_OPENAI_API_KEY = "replace-with-your-key"
-$env:NEXUS_OPENAI_MODEL = "your-model-name"
-pnpm dev:api
-```
+保存后重启 go-zero 即可，不需要每次启动前执行 `export` 或设置 PowerShell 环境变量。
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -166,7 +166,9 @@ pnpm dev:api
 | `NEXUS_OPENAI_API_KEY` | 空 | 模型服务密钥；允许密钥为空的本地兼容服务可不设置 |
 | `NEXUS_OPENAI_MODEL` | 空 | 模型名称，`openai` 模式必填 |
 
-不要将真实密钥写入仓库或提交到 Git。
+各进程的 `.env` 均已被 Git 忽略。不要将真实密钥写入任何 `.env.example` 或提交到 Git。
+
+Kubernetes 部署时不共享根环境文件：非敏感配置通过各 Deployment 自己的 ConfigMap 注入，模型密钥只通过 go-zero 的 Secret 注入，Runtime、Admin 和 Web 不需要持有模型密钥。
 
 ### 其他环境变量
 
