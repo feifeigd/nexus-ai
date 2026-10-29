@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen
 URLS = {
     "api": "http://127.0.0.1:8080/ag-ui",
     "runtime": "http://127.0.0.1:3000/api/copilotkit/agent/default/run",
+    "standalone-runtime": "http://127.0.0.1:4000/api/copilotkit/agent/default/run",
 }
 EXPECTED_TYPES = [
     "RUN_STARTED",
@@ -96,6 +97,8 @@ def run_test(target: str, message: str) -> None:
 #   python scripts/test-ag-ui.py api
 # 测试 Next.js Runtime 完整链路：
 #   python scripts/test-ag-ui.py runtime
+# 测试独立 Runtime 完整链路（不需要 Web）：
+#   python scripts/test-ag-ui.py standalone-runtime
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("target", choices=URLS, nargs="?", default="api")

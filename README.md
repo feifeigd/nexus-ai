@@ -21,8 +21,8 @@ NexusAI 是一个建设中的企业级 AI 应用开发框架，并将内置多�
 
 - go-zero 健康检查接口 `GET /healthz`。
 - go-zero AG-UI 接口 `POST /ag-ui`，以 SSE 返回 Agent 事件。
-- Next.js 内嵌 CopilotKit Runtime，统一注册 `default` Agent，并向 go-zero 转发 AG-UI 请求。
-- 用户端和管理后台均已接入 CopilotKit 流式聊天界面。
+- Web 使用 Next.js 内嵌 CopilotKit Runtime；Admin 使用 `apps/agent-runtime` 独立 Runtime，两者均注册 `default` Agent 并向 go-zero 转发 AG-UI 请求。
+- 用户端和管理后台均已接入 CopilotKit 流式聊天界面，Admin 聊天不再依赖 Web 进程。
 - Agent 默认使用 Mock；也可通过环境变量切换到 OpenAI 兼容的 `/chat/completions` 流式接口。
 - Docker Compose 提供 PostgreSQL、pgvector 和 Redis 本地基础设施。
 - 管理后台支持从真实 OpenAPI JSON 生成 TypeScript API 代码。
@@ -34,8 +34,9 @@ NexusAI 是一个建设中的企业级 AI 应用开发框架，并将内置多�
 ```text
 nexus-ai/
 ├── apps/
-│   ├── web/                 # Next.js 用户端与 CopilotKit Runtime
-│   └── admin/               # Ant Design Pro 管理后台
+│   ├── web/                 # Next.js 用户端与内嵌 CopilotKit Runtime
+│   ├── admin/               # Ant Design Pro 管理后台
+│   └── agent-runtime/       # Admin 独立 CopilotKit Runtime
 ├── services/
 │   └── api/                 # go-zero API、AG-UI Handler 与 Agent Runner
 ├── docs/
@@ -54,12 +55,12 @@ nexus-ai/
 
 | 工具 | 版本 |
 | --- | --- |
-| Node.js | 22 或更高版本（管理后台要求） |
+| Node.js | 22 或更高版本（管理后台与独立 Runtime 要求） |
 | pnpm | 11.15.1 |
 | Go | 1.24 或更高版本 |
 | Docker 与 Docker Compose | 可选，仅基础设施需要 |
 
-安装前端依赖：
+安装工作区依赖：
 
 ```bash
 pnpm install --frozen-lockfile
@@ -67,7 +68,7 @@ pnpm install --frozen-lockfile
 
 ### 启动应用
 
-分别在三个终端中执行：
+Admin 聊天需要分别启动以下三个服务，不需要启动 Web：
 
 ```bash
 # 终端 1：go-zero API，默认 Mock 模式
@@ -75,13 +76,19 @@ pnpm dev:api
 ```
 
 ```bash
-# 终端 2：Next.js 用户端和 CopilotKit Runtime
-pnpm dev:web
+# 终端 2：Admin 独立 CopilotKit Runtime，监听 127.0.0.1:4000
+pnpm dev:runtime
 ```
 
 ```bash
-# 终端 3：管理后台；开发时复用 Web 中的 Runtime
+# 终端 3：管理后台，代理到独立 Runtime
 pnpm dev:admin
+```
+
+需要用户端时，再在第四个终端启动 Next.js 用户端及其内嵌 Runtime：
+
+```bash
+pnpm dev:web
 ```
 
 默认访问地址：
@@ -91,6 +98,7 @@ pnpm dev:admin
 | 用户端 | http://127.0.0.1:3000 |
 | 管理后台 | http://127.0.0.1:8000 |
 | 管理后台 AI 助手 | http://127.0.0.1:8000/ai-chat |
+| Admin 独立 Runtime | http://127.0.0.1:4000/api/copilotkit/info |
 | API 健康检查 | http://127.0.0.1:8080/healthz |
 | AG-UI 接口 | http://127.0.0.1:8080/ag-ui |
 
@@ -165,11 +173,13 @@ pnpm dev:api
 | 变量 | 使用方 | 默认值 | 用途 |
 | --- | --- | --- | --- |
 | `NEXUS_API_INTERNAL_URL` | Web 服务端 | `http://127.0.0.1:8080` | 健康检查的 go-zero 地址 |
-| `NEXUS_AG_UI_AGENT_URL` | CopilotKit Runtime | `http://127.0.0.1:8080/ag-ui` | `default` Agent 的 AG-UI 地址 |
-| `NEXUS_COPILOT_RUNTIME_PROXY_TARGET` | Admin 开发代理 | `http://127.0.0.1:3000` | Admin 复用的 Web Runtime 地址 |
+| `NEXUS_AG_UI_AGENT_URL` | 两个 CopilotKit Runtime | `http://127.0.0.1:8080/ag-ui` | `default` Agent 的 AG-UI 地址 |
+| `NEXUS_COPILOT_RUNTIME_HOST` | Admin 独立 Runtime | `127.0.0.1` | Runtime 监听地址；容器部署时按内网拓扑调整 |
+| `NEXUS_COPILOT_RUNTIME_PORT` | Admin 独立 Runtime | `4000` | Runtime 监听端口 |
+| `NEXUS_COPILOT_RUNTIME_PROXY_TARGET` | Admin 开发代理 | `http://127.0.0.1:4000` | Admin 独立 Runtime 地址 |
 | `OPENAPI_SCHEMA_PATH` | Admin OpenAPI 生成 | `apps/admin/schema/openapi.json` | NexusAI 真实 OpenAPI JSON 路径 |
 
-生产环境需要为 Admin 的 `/api/copilotkit` 配置同源反向代理；Umi 的开发代理不会在生产构建中生效。
+生产环境需要为 Admin 的 `/api/copilotkit` 配置指向独立 Runtime 的同源反向代理；Umi 的开发代理不会在生产构建中生效。独立 Runtime 和 go-zero 均可只暴露在内网。
 
 ## 常用命令
 
@@ -178,13 +188,17 @@ pnpm dev:api
 | 命令 | 作用 |
 | --- | --- |
 | `pnpm dev:api` | 启动 go-zero API |
+| `pnpm dev:runtime` | 启动 Admin 独立 Runtime |
 | `pnpm dev:web` | 启动用户端 |
 | `pnpm dev:admin` | 启动管理后台 |
 | `pnpm test:api` | 运行全部 Go 测试 |
+| `pnpm test:runtime` | 运行独立 Runtime 协议测试 |
+| `pnpm typecheck:runtime` | 检查独立 Runtime TypeScript 类型 |
 | `pnpm test:web` | 运行 Web 测试 |
 | `pnpm test:admin` | 运行 Admin 测试 |
 | `pnpm lint:web` | 运行 Web ESLint |
 | `pnpm lint:admin` | 运行 Admin Biome 与 TypeScript 检查 |
+| `pnpm build:runtime` | 构建独立 Runtime 生产版本 |
 | `pnpm build:web` | 构建 Web 生产版本 |
 | `pnpm build:admin` | 构建 Admin 生产版本 |
 | `pnpm openapi:admin` | 根据配置的 OpenAPI Schema 生成 Admin API 代码 |
@@ -201,10 +215,10 @@ CI 还会执行 `pnpm --filter admin exec max setup` 和 `pnpm --filter admin ex
 
 ## 安全与职责边界
 
-- CopilotKit Runtime 只是 Next.js 内的轻量协议适配层，不承载企业业务，也不是第二个 Agent 后端。
+- CopilotKit Runtime 只是轻量协议适配层，不承载企业业务，也不是第二个 Agent 后端；Web 使用 Next.js 内嵌 Runtime，Admin 使用独立 Runtime 服务。
 - go-zero 是企业业务与 Agent 后端；权限、租户隔离、参数校验、人工审批和审计必须以它为权威。
 - 模型只能提议工具调用，不能凭模型输出或前端状态绕过服务端校验。
-- 当前 Runtime 只允许向 Agent 后端转发 `authorization` 和 `x-tenant-id` 请求头；这不等于真实认证和租户隔离已经实现。
+- 两个 Runtime 都只允许向 Agent 后端转发 `authorization` 和 `x-tenant-id` 请求头；这不等于真实认证和租户隔离已经实现。
 - 普通业务使用 REST；AG-UI 用于 Agent 事件通信，A2UI 规划用于受控动态 UI。
 
 ## 后续路线

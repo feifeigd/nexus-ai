@@ -39,6 +39,7 @@
     "@types/react-helmet": "^6.1.11",
     "@umijs/max": "^4.7.27",
     "@umijs/max-plugin-openapi": "^2.0.3",
+    "@utoo/pack": "1.5.31",
     "cross-env": "^10.1.0",
     "mockjs": "^1.1.0",
     "react-doctor": "^0.9.18",

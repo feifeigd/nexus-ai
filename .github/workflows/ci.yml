@@ -55,6 +55,15 @@ jobs:
         working-directory: services/api
         run: go vet ./...
 
+      - name: Test standalone runtime
+        run: pnpm test:runtime
+
+      - name: Typecheck standalone runtime
+        run: pnpm typecheck:runtime
+
+      - name: Build standalone runtime
+        run: pnpm build:runtime
+
       - name: Lint web
         run: pnpm lint:web
 

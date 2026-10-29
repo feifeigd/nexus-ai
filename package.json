@@ -6,6 +6,10 @@
   "scripts": {
     "dev:api": "cd services/api && go run .",
     "test:api": "cd services/api && go test ./...",
+    "dev:runtime": "pnpm --filter agent-runtime dev",
+    "build:runtime": "pnpm --filter agent-runtime build",
+    "test:runtime": "pnpm --filter agent-runtime run test",
+    "typecheck:runtime": "pnpm --filter agent-runtime run typecheck",
     "dev:web": "pnpm --filter web dev",
     "build:web": "pnpm --filter web build",
     "test:web": "pnpm --filter web test",

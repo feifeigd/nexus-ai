@@ -11,11 +11,11 @@
  */
 export default {
   dev: {
-    // Admin 复用 Web 中的 CopilotKit Runtime；生产环境需配置同源反向代理。
+    // Admin 使用独立 CopilotKit Runtime；生产环境需配置同源反向代理。
     '/api/copilotkit/': {
       target:
         process.env.NEXUS_COPILOT_RUNTIME_PROXY_TARGET ||
-        'http://127.0.0.1:3000',
+        'http://127.0.0.1:4000',
       changeOrigin: true,
     },
   },
