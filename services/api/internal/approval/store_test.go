@@ -92,14 +92,14 @@ func TestProposalRejectsInvalidArguments(t *testing.T) {
 			if err == nil {
 				t.Fatal("expected invalid arguments to be rejected")
 			}
-			if len(store.List()) != 0 || len(store.tickets) != 0 {
+			if len(mustList(t, store)) != 0 || len(store.tickets) != 0 {
 				t.Fatal("invalid arguments must not create approvals or tickets")
 			}
 		})
 	}
 }
 
-func proposeTicket(t *testing.T, store *Store, arguments string) Approval {
+func proposeTicket(t *testing.T, store *MemoryStore, arguments string) Approval {
 	t.Helper()
 	if err := store.Tool().Propose(context.Background(), agent.ToolProposal{
 		ThreadID:   "thread-1",
@@ -110,9 +110,18 @@ func proposeTicket(t *testing.T, store *Store, arguments string) Approval {
 	}); err != nil {
 		t.Fatalf("propose ticket: %v", err)
 	}
-	approvals := store.List()
+	approvals := mustList(t, store)
 	if len(approvals) != 1 {
 		t.Fatalf("expected one approval, got %d", len(approvals))
 	}
 	return approvals[0]
+}
+
+func mustList(t *testing.T, store Store) []Approval {
+	t.Helper()
+	approvals, err := store.List(context.Background())
+	if err != nil {
+		t.Fatalf("list approvals: %v", err)
+	}
+	return approvals
 }

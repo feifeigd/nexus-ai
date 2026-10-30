@@ -9,7 +9,7 @@ import (
 	"github.com/zeromicro/go-zero/rest"
 )
 
-func RegisterHandlers(server *rest.Server, runner agent.Runner, approvals *approval.Store) {
+func RegisterHandlers(server *rest.Server, runner agent.Runner, approvals approval.Store) {
 	server.AddRoute(rest.Route{
 		Method:  http.MethodGet,
 		Path:    "/healthz",

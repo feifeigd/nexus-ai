@@ -2,7 +2,7 @@
 
 NexusAI 是一个建设中的企业级 AI 应用开发框架，并将内置多租户“企业知识库与智能工单”SaaS 参考应用。项目定位是 AI 应用框架 / AI PaaS，而不是 MaaS。
 
-当前仓库已打通用户端、管理后台、CopilotKit Runtime、go-zero 与 AG-UI SSE 流式聊天链路，并提供 Mock 和 OpenAI 兼容模型两种 Agent 运行模式。工具审批已提供内存参考实现；知识库、持久化工单、真实认证、租户隔离、生产级审批和审计仍在后续建设中。
+当前仓库已打通用户端、管理后台、CopilotKit Runtime、go-zero 与 AG-UI SSE 流式聊天链路，并提供 Mock 和 OpenAI 兼容模型两种 Agent 运行模式。工具审批默认使用内存存储，也可配置 PostgreSQL 持久化审批记录和已创建工单；知识库、真实认证、租户隔离、生产级审批和审计仍在后续建设中。
 
 ## 技术栈
 
@@ -24,12 +24,13 @@ NexusAI 是一个建设中的企业级 AI 应用开发框架，并将内置多�
 - Web 使用 Next.js 内嵌 CopilotKit Runtime；Admin 使用 `apps/agent-runtime` 独立 Runtime，两者均注册 `default` Agent 并向 go-zero 转发 AG-UI 请求。
 - 用户端和管理后台均已接入 CopilotKit 流式聊天界面，Admin 聊天不再依赖 Web 进程。
 - Agent 默认使用 Mock；也可通过环境变量切换到 OpenAI 兼容的 `/chat/completions` 流式接口。
-- go-zero 提供服务端白名单 `create_ticket` 工具提议、内存审批记录及 `GET /approvals`、`POST /approvals/:id/approve`、`POST /approvals/:id/reject` 接口；批准后才创建内存工单。
+- go-zero 提供服务端白名单 `create_ticket` 工具提议及 `GET /approvals`、`POST /approvals/:id/approve`、`POST /approvals/:id/reject` 接口；批准后才创建工单。
 - Admin 新增 `/approvals` 工具审批页面，可查看参数、刷新列表并批准或拒绝待审批提议。
+- 审批与工单默认保存在内存中；配置 `NEXUS_POSTGRES_DSN` 后切换到 PostgreSQL，启动时自动创建所需表，批准流程在事务中创建工单并更新审批。
 - Docker Compose 提供 PostgreSQL、pgvector 和 Redis 本地基础设施。
 - 管理后台支持从真实 OpenAPI JSON 生成 TypeScript API 代码。
 
-> 工具审批目前是内存参考实现，服务重启后记录清空；真实认证、租户隔离、审计和 PostgreSQL 持久化尚未接入，不能将当前接口直接视为生产安全边界。
+> 工具审批默认是内存参考实现，服务重启后记录清空；PostgreSQL 持久化需要显式配置。真实认证、租户隔离和审计尚未接入，不能将当前接口直接视为生产安全边界。
 
 ## 目录结构
 
@@ -136,7 +137,7 @@ docker compose down
 
 | 进程 | 本地配置 | 模板 | 配置边界 |
 | --- | --- | --- | --- |
-| go-zero | `services/api/.env` | `services/api/.env.example` | Agent 模式、模型地址、密钥与模型名 |
+| go-zero | `services/api/.env` | `services/api/.env.example` | Agent 模式、模型配置与可选 PostgreSQL DSN |
 | Admin 独立 Runtime | `apps/agent-runtime/.env` | `apps/agent-runtime/.env.example` | Runtime 监听地址与 go-zero AG-UI 地址 |
 | Admin | `apps/admin/.env` | `apps/admin/.env.example` | 开发代理目标；生产代理由网关配置 |
 | Web | `apps/web/.env` | `apps/web/.env.example` | Next.js 服务端使用的内部 API 与 AG-UI 地址 |
@@ -167,6 +168,7 @@ NEXUS_OPENAI_MODEL=your-model-name
 | `NEXUS_OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI 兼容服务的基础地址，不包含 `/chat/completions` |
 | `NEXUS_OPENAI_API_KEY` | 空 | 模型服务密钥；允许密钥为空的本地兼容服务可不设置 |
 | `NEXUS_OPENAI_MODEL` | 空 | 模型名称，`openai` 模式必填 |
+| `NEXUS_POSTGRES_DSN` | 空 | PostgreSQL 连接串；留空使用内存，配置后启动时自动迁移审批与工单表 |
 
 各进程的 `.env` 均已被 Git 忽略。不要将真实密钥写入任何 `.env.example` 或提交到 Git。
 
