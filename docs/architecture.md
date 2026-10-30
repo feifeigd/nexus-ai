@@ -43,7 +43,7 @@ flowchart LR
 | 组件 | 当前职责 | 明确不负责 |
 | --- | --- | --- |
 | `apps/web` | 用户端页面、聊天 UI、API 健康状态；承载 Web 自己的 CopilotKit Runtime | 企业业务规则、权限最终判定、Admin Runtime 托管 |
-| `apps/admin` | 管理后台页面、AI 聊天与工具审批 UI；开发环境代理到独立 Runtime 和 go-zero | 生产反向代理、业务权限权威 |
+| `apps/admin` | 管理后台页面、AI 聊天、工具审批与只读工单列表 UI；开发环境代理到独立 Runtime 和 go-zero | 生产反向代理、业务权限权威 |
 | `apps/agent-runtime` | 独立运行的 Admin CopilotKit Runtime，默认监听 `127.0.0.1:4000` | 企业业务、模型调用、用户端页面托管 |
 | CopilotKit Runtime | Agent 发现、`default` Agent 注册、前端协议适配、AG-UI 转发 | 企业业务、模型调用、租户隔离、审批、审计 |
 | go-zero API | 请求校验、AG-UI SSE 响应、Runner 选择、工具白名单、参数校验和审批决策 | 真实认证、租户隔离与审计 |
@@ -84,7 +84,7 @@ sequenceDiagram
 
 正常文本运行包含 `RUN_STARTED`、`TEXT_MESSAGE_START`、若干 `TEXT_MESSAGE_CONTENT`、`TEXT_MESSAGE_END` 和 `RUN_FINISHED`。运行失败时，go-zero 在响应尚未开始时返回错误；流已经开始后则发送 `RUN_ERROR`。客户端断开连接会取消后续模型请求。
 
-OpenAI 兼容模型提议 `create_ticket` 时，go-zero 转发 `TOOL_CALL_START`、`TOOL_CALL_ARGS` 和 `TOOL_CALL_END` 事件，并只在完整模型流结束后校验参数、写入待审批记录。Admin `/approvals` 页面通过同源 `/api/nexus` 代理读取记录并提交人工决策；`POST /approvals/:id/approve` 批准后才在当前存储中创建工单，`POST /approvals/:id/reject` 拒绝则不执行，重复决策返回 409。默认存储为内存；配置 `NEXUS_POSTGRES_DSN` 后使用 PostgreSQL，并通过行锁与事务保证批准和工单创建的一致性。不完整流、未知工具和无效参数均不会生成审批记录。
+OpenAI 兼容模型提议 `create_ticket` 时，go-zero 转发 `TOOL_CALL_START`、`TOOL_CALL_ARGS` 和 `TOOL_CALL_END` 事件，并只在完整模型流结束后校验参数、写入待审批记录。Admin `/approvals` 页面通过同源 `/api/nexus` 代理读取记录并提交人工决策；`POST /approvals/:id/approve` 批准后才在当前存储中创建工单，`POST /approvals/:id/reject` 拒绝则不执行，重复决策返回 409。Admin `/tickets` 页面通过 `GET /tickets` 读取已创建工单，当前不提供处理或删除操作。默认存储为内存；配置 `NEXUS_POSTGRES_DSN` 后使用 PostgreSQL，并通过行锁与事务保证批准和工单创建的一致性。不完整流、未知工具和无效参数均不会生成审批记录。
 
 ## 3. 目标架构（规划）
 
@@ -176,7 +176,7 @@ flowchart TB
 ### 4.4 契约生成与同步
 
 - `services/api/api/nexus.api` 聚合 go-zero `.api` 文件，是后端 HTTP 契约的生成入口，也是唯一需要提交的契约来源。
-- `pnpm generate:contracts` 使用固定版本 goctl 生成 `apps/admin/schema/openapi.json`，记录每个操作来源的 `.api` 文件，再通过 `@umijs/openapi` 在 `apps/admin/src/services/nexus/` 按契约生成 service：`health.api` 对应 `health.ts`、`ag-ui.api` 对应 `agUi.ts`、`approval.api` 对应 `approval.ts`；同一契约的多个函数聚合在同一文件中，类型和入口文件共享。
+- `pnpm generate:contracts` 使用固定版本 goctl 生成 `apps/admin/schema/openapi.json`，记录每个操作来源的 `.api` 文件，再通过 `@umijs/openapi` 在 `apps/admin/src/services/nexus/` 按契约生成 service：`health.api` 对应 `health.ts`、`ag-ui.api` 对应 `agUi.ts`、`approval.api` 对应 `approval.ts`、`ticket.api` 对应 `ticket.ts`；同一契约的多个函数聚合在同一文件中，类型和入口文件共享。
 - OpenAPI JSON 和 TypeScript 客户端是 Git 忽略的本地生成产物，每次生成都会覆盖手工修改；克隆仓库或修改契约后必须先执行生成命令。
 - 生成脚本只执行确定性的兼容转换：移除时间戳、提升内联请求与响应模型、补齐路径参数声明。业务字段和路径仍来自 `.api`，不在脚本中另写接口定义。
 - CI 先生成契约产物，再执行 `pnpm check:contracts` 验证重复生成结果一致，随后运行 Admin 检查、测试和构建。

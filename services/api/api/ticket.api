@@ -1,0 +1,19 @@
+// API DSL reference: https://go-zero.dev/reference/api-dsl/
+syntax = "v1"
+
+type Ticket {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Status      string `json:"status"`
+	CreatedAt   string `json:"createdAt"`
+}
+
+type TicketListResponse {
+	Tickets []Ticket `json:"tickets"`
+}
+
+service nexus-api {
+	@handler listTickets
+	get /tickets returns (TicketListResponse)
+}

@@ -67,6 +67,7 @@ type Ticket struct {
 type Store interface {
 	Tool() agent.Tool
 	List(context.Context) ([]Approval, error)
+	ListTickets(context.Context) ([]Ticket, error)
 	Approve(context.Context, string) (Approval, error)
 	Reject(context.Context, string) (Approval, error)
 }
@@ -188,6 +189,25 @@ func (s *MemoryStore) List(ctx context.Context) ([]Approval, error) {
 	s.mu.RUnlock()
 	sortApprovals(approvals)
 	return approvals, nil
+}
+
+func (s *MemoryStore) ListTickets(ctx context.Context) ([]Ticket, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	s.mu.RLock()
+	tickets := make([]Ticket, 0, len(s.tickets))
+	for _, ticket := range s.tickets {
+		tickets = append(tickets, ticket)
+	}
+	s.mu.RUnlock()
+	sort.Slice(tickets, func(i, j int) bool {
+		if tickets[i].CreatedAt.Equal(tickets[j].CreatedAt) {
+			return tickets[i].ID < tickets[j].ID
+		}
+		return tickets[i].CreatedAt.After(tickets[j].CreatedAt)
+	})
+	return tickets, nil
 }
 
 func sortApprovals(approvals []Approval) {

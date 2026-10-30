@@ -29,6 +29,12 @@ export default [
     component: './Approvals',
   },
   {
+    path: '/tickets',
+    name: 'tickets',
+    icon: 'container',
+    component: './Tickets',
+  },
+  {
     path: '/admin',
     name: 'admin',
     icon: 'crown',

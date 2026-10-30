@@ -26,6 +26,11 @@ func RegisterHandlers(server *rest.Server, runner agent.Runner, approvals approv
 		Handler: ListApprovalsHandler(approvals),
 	})
 	server.AddRoute(rest.Route{
+		Method:  http.MethodGet,
+		Path:    "/tickets",
+		Handler: ListTicketsHandler(approvals),
+	})
+	server.AddRoute(rest.Route{
 		Method:  http.MethodPost,
 		Path:    "/approvals/:id/approve",
 		Handler: ApproveApprovalHandler(approvals),
