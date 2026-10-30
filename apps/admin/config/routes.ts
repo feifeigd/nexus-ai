@@ -23,6 +23,12 @@ export default [
     component: './AiChat',
   },
   {
+    path: '/approvals',
+    name: 'approvals',
+    icon: 'audit',
+    component: './Approvals',
+  },
+  {
     path: '/admin',
     name: 'admin',
     icon: 'crown',

@@ -43,7 +43,7 @@ flowchart LR
 | 组件 | 当前职责 | 明确不负责 |
 | --- | --- | --- |
 | `apps/web` | 用户端页面、聊天 UI、API 健康状态；承载 Web 自己的 CopilotKit Runtime | 企业业务规则、权限最终判定、Admin Runtime 托管 |
-| `apps/admin` | 管理后台页面与 AI 聊天 UI；开发环境代理到独立 Runtime | 生产反向代理、业务权限权威、工具审批界面 |
+| `apps/admin` | 管理后台页面、AI 聊天与工具审批 UI；开发环境代理到独立 Runtime 和 go-zero | 生产反向代理、业务权限权威 |
 | `apps/agent-runtime` | 独立运行的 Admin CopilotKit Runtime，默认监听 `127.0.0.1:4000` | 企业业务、模型调用、用户端页面托管 |
 | CopilotKit Runtime | Agent 发现、`default` Agent 注册、前端协议适配、AG-UI 转发 | 企业业务、模型调用、租户隔离、审批、审计 |
 | go-zero API | 请求校验、AG-UI SSE 响应、Runner 选择、工具白名单、参数校验和审批决策 | 真实认证、租户隔离、持久化审批与审计 |
@@ -84,7 +84,7 @@ sequenceDiagram
 
 正常文本运行包含 `RUN_STARTED`、`TEXT_MESSAGE_START`、若干 `TEXT_MESSAGE_CONTENT`、`TEXT_MESSAGE_END` 和 `RUN_FINISHED`。运行失败时，go-zero 在响应尚未开始时返回错误；流已经开始后则发送 `RUN_ERROR`。客户端断开连接会取消后续模型请求。
 
-OpenAI 兼容模型提议 `create_ticket` 时，go-zero 转发 `TOOL_CALL_START`、`TOOL_CALL_ARGS` 和 `TOOL_CALL_END` 事件，并只在完整模型流结束后校验参数、写入待审批记录。`POST /approvals/:id/approve` 批准后才创建内存工单，`POST /approvals/:id/reject` 拒绝则不执行；重复决策返回 409。不完整流、未知工具和无效参数均不会生成审批记录。
+OpenAI 兼容模型提议 `create_ticket` 时，go-zero 转发 `TOOL_CALL_START`、`TOOL_CALL_ARGS` 和 `TOOL_CALL_END` 事件，并只在完整模型流结束后校验参数、写入待审批记录。Admin `/approvals` 页面通过同源 `/api/nexus` 代理读取记录并提交人工决策；`POST /approvals/:id/approve` 批准后才创建内存工单，`POST /approvals/:id/reject` 拒绝则不执行，重复决策返回 409。不完整流、未知工具和无效参数均不会生成审批记录。
 
 ## 3. 目标架构（规划）
 
@@ -184,7 +184,7 @@ flowchart TB
 以下能力不能依据现有聊天页面推断为已完成：
 
 - 真实后台认证、授权和租户隔离。
-- Admin 工具审批界面、生产级审批授权与审计。
+- 生产级审批授权与审计。
 - 知识库 ingestion、检索和引用。
 - 工单与审批记录的 PostgreSQL 持久化；当前内存记录会在重启后清空。
 - PostgreSQL、pgvector、Redis 与业务链路的实际集成。

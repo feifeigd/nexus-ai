@@ -18,6 +18,12 @@ export default {
         'http://127.0.0.1:4000',
       changeOrigin: true,
     },
+    // 普通业务请求直连 go-zero；生产环境需配置同源反向代理。
+    '/api/nexus/': {
+      target: process.env.NEXUS_API_PROXY_TARGET || 'http://127.0.0.1:8080',
+      changeOrigin: true,
+      pathRewrite: { '^/api/nexus/': '/' },
+    },
   },
   /**
    * @name 详细的代理配置
