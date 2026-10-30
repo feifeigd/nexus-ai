@@ -21,7 +21,7 @@ type OpenAIRunner struct {
 	apiKey  string
 	model   string
 	client  *http.Client
-	tools   []Tool
+	tools   []Tool // 支持的工具
 }
 
 // 实现接口
@@ -330,7 +330,12 @@ func convertMessages(input []types.AGUIMessage) ([]chatMessage, error) {
 		}
 		content, ok := message.Content.(string)
 		if !ok {
-			return nil, fmt.Errorf("%s messages must contain plain text", message.Role)
+			// AG-UI assistant content is optional: a turn may contain only tool calls.
+			if message.Role == "assistant" && message.Content == nil {
+				content = ""
+			} else {
+				return nil, fmt.Errorf("%s messages must contain plain text", message.Role)
+			}
 		}
 		messages = append(messages, chatMessage{Role: message.Role, Content: content})
 	}
