@@ -9,6 +9,9 @@ _roadhog-api-doc
 # production
 /dist
 
+# generated API contract
+schema/openapi.json
+
 # misc
 .DS_Store
 npm-debug.log*

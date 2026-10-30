@@ -173,7 +173,16 @@ flowchart TB
 | A2UI（规划） | 在受控 schema 内生成动态 UI |
 | CopilotKit Runtime | 前端接入、Agent 发现与协议适配，不承载业务权威 |
 
-### 4.4 数据与密钥
+### 4.4 契约生成与同步
+
+- `services/api/api/nexus.api` 聚合 go-zero `.api` 文件，是后端 HTTP 契约的生成入口，也是唯一需要提交的契约来源。
+- `pnpm generate:contracts` 使用固定版本 goctl 生成 `apps/admin/schema/openapi.json`，记录每个操作来源的 `.api` 文件，再通过 `@umijs/openapi` 在 `apps/admin/src/services/nexus/` 按契约生成 service：`health.api` 对应 `health.ts`、`ag-ui.api` 对应 `agUi.ts`、`approval.api` 对应 `approval.ts`；同一契约的多个函数聚合在同一文件中，类型和入口文件共享。
+- OpenAPI JSON 和 TypeScript 客户端是 Git 忽略的本地生成产物，每次生成都会覆盖手工修改；克隆仓库或修改契约后必须先执行生成命令。
+- 生成脚本只执行确定性的兼容转换：移除时间戳、提升内联请求与响应模型、补齐路径参数声明。业务字段和路径仍来自 `.api`，不在脚本中另写接口定义。
+- CI 先生成契约产物，再执行 `pnpm check:contracts` 验证重复生成结果一致，随后运行 Admin 检查、测试和构建。
+- AG-UI 的 SSE 事件仍由 Runtime 使用协议客户端处理；生成的普通请求函数不替代流式事件链路。
+
+### 4.5 数据与密钥
 
 - PostgreSQL 保存业务数据，pgvector 提供知识检索，Redis 提供缓存。
 - 模型密钥只注入 go-zero 运行环境，不下发到浏览器或写入仓库。

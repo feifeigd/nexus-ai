@@ -205,8 +205,12 @@ Kubernetes 部署时不共享根环境文件：非敏感配置通过各 Deployme
 | `pnpm build:runtime` | 构建独立 Runtime 生产版本 |
 | `pnpm build:web` | 构建 Web 生产版本 |
 | `pnpm build:admin` | 构建 Admin 生产版本 |
-| `pnpm openapi:admin` | 根据配置的 OpenAPI Schema 生成 Admin API 代码 |
+| `pnpm generate:contracts` | 从 go-zero `.api` 生成 OpenAPI JSON 和 Admin TypeScript API |
+| `pnpm check:contracts` | 重复生成并检查 OpenAPI 与客户端输出是否一致 |
+| `pnpm openapi:admin` | 仅根据现有 OpenAPI Schema 重新生成 Admin API 代码 |
 | `pnpm doctor:admin` | 检查 Admin React 使用情况 |
+
+`services/api/api/nexus.api` 聚合后端 `.api` 契约，是 OpenAPI 与 Admin 客户端的生成入口。克隆仓库或修改契约后执行 `pnpm generate:contracts`，再运行 Admin 测试、检查或构建。`apps/admin/schema/openapi.json` 与 `apps/admin/src/services/nexus/` 是 Git 忽略的本地生成产物，每次生成都会覆盖，不要手改或提交；自定义测试放在生成目录之外。`OPENAPI_SCHEMA_PATH` 仍可覆盖 Admin 单独生成时读取的 Schema 路径。
 
 Go 静态检查：
 
@@ -215,7 +219,7 @@ cd services/api
 go vet ./...
 ```
 
-CI 还会执行 `pnpm --filter admin exec max setup` 和 `pnpm --filter admin exec antd lint ./src`。修改代码后，应在本地执行与变更范围对应的测试、静态检查和构建；不要把未运行的验证写成已通过。
+CI 还会执行契约漂移检查、`pnpm --filter admin exec max setup` 和 `pnpm --filter admin exec antd lint ./src`。修改代码后，应在本地执行与变更范围对应的测试、静态检查和构建；不要把未运行的验证写成已通过。
 
 ## 安全与职责边界
 

@@ -1,0 +1,14 @@
+// NexusAI public API contract. Regenerate clients after changing imported files.
+syntax = "v1"
+
+info (
+	title: "NexusAI API"
+	desc: "NexusAI go-zero HTTP and AG-UI endpoints"
+	version: "1.0"
+)
+
+import (
+	"health.api"
+	"ag-ui.api"
+	"approval.api"
+)

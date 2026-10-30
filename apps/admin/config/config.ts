@@ -63,6 +63,7 @@ export default defineConfig({
         {
           requestLibPath: "import { request } from '@umijs/max'",
           schemaPath: OPENAPI_SCHEMA_PATH,
+          projectName: 'nexus',
           mock: false,
         },
       ]

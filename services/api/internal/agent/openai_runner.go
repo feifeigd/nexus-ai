@@ -328,16 +328,7 @@ func convertMessages(input []types.AGUIMessage) ([]chatMessage, error) {
 		default:
 			continue
 		}
-		content, ok := message.Content.(string)
-		if !ok {
-			// AG-UI assistant content is optional: a turn may contain only tool calls.
-			if message.Role == "assistant" && message.Content == nil {
-				content = ""
-			} else {
-				return nil, fmt.Errorf("%s messages must contain plain text", message.Role)
-			}
-		}
-		messages = append(messages, chatMessage{Role: message.Role, Content: content})
+		messages = append(messages, chatMessage{Role: message.Role, Content: message.Content})
 	}
 	return messages, nil
 }

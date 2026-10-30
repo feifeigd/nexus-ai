@@ -4,7 +4,7 @@ syntax = "v1"
 
 type AGUIMessage {
 	Role    string `json:"role"`
-	Content any    `json:"content"`
+	Content string `json:"content,optional"`
 }
 
 type AGUIRunInput {
