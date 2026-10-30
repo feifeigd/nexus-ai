@@ -22,7 +22,7 @@ func TestApprovalHandlersListAndDecideProposal(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create proposal: %v", err)
 	}
-	proposal := store.List()[0]
+	proposal := mustList(t, store)[0]
 
 	listRequest := httptest.NewRequest(http.MethodGet, "/approvals", nil)
 	listResponse := httptest.NewRecorder()
@@ -71,7 +71,7 @@ func TestApprovalHandlersRejectAndReturnNotFound(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create proposal: %v", err)
 	}
-	proposal := store.List()[0]
+	proposal := mustList(t, store)[0]
 
 	rejectRequest := httptest.NewRequest(http.MethodPost, "/approvals/"+proposal.ID+"/reject", nil)
 	rejectRequest.SetPathValue("id", proposal.ID)
@@ -95,4 +95,13 @@ func TestApprovalHandlersRejectAndReturnNotFound(t *testing.T) {
 	if missingResponse.Code != http.StatusNotFound {
 		t.Fatalf("expected missing approval to return 404, got %d", missingResponse.Code)
 	}
+}
+
+func mustList(t *testing.T, store approval.Store) []approval.Approval {
+	t.Helper()
+	approvals, err := store.List(context.Background())
+	if err != nil {
+		t.Fatalf("list approvals: %v", err)
+	}
+	return approvals
 }

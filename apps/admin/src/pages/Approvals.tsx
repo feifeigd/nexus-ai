@@ -204,7 +204,7 @@ export const ApprovalsContent: React.FC = () => {
     <>
       <Alert
         title="模型只能提议工具调用，人工批准后才执行"
-        description="当前提供 create_ticket 内存参考流程。记录在服务重启后清空；真实认证、租户隔离、审计和持久化尚未接入。"
+        description="当前提供 create_ticket 参考流程。默认使用内存存储，重启后记录清空；配置 NEXUS_POSTGRES_DSN 后持久化审批和已创建工单。真实认证、租户隔离和审计尚未接入。"
         type="info"
         showIcon
         style={{ marginBottom: 16 }}

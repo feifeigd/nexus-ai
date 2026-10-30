@@ -13,13 +13,18 @@ type approvalListResponse struct {
 	Approvals []approval.Approval `json:"approvals"`
 }
 
-func ListApprovalsHandler(store *approval.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
-		writeApprovalJSON(w, http.StatusOK, approvalListResponse{Approvals: store.List()})
+func ListApprovalsHandler(store approval.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		approvals, err := store.List(r.Context())
+		if err != nil {
+			writeApprovalError(w, err)
+			return
+		}
+		writeApprovalJSON(w, http.StatusOK, approvalListResponse{Approvals: approvals})
 	}
 }
 
-func ApproveApprovalHandler(store *approval.Store) http.HandlerFunc {
+func ApproveApprovalHandler(store approval.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := approvalID(r)
 		if id == "" {
@@ -35,7 +40,7 @@ func ApproveApprovalHandler(store *approval.Store) http.HandlerFunc {
 	}
 }
 
-func RejectApprovalHandler(store *approval.Store) http.HandlerFunc {
+func RejectApprovalHandler(store approval.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := approvalID(r)
 		if id == "" {

@@ -64,15 +64,22 @@ type Ticket struct {
 	CreatedAt   time.Time `json:"createdAt"`
 }
 
-type Store struct {
+type Store interface {
+	Tool() agent.Tool
+	List(context.Context) ([]Approval, error)
+	Approve(context.Context, string) (Approval, error)
+	Reject(context.Context, string) (Approval, error)
+}
+
+type MemoryStore struct {
 	mu        sync.RWMutex
 	approvals map[string]*Approval
 	tickets   map[string]Ticket
 	now       func() time.Time
 }
 
-func NewStore() *Store {
-	return &Store{
+func NewStore() *MemoryStore {
+	return &MemoryStore{
 		approvals: make(map[string]*Approval),
 		tickets:   make(map[string]Ticket),
 		now:       time.Now,
@@ -81,7 +88,11 @@ func NewStore() *Store {
 
 // Tool returns the only tool exposed to the model in this increment. The
 // callback records a proposal; it never creates a ticket.
-func (s *Store) Tool() agent.Tool {
+func (s *MemoryStore) Tool() agent.Tool {
+	return ticketTool(s.propose)
+}
+
+func ticketTool(propose func(context.Context, agent.ToolProposal) error) agent.Tool {
 	return agent.Tool{
 		Name:        createTicketToolName,
 		Description: "提议创建一张工单。必须获得用户明确指令，创建前需要人工审批。",
@@ -94,22 +105,32 @@ func (s *Store) Tool() agent.Tool {
 			"required": ["title", "description"],
 			"additionalProperties": false
 		}`),
-		Propose: s.propose,
+		Propose: propose,
 	}
 }
 
-func (s *Store) propose(ctx context.Context, proposal agent.ToolProposal) error {
-	if err := ctx.Err(); err != nil {
+func (s *MemoryStore) propose(ctx context.Context, proposal agent.ToolProposal) error {
+	approval, err := newPendingApproval(ctx, proposal, s.now().UTC())
+	if err != nil {
 		return err
 	}
+	s.mu.Lock()
+	s.approvals[approval.ID] = &approval
+	s.mu.Unlock()
+	return nil
+}
+
+func newPendingApproval(ctx context.Context, proposal agent.ToolProposal, now time.Time) (Approval, error) {
+	if err := ctx.Err(); err != nil {
+		return Approval{}, err
+	}
 	if proposal.Name != createTicketToolName {
-		return fmt.Errorf("unsupported tool %q", proposal.Name)
+		return Approval{}, fmt.Errorf("unsupported tool %q", proposal.Name)
 	}
 	if strings.TrimSpace(proposal.ThreadID) == "" || strings.TrimSpace(proposal.RunID) == "" || strings.TrimSpace(proposal.ToolCallID) == "" {
-		return errors.New("tool proposal correlation IDs are required")
+		return Approval{}, errors.New("tool proposal correlation IDs are required")
 	}
 
-	// json 字符串转为go struct
 	var wireInput struct {
 		Title       *string `json:"title"`
 		Description *string `json:"description"`
@@ -117,34 +138,33 @@ func (s *Store) propose(ctx context.Context, proposal agent.ToolProposal) error 
 	decoder := json.NewDecoder(bytes.NewReader(proposal.Arguments))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&wireInput); err != nil {
-		return fmt.Errorf("invalid create_ticket arguments: %w", err)
+		return Approval{}, fmt.Errorf("invalid create_ticket arguments: %w", err)
 	}
 	if err := ensureJSONEnd(decoder); err != nil {
-		return fmt.Errorf("invalid create_ticket arguments: %w", err)
+		return Approval{}, fmt.Errorf("invalid create_ticket arguments: %w", err)
 	}
-	// 必选参数
 	if wireInput.Title == nil || wireInput.Description == nil {
-		return errors.New("ticket title and description are required")
+		return Approval{}, errors.New("ticket title and description are required")
 	}
 	input := CreateTicketInput{
 		Title:       strings.TrimSpace(*wireInput.Title),
 		Description: strings.TrimSpace(*wireInput.Description),
 	}
 	if input.Title == "" {
-		return errors.New("ticket title is required")
+		return Approval{}, errors.New("ticket title is required")
 	}
 	if utf8.RuneCountInString(input.Title) > maxTitleLength {
-		return fmt.Errorf("ticket title exceeds %d characters", maxTitleLength)
+		return Approval{}, fmt.Errorf("ticket title exceeds %d characters", maxTitleLength)
 	}
 	if utf8.RuneCountInString(input.Description) > maxDescriptionLength {
-		return fmt.Errorf("ticket description exceeds %d characters", maxDescriptionLength)
+		return Approval{}, fmt.Errorf("ticket description exceeds %d characters", maxDescriptionLength)
 	}
 
 	id, err := newID("approval")
 	if err != nil {
-		return err
+		return Approval{}, err
 	}
-	approval := &Approval{
+	return Approval{
 		ID:         id,
 		ThreadID:   proposal.ThreadID,
 		RunID:      proposal.RunID,
@@ -152,31 +172,34 @@ func (s *Store) propose(ctx context.Context, proposal agent.ToolProposal) error 
 		ToolName:   proposal.Name,
 		Arguments:  input,
 		Status:     StatusPending,
-		CreatedAt:  s.now().UTC(),
-	}
-	s.mu.Lock()
-	s.approvals[id] = approval
-	s.mu.Unlock()
-	return nil
+		CreatedAt:  now,
+	}, nil
 }
 
-func (s *Store) List() []Approval {
+func (s *MemoryStore) List(ctx context.Context) ([]Approval, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	s.mu.RLock()
 	approvals := make([]Approval, 0, len(s.approvals))
 	for _, approval := range s.approvals {
 		approvals = append(approvals, *approval)
 	}
 	s.mu.RUnlock()
+	sortApprovals(approvals)
+	return approvals, nil
+}
+
+func sortApprovals(approvals []Approval) {
 	sort.Slice(approvals, func(i, j int) bool {
 		if approvals[i].CreatedAt.Equal(approvals[j].CreatedAt) {
 			return approvals[i].ID < approvals[j].ID
 		}
 		return approvals[i].CreatedAt.After(approvals[j].CreatedAt)
 	})
-	return approvals
 }
 
-func (s *Store) Approve(ctx context.Context, id string) (Approval, error) {
+func (s *MemoryStore) Approve(ctx context.Context, id string) (Approval, error) {
 	if err := ctx.Err(); err != nil {
 		return Approval{}, err
 	}
@@ -205,7 +228,7 @@ func (s *Store) Approve(ctx context.Context, id string) (Approval, error) {
 	return *approval, nil
 }
 
-func (s *Store) Reject(ctx context.Context, id string) (Approval, error) {
+func (s *MemoryStore) Reject(ctx context.Context, id string) (Approval, error) {
 	if err := ctx.Err(); err != nil {
 		return Approval{}, err
 	}
@@ -221,7 +244,7 @@ func (s *Store) Reject(ctx context.Context, id string) (Approval, error) {
 	return *approval, nil
 }
 
-func (s *Store) pendingApproval(id string) (*Approval, error) {
+func (s *MemoryStore) pendingApproval(id string) (*Approval, error) {
 	approval, ok := s.approvals[id]
 	if !ok {
 		return nil, ErrNotFound
