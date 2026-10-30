@@ -7,7 +7,7 @@ type HealthResponse struct {
 
 type AGUIMessage struct {
 	Role    string `json:"role"`
-	Content any    `json:"content"`
+	Content string `json:"content"`
 }
 
 type AGUIRunInput struct {

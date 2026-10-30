@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import type { Approval } from '@/services/nexus/approvals';
-import { ApprovalTable } from './Approvals';
+import { ApprovalTable, type Approval } from './Approvals';
 
 const pendingApproval: Approval = {
   id: 'approval-1',

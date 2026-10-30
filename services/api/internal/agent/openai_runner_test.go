@@ -233,7 +233,7 @@ func TestNewOpenAIRunnerRequiresModel(t *testing.T) {
 
 func TestConvertMessagesAcceptsAssistantWithoutContent(t *testing.T) {
 	messages, err := convertMessages([]types.AGUIMessage{
-		{Role: "assistant", Content: nil},
+		{Role: "assistant", Content: ""},
 		{Role: "user", Content: "继续"},
 	})
 	if err != nil {
@@ -245,13 +245,5 @@ func TestConvertMessagesAcceptsAssistantWithoutContent(t *testing.T) {
 	}
 	if !reflect.DeepEqual(messages, want) {
 		t.Fatalf("expected messages %+v, got %+v", want, messages)
-	}
-}
-
-func TestConvertMessagesRejectsNonTextUserContent(t *testing.T) {
-	if _, err := convertMessages([]types.AGUIMessage{
-		{Role: "user", Content: []any{"not", "text"}},
-	}); err == nil {
-		t.Fatal("non-text user content must still be rejected")
 	}
 }

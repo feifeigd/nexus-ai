@@ -19,8 +19,7 @@ func LastUserText(messages []types.AGUIMessage) (string, bool) {
 		if messages[i].Role != "user" {
 			continue
 		}
-		text, ok := messages[i].Content.(string)
-		return text, ok
+		return messages[i].Content, true
 	}
 	return "", false
 }

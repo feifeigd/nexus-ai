@@ -18,13 +18,18 @@ import {
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  type Approval,
-  type ApprovalDecision,
-  type ApprovalStatus,
-  decideApproval,
+  approveApproval,
   listApprovals,
-} from '@/services/nexus/approvals';
+  rejectApproval,
+} from '@/services/nexus/approval';
 
+export type Approval = NonNullable<
+  API.ListApprovalsResponse['approvals']
+>[number];
+export type ApprovalDecision = 'approve' | 'reject';
+type ApprovalStatus = Approval['status'];
+
+const NEXUS_API_OPTIONS = { baseURL: '/api/nexus' };
 const statusLabels: Record<ApprovalStatus, { color: string; text: string }> = {
   pending: { color: 'processing', text: '待审批' },
   approved: { color: 'success', text: '已批准' },
@@ -77,8 +82,8 @@ export const ApprovalTable: React.FC<ApprovalTableProps> = ({
         dataIndex: 'status',
         width: 100,
         render: (status: ApprovalStatus) => (
-          <Tag color={statusLabels[status].color}>
-            {statusLabels[status].text}
+          <Tag color={statusLabels[status]?.color}>
+            {statusLabels[status]?.text ?? status}
           </Tag>
         ),
       },
@@ -159,7 +164,8 @@ export const ApprovalsContent: React.FC = () => {
     setLoading(true);
     setError(undefined);
     try {
-      setApprovals(await listApprovals());
+      const response = await listApprovals(NEXUS_API_OPTIONS);
+      setApprovals(response.approvals ?? []);
     } catch (requestError) {
       setError(errorMessage(requestError));
     } finally {
@@ -176,10 +182,12 @@ export const ApprovalsContent: React.FC = () => {
       setDecidingId(id);
       setError(undefined);
       try {
-        const updated = await decideApproval(id, decision);
-        setApprovals((current) =>
-          current.map((item) => (item.id === updated.id ? updated : item)),
-        );
+        if (decision === 'approve') {
+          await approveApproval({ id }, NEXUS_API_OPTIONS);
+        } else {
+          await rejectApproval({ id }, NEXUS_API_OPTIONS);
+        }
+        await load();
         await message.success(
           decision === 'approve' ? '已批准并创建工单。' : '已拒绝该工具提议。',
         );
@@ -189,7 +197,7 @@ export const ApprovalsContent: React.FC = () => {
         setDecidingId(undefined);
       }
     },
-    [message],
+    [load, message],
   );
 
   return (

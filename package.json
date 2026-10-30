@@ -19,6 +19,8 @@
     "test:admin": "pnpm --filter admin test",
     "lint:admin": "pnpm --filter admin lint",
     "openapi:admin": "pnpm --filter admin openapi",
+    "generate:contracts": "node scripts/generate-openapi.mjs && pnpm openapi:admin",
+    "check:contracts": "node scripts/check-contracts.mjs",
     "doctor:admin": "pnpm --filter admin run doctor"
   },
   "engines": {

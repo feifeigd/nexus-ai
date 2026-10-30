@@ -21,7 +21,7 @@ func TestAGUIHandlerStreamsMockRun(t *testing.T) {
 		"runId":"run-1",
 		"messages":[
 			{"id":"message-1","role":"user","content":"旧消息"},
-			{"id":"message-2","role":"assistant","content":"旧回复"},
+			{"id":"message-2","role":"assistant","content":null},
 			{"id":"message-3","role":"user","content":"你好，NexusAI"}
 		]
 	}`

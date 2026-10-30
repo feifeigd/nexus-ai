@@ -73,8 +73,14 @@ jobs:
       - name: Build web
         run: pnpm build:web
 
+      - name: Generate contracts
+        run: pnpm generate:contracts
+
       - name: Generate admin types
         run: pnpm --filter admin exec max setup
+
+      - name: Check generated contracts
+        run: pnpm check:contracts
 
       - name: Lint admin
         run: pnpm lint:admin
