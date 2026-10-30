@@ -100,6 +100,31 @@ func (s *PostgresStore) List(ctx context.Context) ([]Approval, error) {
 	return approvals, nil
 }
 
+func (s *PostgresStore) ListTickets(ctx context.Context) ([]Ticket, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, title, description, status, created_at
+		FROM tickets ORDER BY created_at DESC, id ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("list tickets: %w", err)
+	}
+	defer rows.Close()
+
+	tickets := make([]Ticket, 0)
+	for rows.Next() {
+		var ticket Ticket
+		if err := rows.Scan(
+			&ticket.ID, &ticket.Title, &ticket.Description, &ticket.Status, &ticket.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan ticket: %w", err)
+		}
+		ticket.CreatedAt = ticket.CreatedAt.UTC()
+		tickets = append(tickets, ticket)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list tickets: %w", err)
+	}
+	return tickets, nil
+}
+
 func (s *PostgresStore) Approve(ctx context.Context, id string) (Approval, error) {
 	ticketID, err := newID("ticket")
 	if err != nil {

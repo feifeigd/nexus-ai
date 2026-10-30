@@ -51,4 +51,5 @@ export default {
   'menu.editor.koni': 'Koni Editor',
   'menu.chatbot': 'AI Assistant',
   'menu.approvals': 'Tool Approvals',
+  'menu.tickets': 'Tickets',
 };

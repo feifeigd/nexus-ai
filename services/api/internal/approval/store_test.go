@@ -52,6 +52,26 @@ func TestApproveCreatesTicketExactlyOnce(t *testing.T) {
 	}
 }
 
+func TestListTicketsReturnsOnlyCreatedTickets(t *testing.T) {
+	store := NewStore()
+	proposal := proposeTicket(t, store, `{"title":"网络故障","description":"无法访问办公系统"}`)
+	approved, err := store.Approve(context.Background(), proposal.ID)
+	if err != nil {
+		t.Fatalf("approve proposal: %v", err)
+	}
+
+	tickets, err := store.ListTickets(context.Background())
+	if err != nil {
+		t.Fatalf("list tickets: %v", err)
+	}
+	if len(tickets) != 1 || tickets[0].ID != approved.TicketID {
+		t.Fatalf("unexpected tickets: %+v", tickets)
+	}
+	if tickets[0].Title != "网络故障" || tickets[0].Description != "无法访问办公系统" || tickets[0].Status != "open" {
+		t.Fatalf("unexpected ticket content: %+v", tickets[0])
+	}
+}
+
 func TestRejectDoesNotExecuteAndCannotBeApproved(t *testing.T) {
 	store := NewStore()
 	proposal := proposeTicket(t, store, `{"title":"网络故障","description":"无法访问办公系统"}`)

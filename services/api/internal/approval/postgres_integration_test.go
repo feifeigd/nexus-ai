@@ -69,6 +69,13 @@ func TestPostgresStorePersistsApprovalAndTicketAcrossReopen(t *testing.T) {
 	if persisted[0].Status != StatusApproved || persisted[0].TicketID != approved.TicketID || persisted[0].DecidedAt == nil {
 		t.Fatalf("approval was not persisted: %+v", persisted[0])
 	}
+	tickets, err := reopened.ListTickets(ctx)
+	if err != nil || len(tickets) != 1 {
+		t.Fatalf("list persisted tickets: %+v, %v", tickets, err)
+	}
+	if tickets[0].ID != approved.TicketID || tickets[0].Title != "持久化验证" || tickets[0].Status != "open" {
+		t.Fatalf("unexpected persisted ticket: %+v", tickets[0])
+	}
 	if _, err := reopened.Approve(ctx, approved.ID); !errors.Is(err, ErrAlreadyDecided) {
 		t.Fatalf("expected persisted decision to remain final, got %v", err)
 	}
