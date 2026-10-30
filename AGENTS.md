@@ -15,6 +15,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - PostgreSQL、pgvector、Redis 用于数据、向量检索和缓存；Docker Compose 用于本地环境。
 - 后续使用 Expo + React Native 扩展安卓端。
 - 当前不引入 NestJS、Python Agent 服务、Kubernetes 或复杂微服务体系。
+- Eino 当前暂不引入：现阶段的模型接入与流式协议转换不需要额外 Agent 编排抽象。后续进入企业知识库、RAG、复杂工具调用或多步骤 Agent 工作流时重新评估；若引入，应作为 go-zero 内 Agent `Runner` 的一种编排实现，不替代 go-zero，也不承接权限、租户隔离、人工审批或审计。
 - 工具权限、租户隔离、参数校验、人工审批和审计必须以 go-zero 后端为权威，不能依赖模型输出或前端状态。
 
 ## 依赖升级约束

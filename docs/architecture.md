@@ -22,8 +22,10 @@ flowchart LR
     subgraph Backend["services/api · go-zero 模块化单体 :8080"]
         AGUI["AG-UI Handler<br/>POST /ag-ui"]
         Runner["Agent Runner<br/>mock / openai"]
+        Approval["工具提议与人工审批<br/>内存参考实现"]
         Health["健康检查<br/>GET /healthz"]
         AGUI --> Runner
+        Runner -->|"完整且通过校验的工具提议"| Approval
     end
 
     Model["OpenAI 兼容模型服务<br/>POST /chat/completions"]
@@ -41,12 +43,13 @@ flowchart LR
 | 组件 | 当前职责 | 明确不负责 |
 | --- | --- | --- |
 | `apps/web` | 用户端页面、聊天 UI、API 健康状态；承载 Web 自己的 CopilotKit Runtime | 企业业务规则、权限最终判定、Admin Runtime 托管 |
-| `apps/admin` | 管理后台页面与 AI 聊天 UI；开发环境代理到独立 Runtime | 生产反向代理、业务权限权威 |
+| `apps/admin` | 管理后台页面与 AI 聊天 UI；开发环境代理到独立 Runtime | 生产反向代理、业务权限权威、工具审批界面 |
 | `apps/agent-runtime` | 独立运行的 Admin CopilotKit Runtime，默认监听 `127.0.0.1:4000` | 企业业务、模型调用、用户端页面托管 |
 | CopilotKit Runtime | Agent 发现、`default` Agent 注册、前端协议适配、AG-UI 转发 | 企业业务、模型调用、租户隔离、审批、审计 |
-| go-zero API | 请求校验、AG-UI SSE 响应、Agent Runner 选择 | 当前尚未接入真实业务工具与持久化 |
-| Agent Runner | Mock 流式回复，或调用 OpenAI 兼容模型并转换流式事件 | 绕过服务端直接执行后台操作 |
-| PostgreSQL / pgvector / Redis | Docker Compose 已提供本地基础设施 | 当前聊天链路尚未读写这些组件 |
+| go-zero API | 请求校验、AG-UI SSE 响应、Runner 选择、工具白名单、参数校验和审批决策 | 真实认证、租户隔离、持久化审批与审计 |
+| Agent Runner | Mock 文本流，或调用 OpenAI 兼容模型并转换文本与工具调用事件 | 绕过服务端直接执行后台操作 |
+| 内存审批存储 | 保存待审批提议；批准后创建内存工单，拒绝则不执行 | 服务重启后的持久性、生产授权与审计 |
+| PostgreSQL / pgvector / Redis | Docker Compose 已提供本地基础设施 | 当前聊天与审批链路尚未读写这些组件 |
 
 Web 与 Admin 使用彼此独立的 Runtime 进程，关闭 Web 不会中断 Admin 的 AI 聊天链路。两个 Runtime 都只允许转发 `authorization` 和 `x-tenant-id` 请求头，以减少浏览器请求头的无意泄露。请求头转发只是协议能力，不代表认证或租户隔离已经实现。
 
@@ -80,6 +83,8 @@ sequenceDiagram
 ```
 
 正常文本运行包含 `RUN_STARTED`、`TEXT_MESSAGE_START`、若干 `TEXT_MESSAGE_CONTENT`、`TEXT_MESSAGE_END` 和 `RUN_FINISHED`。运行失败时，go-zero 在响应尚未开始时返回错误；流已经开始后则发送 `RUN_ERROR`。客户端断开连接会取消后续模型请求。
+
+OpenAI 兼容模型提议 `create_ticket` 时，go-zero 转发 `TOOL_CALL_START`、`TOOL_CALL_ARGS` 和 `TOOL_CALL_END` 事件，并只在完整模型流结束后校验参数、写入待审批记录。`POST /approvals/:id/approve` 批准后才创建内存工单，`POST /approvals/:id/reject` 拒绝则不执行；重复决策返回 409。不完整流、未知工具和无效参数均不会生成审批记录。
 
 ## 3. 目标架构（规划）
 
@@ -179,8 +184,8 @@ flowchart TB
 以下能力不能依据现有聊天页面推断为已完成：
 
 - 真实后台认证、授权和租户隔离。
-- 业务工具调用、人工审批与审计。
+- Admin 工具审批界面、生产级审批授权与审计。
 - 知识库 ingestion、检索和引用。
-- 工单领域模型与持久化。
+- 工单与审批记录的 PostgreSQL 持久化；当前内存记录会在重启后清空。
 - PostgreSQL、pgvector、Redis 与业务链路的实际集成。
 - Admin 生产环境同源反向代理与完整部署拓扑。

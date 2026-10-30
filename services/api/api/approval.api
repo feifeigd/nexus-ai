@@ -1,0 +1,35 @@
+// API DSL reference: https://go-zero.dev/reference/api-dsl/
+syntax = "v1"
+
+type CreateTicketInput {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+type Approval {
+	ID         string           `json:"id"`
+	ThreadId   string           `json:"threadId"`
+	RunId      string           `json:"runId"`
+	ToolCallId string           `json:"toolCallId"`
+	ToolName   string           `json:"toolName"`
+	Arguments  CreateTicketInput `json:"arguments"`
+	Status     string           `json:"status"`
+	TicketId   string           `json:"ticketId,optional"`
+	CreatedAt  string           `json:"createdAt"`
+	DecidedAt  string           `json:"decidedAt,optional"`
+}
+
+type ApprovalListResponse {
+	Approvals []Approval `json:"approvals"`
+}
+
+service nexus-api {
+	@handler listApprovals
+	get /approvals returns (ApprovalListResponse)
+
+	@handler approveApproval
+	post /approvals/:id/approve returns (Approval)
+
+	@handler rejectApproval
+	post /approvals/:id/reject returns (Approval)
+}

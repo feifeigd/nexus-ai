@@ -20,14 +20,15 @@ NexusAI 是一个建设中的企业级 AI 应用开发框架，并将内置多�
 ## 当前能力
 
 - go-zero 健康检查接口 `GET /healthz`。
-- go-zero AG-UI 接口 `POST /ag-ui`，以 SSE 返回 Agent 事件。
+- go-zero AG-UI 接口 `POST /ag-ui`，以 SSE 返回 Agent 文本与工具调用事件。
 - Web 使用 Next.js 内嵌 CopilotKit Runtime；Admin 使用 `apps/agent-runtime` 独立 Runtime，两者均注册 `default` Agent 并向 go-zero 转发 AG-UI 请求。
 - 用户端和管理后台均已接入 CopilotKit 流式聊天界面，Admin 聊天不再依赖 Web 进程。
 - Agent 默认使用 Mock；也可通过环境变量切换到 OpenAI 兼容的 `/chat/completions` 流式接口。
+- go-zero 提供服务端白名单 `create_ticket` 工具提议、内存审批记录及 `GET /approvals`、`POST /approvals/:id/approve`、`POST /approvals/:id/reject` 接口；批准后才创建内存工单。
 - Docker Compose 提供 PostgreSQL、pgvector 和 Redis 本地基础设施。
 - 管理后台支持从真实 OpenAPI JSON 生成 TypeScript API 代码。
 
-> 当前页面仍保留部分 Mock 阶段文案。切换到真实模型只改变 Agent 的回复来源，不代表后台业务工具、权限审批或持久化已经接入。
+> 工具审批目前是内存参考实现，服务重启后记录清空；真实认证、租户隔离、审批界面、审计和 PostgreSQL 持久化尚未接入，不能将当前接口直接视为生产安全边界。
 
 ## 目录结构
 

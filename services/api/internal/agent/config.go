@@ -30,12 +30,12 @@ func ConfigFromEnv(base Config) Config {
 	return base
 }
 
-func NewRunner(config Config) (Runner, error) {
+func NewRunner(config Config, tools ...Tool) (Runner, error) {
 	switch strings.ToLower(strings.TrimSpace(config.Mode)) {
 	case "", "mock":
 		return MockRunner{}, nil
 	case "openai":
-		return NewOpenAIRunner(config.OpenAI, nil)
+		return NewOpenAIRunnerWithTools(config.OpenAI, nil, tools)
 	default:
 		return nil, fmt.Errorf("unsupported agent mode %q", config.Mode)
 	}
