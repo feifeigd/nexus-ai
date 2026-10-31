@@ -10,3 +10,4 @@ service nexus-api {
 	@handler health
 	get /healthz returns (HealthResponse)
 }
+
