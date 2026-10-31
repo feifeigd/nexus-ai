@@ -28,7 +28,7 @@ func (Ticket) Fields() []ent.Field {
 // Edges of the Ticket.
 func (Ticket) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.To("approval", Approval.Type).
+		edge.From("approval", Approval.Type).Ref("ticket").Immutable().
 			Field("approval_id").Required().Unique(),
 	}
 }
