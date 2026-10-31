@@ -33,9 +33,20 @@ const (
 	StatusRejected Status = "rejected" // 拒绝
 )
 
+type TicketStatus string
+
+const (
+	TicketStatusOpen       TicketStatus = "open"
+	TicketStatusInProgress TicketStatus = "in_progress"
+	TicketStatusResolved   TicketStatus = "resolved"
+)
+
 var (
-	ErrNotFound       = errors.New("approval not found")
-	ErrAlreadyDecided = errors.New("approval has already been decided")
+	ErrNotFound                = errors.New("approval not found")
+	ErrAlreadyDecided          = errors.New("approval has already been decided")
+	ErrTicketNotFound          = errors.New("ticket not found")
+	ErrInvalidTicketStatus     = errors.New("invalid ticket status")
+	ErrInvalidTicketTransition = errors.New("invalid ticket status transition")
 )
 
 type CreateTicketInput struct {
@@ -57,17 +68,29 @@ type Approval struct {
 }
 
 type Ticket struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID          string       `json:"id"`
+	Title       string       `json:"title"`
+	Description string       `json:"description"`
+	Status      TicketStatus `json:"status"`
+	CreatedAt   time.Time    `json:"createdAt"`
+}
+
+func validateTicketTransition(current, next TicketStatus) error {
+	if next != TicketStatusOpen && next != TicketStatusInProgress && next != TicketStatusResolved {
+		return ErrInvalidTicketStatus
+	}
+	if current == TicketStatusOpen && next == TicketStatusInProgress ||
+		current == TicketStatusInProgress && next == TicketStatusResolved {
+		return nil
+	}
+	return ErrInvalidTicketTransition
 }
 
 type Store interface {
 	Tool() agent.Tool
 	List(context.Context) ([]Approval, error)
 	ListTickets(context.Context) ([]Ticket, error)
+	UpdateTicketStatus(context.Context, string, TicketStatus) (Ticket, error)
 	Approve(context.Context, string) (Approval, error)
 	Reject(context.Context, string) (Approval, error)
 }
@@ -208,6 +231,24 @@ func (s *MemoryStore) ListTickets(ctx context.Context) ([]Ticket, error) {
 		return tickets[i].CreatedAt.After(tickets[j].CreatedAt)
 	})
 	return tickets, nil
+}
+
+func (s *MemoryStore) UpdateTicketStatus(ctx context.Context, id string, status TicketStatus) (Ticket, error) {
+	if err := ctx.Err(); err != nil {
+		return Ticket{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ticket, ok := s.tickets[id]
+	if !ok {
+		return Ticket{}, ErrTicketNotFound
+	}
+	if err := validateTicketTransition(ticket.Status, status); err != nil {
+		return Ticket{}, err
+	}
+	ticket.Status = status
+	s.tickets[id] = ticket
+	return ticket, nil
 }
 
 func sortApprovals(approvals []Approval) {

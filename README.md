@@ -26,7 +26,7 @@ NexusAI 是一个建设中的企业级 AI 应用开发框架，并将内置多�
 - Agent 默认使用 Mock；也可通过环境变量切换到 OpenAI 兼容的 `/chat/completions` 流式接口。
 - go-zero 提供服务端白名单 `create_ticket` 工具提议及 `GET /approvals`、`POST /approvals/:id/approve`、`POST /approvals/:id/reject` 接口；批准后才创建工单。
 - Admin 新增 `/approvals` 工具审批页面，可查看参数、刷新列表并批准或拒绝待审批提议。
-- go-zero 提供 `GET /tickets` 只读工单列表；Admin `/tickets` 页面展示已批准提议创建的工单，不包含处理或删除操作。
+- go-zero 提供 `GET /tickets` 和 `PATCH /tickets/:id/status`；Admin `/tickets` 页面支持待处理、处理中、已完成的顺序流转，不包含删除或重新打开操作。
 - 审批与工单默认保存在内存中；配置 `NEXUS_POSTGRES_DSN` 后切换到 PostgreSQL，启动时自动创建所需表，批准流程在事务中创建工单并更新审批。
 - Docker Compose 提供 PostgreSQL、pgvector 和 Redis 本地基础设施。
 - 管理后台支持从真实 OpenAPI JSON 生成 TypeScript API 代码。

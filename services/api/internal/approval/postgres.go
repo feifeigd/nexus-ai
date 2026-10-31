@@ -17,6 +17,9 @@ import (
 //go:embed migrations/001_approvals.sql
 var migrationSQL string
 
+//go:embed migrations/002_ticket_status.sql
+var ticketStatusMigrationSQL string
+
 const approvalColumns = `id, thread_id, run_id, tool_call_id, tool_name,
 	arguments, status, ticket_id, created_at, decided_at`
 
@@ -47,8 +50,10 @@ func (s *PostgresStore) Close() error {
 }
 
 func (s *PostgresStore) Migrate(ctx context.Context) error {
-	if _, err := s.db.ExecContext(ctx, migrationSQL); err != nil {
-		return fmt.Errorf("migrate approval store: %w", err)
+	for _, migration := range []string{migrationSQL, ticketStatusMigrationSQL} {
+		if _, err := s.db.ExecContext(ctx, migration); err != nil {
+			return fmt.Errorf("migrate approval store: %w", err)
+		}
 	}
 	return nil
 }
@@ -110,19 +115,40 @@ func (s *PostgresStore) ListTickets(ctx context.Context) ([]Ticket, error) {
 
 	tickets := make([]Ticket, 0)
 	for rows.Next() {
-		var ticket Ticket
-		if err := rows.Scan(
-			&ticket.ID, &ticket.Title, &ticket.Description, &ticket.Status, &ticket.CreatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scan ticket: %w", err)
+		ticket, err := scanTicket(rows)
+		if err != nil {
+			return nil, err
 		}
-		ticket.CreatedAt = ticket.CreatedAt.UTC()
 		tickets = append(tickets, ticket)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("list tickets: %w", err)
 	}
 	return tickets, nil
+}
+
+func (s *PostgresStore) UpdateTicketStatus(ctx context.Context, id string, status TicketStatus) (Ticket, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Ticket{}, fmt.Errorf("begin ticket status transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	ticket, err := ticketByID(ctx, tx, id, true)
+	if err != nil {
+		return Ticket{}, err
+	}
+	if err := validateTicketTransition(ticket.Status, status); err != nil {
+		return Ticket{}, err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE tickets SET status = $2 WHERE id = $1`, id, status); err != nil {
+		return Ticket{}, fmt.Errorf("update ticket status: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return Ticket{}, fmt.Errorf("commit ticket status transaction: %w", err)
+	}
+	ticket.Status = status
+	return ticket, nil
 }
 
 func (s *PostgresStore) Approve(ctx context.Context, id string) (Approval, error) {
@@ -211,8 +237,31 @@ func approvalByID(ctx context.Context, db queryRower, id string, lock bool) (App
 	return approval, err
 }
 
+func ticketByID(ctx context.Context, db queryRower, id string, lock bool) (Ticket, error) {
+	query := `SELECT id, title, description, status, created_at FROM tickets WHERE id = $1`
+	if lock {
+		query += ` FOR UPDATE`
+	}
+	ticket, err := scanTicket(db.QueryRowContext(ctx, query, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Ticket{}, ErrTicketNotFound
+	}
+	return ticket, err
+}
+
 type scanner interface {
 	Scan(...any) error
+}
+
+func scanTicket(row scanner) (Ticket, error) {
+	var ticket Ticket
+	if err := row.Scan(
+		&ticket.ID, &ticket.Title, &ticket.Description, &ticket.Status, &ticket.CreatedAt,
+	); err != nil {
+		return Ticket{}, fmt.Errorf("scan ticket: %w", err)
+	}
+	ticket.CreatedAt = ticket.CreatedAt.UTC()
+	return ticket, nil
 }
 
 func scanApproval(row scanner) (Approval, error) {

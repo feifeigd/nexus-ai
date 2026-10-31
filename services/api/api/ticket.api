@@ -13,7 +13,14 @@ type TicketListResponse {
 	Tickets []Ticket `json:"tickets"`
 }
 
+type UpdateTicketStatusInput {
+	Status string `json:"status"`
+}
+
 service nexus-api {
 	@handler listTickets
 	get /tickets returns (TicketListResponse)
+
+	@handler updateTicketStatus
+	patch /tickets/:id/status (UpdateTicketStatusInput) returns (Ticket)
 }
