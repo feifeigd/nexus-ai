@@ -47,6 +47,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Ent data access
+        run: pnpm generate:ent
+
       - name: Test Go API
         working-directory: services/api
         run: go test ./...

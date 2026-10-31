@@ -90,4 +90,35 @@ func TestPostgresStorePersistsApprovalAndTicketAcrossReopen(t *testing.T) {
 	if _, err := reopened.Approve(ctx, approved.ID); !errors.Is(err, ErrAlreadyDecided) {
 		t.Fatalf("expected persisted decision to remain final, got %v", err)
 	}
+
+	if err := reopened.Tool().Propose(ctx, agent.ToolProposal{
+		ThreadID:   "thread-rejected",
+		RunID:      "run-rejected",
+		ToolCallID: "call-rejected",
+		Name:       createTicketToolName,
+		Arguments:  json.RawMessage(`{"title":"拒绝验证","description":"拒绝后不应创建工单"}`),
+	}); err != nil {
+		t.Fatalf("propose rejected ticket: %v", err)
+	}
+	approvals, err = reopened.List(ctx)
+	if err != nil {
+		t.Fatalf("list approvals before rejection: %v", err)
+	}
+	var rejectedID string
+	for _, candidate := range approvals {
+		if candidate.ToolCallID == "call-rejected" {
+			rejectedID = candidate.ID
+		}
+	}
+	if rejectedID == "" {
+		t.Fatal("rejected proposal was not persisted")
+	}
+	rejected, err := reopened.Reject(ctx, rejectedID)
+	if err != nil || rejected.Status != StatusRejected || rejected.DecidedAt == nil {
+		t.Fatalf("reject persisted proposal: %+v, %v", rejected, err)
+	}
+	tickets, err = reopened.ListTickets(ctx)
+	if err != nil || len(tickets) != 1 {
+		t.Fatalf("rejection must not create another ticket: %+v, %v", tickets, err)
+	}
 }

@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
+	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 )
@@ -28,7 +30,18 @@ func (Ticket) Fields() []ent.Field {
 // Edges of the Ticket.
 func (Ticket) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.From("approval", Approval.Type).Ref("ticket").Immutable().
+		edge.From("approval", Approval.Type).Ref("ticket_relation").Immutable().
 			Field("approval_id").Required().Unique(),
+	}
+}
+
+// Annotations of the Ticket.
+func (Ticket) Annotations() []schema.Annotation {
+	return []schema.Annotation{
+		&entsql.Annotation{
+			Checks: map[string]string{
+				"tickets_status_check": "status IN ('open', 'in_progress', 'resolved')",
+			},
+		},
 	}
 }

@@ -35,7 +35,7 @@ func (Approval) Fields() []ent.Field {
 // Edges of the Approval.
 func (Approval) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.To("ticket", Ticket.Type).Unique(), // 一个 Approval 可以拥有零个或一个 Ticket
+		edge.To("ticket_relation", Ticket.Type).Unique(), // 避免与 ticket_id 字段的生成方法重名。
 	}
 }
 

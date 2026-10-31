@@ -5,12 +5,16 @@ import (
 	"database/sql"
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
 	"nexusai/services/api/internal/agent"
+	dataent "nexusai/services/api/internal/data/ent"
+	entapproval "nexusai/services/api/internal/data/ent/approval"
+	entticket "nexusai/services/api/internal/data/ent/ticket"
 
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
@@ -20,12 +24,10 @@ var migrationSQL string
 //go:embed migrations/002_ticket_status.sql
 var ticketStatusMigrationSQL string
 
-const approvalColumns = `id, thread_id, run_id, tool_call_id, tool_name,
-	arguments, status, ticket_id, created_at, decided_at`
-
 type PostgresStore struct {
-	db  *sql.DB
-	now func() time.Time
+	db     *sql.DB
+	client *dataent.Client
+	now    func() time.Time
 }
 
 func NewPostgresStore(ctx context.Context, dsn string) (*PostgresStore, error) {
@@ -42,13 +44,17 @@ func NewPostgresStore(ctx context.Context, dsn string) (*PostgresStore, error) {
 		db.Close()
 		return nil, err
 	}
+	driver := entsql.OpenDB(dialect.Postgres, db)
+	store.client = dataent.NewClient(dataent.Driver(driver))
 	return store, nil
 }
 
 func (s *PostgresStore) Close() error {
-	return s.db.Close()
+	return s.client.Close()
 }
 
+// Migrate keeps the existing versioned SQL migrations authoritative. Ent is
+// used for data access, not automatic schema migration.
 func (s *PostgresStore) Migrate(ctx context.Context) error {
 	for _, migration := range []string{migrationSQL, ticketStatusMigrationSQL} {
 		if _, err := s.db.ExecContext(ctx, migration); err != nil {
@@ -67,16 +73,19 @@ func (s *PostgresStore) propose(ctx context.Context, proposal agent.ToolProposal
 	if err != nil {
 		return err
 	}
-	arguments, err := json.Marshal(approval.Arguments)
-	if err != nil {
-		return fmt.Errorf("encode approval arguments: %w", err)
-	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO approvals (
-		id, thread_id, run_id, tool_call_id, tool_name, arguments, status, created_at
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		approval.ID, approval.ThreadID, approval.RunID, approval.ToolCallID,
-		approval.ToolName, arguments, approval.Status, approval.CreatedAt,
-	)
+	err = s.client.Approval.Create().
+		SetID(approval.ID).
+		SetThreadID(approval.ThreadID).
+		SetRunID(approval.RunID).
+		SetToolCallID(approval.ToolCallID).
+		SetToolName(approval.ToolName).
+		SetArguments(map[string]any{
+			"title":       approval.Arguments.Title,
+			"description": approval.Arguments.Description,
+		}).
+		SetStatus(string(approval.Status)).
+		SetCreatedAt(approval.CreatedAt).
+		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("insert approval: %w", err)
 	}
@@ -84,64 +93,54 @@ func (s *PostgresStore) propose(ctx context.Context, proposal agent.ToolProposal
 }
 
 func (s *PostgresStore) List(ctx context.Context) ([]Approval, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT `+approvalColumns+`
-		FROM approvals ORDER BY created_at DESC, id ASC`)
+	rows, err := s.client.Approval.Query().
+		Order(dataent.Desc(entapproval.FieldCreatedAt), dataent.Asc(entapproval.FieldID)).
+		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list approvals: %w", err)
 	}
-	defer rows.Close()
-
-	approvals := make([]Approval, 0)
-	for rows.Next() {
-		approval, err := scanApproval(rows)
+	approvals := make([]Approval, 0, len(rows))
+	for _, row := range rows {
+		approval, err := approvalFromEnt(row)
 		if err != nil {
 			return nil, err
 		}
 		approvals = append(approvals, approval)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("list approvals: %w", err)
-	}
 	return approvals, nil
 }
 
 func (s *PostgresStore) ListTickets(ctx context.Context) ([]Ticket, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, title, description, status, created_at
-		FROM tickets ORDER BY created_at DESC, id ASC`)
+	rows, err := s.client.Ticket.Query().
+		Order(dataent.Desc(entticket.FieldCreatedAt), dataent.Asc(entticket.FieldID)).
+		All(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list tickets: %w", err)
 	}
-	defer rows.Close()
-
-	tickets := make([]Ticket, 0)
-	for rows.Next() {
-		ticket, err := scanTicket(rows)
-		if err != nil {
-			return nil, err
-		}
-		tickets = append(tickets, ticket)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("list tickets: %w", err)
+	tickets := make([]Ticket, 0, len(rows))
+	for _, row := range rows {
+		tickets = append(tickets, ticketFromEnt(row))
 	}
 	return tickets, nil
 }
 
 func (s *PostgresStore) UpdateTicketStatus(ctx context.Context, id string, status TicketStatus) (Ticket, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return Ticket{}, fmt.Errorf("begin ticket status transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
-	ticket, err := ticketByID(ctx, tx, id, true)
+	ticket, err := lockedTicketByID(ctx, tx.Client(), id)
 	if err != nil {
 		return Ticket{}, err
 	}
 	if err := validateTicketTransition(ticket.Status, status); err != nil {
 		return Ticket{}, err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE tickets SET status = $2 WHERE id = $1`, id, status); err != nil {
+	if err := tx.Client().Ticket.UpdateOneID(id).
+		SetStatus(string(status)).
+		Exec(ctx); err != nil {
 		return Ticket{}, fmt.Errorf("update ticket status: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -156,13 +155,13 @@ func (s *PostgresStore) Approve(ctx context.Context, id string) (Approval, error
 	if err != nil {
 		return Approval{}, err
 	}
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return Approval{}, fmt.Errorf("begin approval transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
-	approval, err := approvalByID(ctx, tx, id, true)
+	approval, err := lockedApprovalByID(ctx, tx.Client(), id)
 	if err != nil {
 		return Approval{}, err
 	}
@@ -170,17 +169,21 @@ func (s *PostgresStore) Approve(ctx context.Context, id string) (Approval, error
 		return Approval{}, ErrAlreadyDecided
 	}
 	now := s.now().UTC()
-	if _, err := tx.ExecContext(ctx, `INSERT INTO tickets (
-		id, approval_id, title, description, status, created_at
-	) VALUES ($1, $2, $3, $4, 'open', $5)`,
-		ticketID, approval.ID, approval.Arguments.Title, approval.Arguments.Description, now,
-	); err != nil {
+	if err := tx.Client().Ticket.Create().
+		SetID(ticketID).
+		SetApprovalID(approval.ID).
+		SetTitle(approval.Arguments.Title).
+		SetDescription(approval.Arguments.Description).
+		SetStatus(string(TicketStatusOpen)).
+		SetCreatedAt(now).
+		Exec(ctx); err != nil {
 		return Approval{}, fmt.Errorf("create approved ticket: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE approvals
-		SET status = $2, ticket_id = $3, decided_at = $4 WHERE id = $1`,
-		id, StatusApproved, ticketID, now,
-	); err != nil {
+	if err := tx.Client().Approval.UpdateOneID(id).
+		SetStatus(string(StatusApproved)).
+		SetTicketID(ticketID).
+		SetDecidedAt(now).
+		Exec(ctx); err != nil {
 		return Approval{}, fmt.Errorf("approve proposal: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -193,13 +196,13 @@ func (s *PostgresStore) Approve(ctx context.Context, id string) (Approval, error
 }
 
 func (s *PostgresStore) Reject(ctx context.Context, id string) (Approval, error) {
-	tx, err := s.db.BeginTx(ctx, nil)
+	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return Approval{}, fmt.Errorf("begin rejection transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
-	approval, err := approvalByID(ctx, tx, id, true)
+	approval, err := lockedApprovalByID(ctx, tx.Client(), id)
 	if err != nil {
 		return Approval{}, err
 	}
@@ -207,10 +210,10 @@ func (s *PostgresStore) Reject(ctx context.Context, id string) (Approval, error)
 		return Approval{}, ErrAlreadyDecided
 	}
 	now := s.now().UTC()
-	if _, err := tx.ExecContext(ctx, `UPDATE approvals
-		SET status = $2, decided_at = $3 WHERE id = $1`,
-		id, StatusRejected, now,
-	); err != nil {
+	if err := tx.Client().Approval.UpdateOneID(id).
+		SetStatus(string(StatusRejected)).
+		SetDecidedAt(now).
+		Exec(ctx); err != nil {
 		return Approval{}, fmt.Errorf("reject proposal: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -221,69 +224,67 @@ func (s *PostgresStore) Reject(ctx context.Context, id string) (Approval, error)
 	return approval, nil
 }
 
-type queryRower interface {
-	QueryRowContext(context.Context, string, ...any) *sql.Row
-}
-
-func approvalByID(ctx context.Context, db queryRower, id string, lock bool) (Approval, error) {
-	query := `SELECT ` + approvalColumns + ` FROM approvals WHERE id = $1`
-	if lock {
-		query += ` FOR UPDATE`
-	}
-	approval, err := scanApproval(db.QueryRowContext(ctx, query, id))
-	if errors.Is(err, sql.ErrNoRows) {
+func lockedApprovalByID(ctx context.Context, client *dataent.Client, id string) (Approval, error) {
+	row, err := client.Approval.Query().
+		Where(entapproval.ID(id)).
+		ForUpdate().
+		Only(ctx)
+	if dataent.IsNotFound(err) {
 		return Approval{}, ErrNotFound
 	}
-	return approval, err
+	if err != nil {
+		return Approval{}, fmt.Errorf("query approval: %w", err)
+	}
+	return approvalFromEnt(row)
 }
 
-func ticketByID(ctx context.Context, db queryRower, id string, lock bool) (Ticket, error) {
-	query := `SELECT id, title, description, status, created_at FROM tickets WHERE id = $1`
-	if lock {
-		query += ` FOR UPDATE`
-	}
-	ticket, err := scanTicket(db.QueryRowContext(ctx, query, id))
-	if errors.Is(err, sql.ErrNoRows) {
+func lockedTicketByID(ctx context.Context, client *dataent.Client, id string) (Ticket, error) {
+	row, err := client.Ticket.Query().
+		Where(entticket.ID(id)).
+		ForUpdate().
+		Only(ctx)
+	if dataent.IsNotFound(err) {
 		return Ticket{}, ErrTicketNotFound
 	}
-	return ticket, err
-}
-
-type scanner interface {
-	Scan(...any) error
-}
-
-func scanTicket(row scanner) (Ticket, error) {
-	var ticket Ticket
-	if err := row.Scan(
-		&ticket.ID, &ticket.Title, &ticket.Description, &ticket.Status, &ticket.CreatedAt,
-	); err != nil {
-		return Ticket{}, fmt.Errorf("scan ticket: %w", err)
+	if err != nil {
+		return Ticket{}, fmt.Errorf("query ticket: %w", err)
 	}
-	ticket.CreatedAt = ticket.CreatedAt.UTC()
-	return ticket, nil
+	return ticketFromEnt(row), nil
 }
 
-func scanApproval(row scanner) (Approval, error) {
-	var approval Approval
-	var arguments []byte
-	var ticketID sql.NullString
-	var decidedAt sql.NullTime
-	if err := row.Scan(
-		&approval.ID, &approval.ThreadID, &approval.RunID, &approval.ToolCallID,
-		&approval.ToolName, &arguments, &approval.Status, &ticketID,
-		&approval.CreatedAt, &decidedAt,
-	); err != nil {
-		return Approval{}, fmt.Errorf("scan approval: %w", err)
+func ticketFromEnt(row *dataent.Ticket) Ticket {
+	return Ticket{
+		ID:          row.ID,
+		Title:       row.Title,
+		Description: row.Description,
+		Status:      TicketStatus(row.Status),
+		CreatedAt:   row.CreatedAt.UTC(),
+	}
+}
+
+func approvalFromEnt(row *dataent.Approval) (Approval, error) {
+	arguments, err := json.Marshal(row.Arguments)
+	if err != nil {
+		return Approval{}, fmt.Errorf("encode approval arguments: %w", err)
+	}
+	approval := Approval{
+		ID:         row.ID,
+		ThreadID:   row.ThreadID,
+		RunID:      row.RunID,
+		ToolCallID: row.ToolCallID,
+		ToolName:   row.ToolName,
+		Status:     Status(row.Status),
+		CreatedAt:  row.CreatedAt.UTC(),
 	}
 	if err := json.Unmarshal(arguments, &approval.Arguments); err != nil {
 		return Approval{}, fmt.Errorf("decode approval arguments: %w", err)
 	}
-	approval.TicketID = ticketID.String
-	if decidedAt.Valid {
-		value := decidedAt.Time.UTC()
+	if row.TicketID != nil {
+		approval.TicketID = *row.TicketID
+	}
+	if row.DecidedAt != nil {
+		value := row.DecidedAt.UTC()
 		approval.DecidedAt = &value
 	}
-	approval.CreatedAt = approval.CreatedAt.UTC()
 	return approval, nil
 }
