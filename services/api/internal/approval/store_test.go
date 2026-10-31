@@ -72,6 +72,33 @@ func TestListTicketsReturnsOnlyCreatedTickets(t *testing.T) {
 	}
 }
 
+func TestTicketStatusTransitionsAreEnforced(t *testing.T) {
+	store := NewStore()
+	proposal := proposeTicket(t, store, `{"title":"网络故障","description":"无法访问办公系统"}`)
+	approved, err := store.Approve(context.Background(), proposal.ID)
+	if err != nil {
+		t.Fatalf("approve proposal: %v", err)
+	}
+
+	updated, err := store.UpdateTicketStatus(context.Background(), approved.TicketID, TicketStatusInProgress)
+	if err != nil || updated.Status != TicketStatusInProgress {
+		t.Fatalf("start ticket: %+v, %v", updated, err)
+	}
+	resolved, err := store.UpdateTicketStatus(context.Background(), approved.TicketID, TicketStatusResolved)
+	if err != nil || resolved.Status != TicketStatusResolved {
+		t.Fatalf("resolve ticket: %+v, %v", resolved, err)
+	}
+	if _, err := store.UpdateTicketStatus(context.Background(), approved.TicketID, TicketStatusOpen); !errors.Is(err, ErrInvalidTicketTransition) {
+		t.Fatalf("expected resolved ticket to reject reopening, got %v", err)
+	}
+	if _, err := store.UpdateTicketStatus(context.Background(), approved.TicketID, TicketStatus("closed")); !errors.Is(err, ErrInvalidTicketStatus) {
+		t.Fatalf("expected unknown status to be rejected, got %v", err)
+	}
+	if _, err := store.UpdateTicketStatus(context.Background(), "missing", TicketStatusInProgress); !errors.Is(err, ErrTicketNotFound) {
+		t.Fatalf("expected missing ticket to return not found, got %v", err)
+	}
+}
+
 func TestRejectDoesNotExecuteAndCannotBeApproved(t *testing.T) {
 	store := NewStore()
 	proposal := proposeTicket(t, store, `{"title":"网络故障","description":"无法访问办公系统"}`)
