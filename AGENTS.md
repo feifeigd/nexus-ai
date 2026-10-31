@@ -11,6 +11,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - CopilotKit 负责用户端和管理后台的 AI 前端交互；Web 使用 Next.js 内嵌 Copilot Runtime，Admin 使用 `apps/agent-runtime` 独立轻量 TypeScript 协议适配服务，两者都不重复实现企业业务。
 - 管理后台必须提供 AI 聊天助手，支持通过聊天查询数据、辅助填写和触发后台操作；模型只能提议工具调用，go-zero 负责权限、租户隔离、参数校验、人工审批和审计。
 - AG-UI 负责 Agent 事件通信，A2UI 负责受控动态 UI；普通业务仍使用 REST。
+- 后续接入自带交互界面的 MCP 工具时，可按需引入 MCP Apps（MCP-UI），作为隔离的工具面板；它不替代 AG-UI、A2UI 或固定业务页面，UI 触发的业务操作仍必须由 go-zero 鉴权、校验、审批和审计。
 - 管理后台必须支持通过 `@umijs/max-plugin-openapi` 从 NexusAI 的真实 OpenAPI JSON 生成 TypeScript API 代码；可通过 `OPENAPI_SCHEMA_PATH` 指定 Schema，不能默认依赖上游示例定义。
 - PostgreSQL、pgvector、Redis 用于数据、向量检索和缓存；Docker Compose 用于本地环境。
 - 后续使用 Expo + React Native 扩展安卓端。
@@ -23,6 +24,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 当前 `@copilotkit/runtime@1.81.0` 将 `@ag-ui/client`、`@ag-ui/core`、`@ag-ui/encoder` 固定为 `1.0.2`；`@copilotkit/core@1.81.0` 将 `@ag-ui/client` 固定为 `1.0.2`；`@copilotkit/react-core@1.81.0` 将 `@ag-ui/client`、`@ag-ui/core` 固定为 `1.0.2`。
 - 上述 CopilotKit 包仍固定 AG-UI `1.0.2` 时，禁止单独升级 AG-UI 依赖，也不要通过 pnpm overrides 等方式强行绕过版本约束。只有这些相关 CopilotKit 包全部升级、且其依赖声明共同兼容目标 AG-UI 版本后，才可同步升级 AG-UI。
 - AG-UI 或 CopilotKit 升级前必须核对实际包依赖声明；升级后必须确认锁文件不保留互不兼容的 AG-UI 重复版本，并执行 Web 测试、Lint 和生产构建，未实际执行的验证不得写成通过。
+- OpenAI 兼容协议当前继续采用 go-zero 内手写 Chat Completions 客户端，不在第 14 步混入 SDK 替换。手写范围只维护当前文本与函数调用子集，不继续扩展 Responses API、多模态或通用重试等完整 SDK 能力；OpenAI 协议类型与 SSE 解析必须留在 `OpenAIRunner` 内部。后续迁移官方 `openai-go` 时应作为独立小增量，保持 `Runner` 接口、AG-UI 事件和业务行为不变，并复用假服务测试覆盖文本流、工具参数分片、HTTP 错误、异常 EOF、非法 JSON、中途错误和取消。
 
 ## 协作规则
 

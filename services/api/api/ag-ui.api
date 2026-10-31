@@ -8,8 +8,8 @@ type AGUIMessage {
 }
 
 type AGUIRunInput {
-	ThreadId string       `json:"threadId"`
-	RunId    string       `json:"runId"`
+	ThreadId string        `json:"threadId"`
+	RunId    string        `json:"runId"`
 	Messages []AGUIMessage `json:"messages"`
 }
 
@@ -17,3 +17,4 @@ service nexus-api {
 	@handler agUI
 	post /ag-ui (AGUIRunInput)
 }
+
