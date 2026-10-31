@@ -1,4 +1,7 @@
 
 *
+
 !.gitignore
-!schema
+
+!schema/
+!schema/*.go
