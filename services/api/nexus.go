@@ -11,7 +11,10 @@ import (
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/data"
 	"nexusai/services/api/internal/handler"
+	"nexusai/services/api/internal/knowledge"
 	"nexusai/services/api/internal/svc"
+
+	entschema "nexusai/services/api/internal/data/ent/schema"
 
 	"github.com/joho/godotenv"
 	"github.com/zeromicro/go-zero/core/conf"
@@ -56,10 +59,27 @@ func run() error {
 	}
 	defer closeData()
 	approvals := approval.NewEntStore(client, c.Data.Database.Driver)
-
-	runner, err := agent.NewRunner(agent.ConfigFromEnv(c.Agent), approvals.Tool())
+	agentConfig := agent.ConfigFromEnv(c.Agent)
+	runner, err := agent.NewRunner(agentConfig, approvals.Tool())
 	if err != nil {
 		return fmt.Errorf("configure agent: %w", err)
+	}
+
+	var knowledgeService svc.KnowledgeService
+	if agentConfig.OpenAI.EmbeddingModel != "" {
+		embedder, err := agent.NewOpenAIEmbedder(agentConfig.OpenAI, nil, entschema.EmbeddingDimensions)
+		if err != nil {
+			return fmt.Errorf("configure knowledge embedder: %w", err)
+		}
+		knowledgeService, err = knowledge.NewService(
+			embedder,
+			data.NewKnowledgeStore(client, c.Data.Database.Driver),
+			0,
+			0,
+		)
+		if err != nil {
+			return fmt.Errorf("configure knowledge service: %w", err)
+		}
 	}
 
 	server, err := rest.NewServer(c.RestConf)
@@ -68,7 +88,7 @@ func run() error {
 	}
 	defer server.Stop()
 
-	ctx := svc.NewServiceContext(c, runner, approvals)
+	ctx := svc.NewServiceContext(c, runner, approvals, knowledgeService)
 	handler.RegisterHandlers(server, ctx)
 
 	logx.Infow(

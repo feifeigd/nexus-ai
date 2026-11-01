@@ -1,0 +1,16 @@
+// API DSL reference: https://go-zero.dev/reference/api-dsl/
+syntax = "v1"
+
+type IngestDocumentInput {
+	Title   string `json:"title"`
+	Content string `json:"content"`
+}
+
+type IngestDocumentResponse {
+	DocumentID string `json:"documentId"`
+}
+
+service nexus-api {
+	@handler ingestDocument
+	post /knowledge/documents (IngestDocumentInput) returns (IngestDocumentResponse)
+}
