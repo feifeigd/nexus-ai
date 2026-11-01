@@ -10,11 +10,13 @@ import (
 	"nexusai/services/api/internal/logic"
 	"nexusai/services/api/internal/svc"
 	"nexusai/services/api/internal/types"
+
+	"github.com/zeromicro/go-zero/rest/pathvar"
 )
 
 func rejectApprovalHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req := types.ApprovalDecisionInput{ID: strings.TrimSpace(r.PathValue("id"))}
+		req := types.ApprovalDecisionInput{ID: strings.TrimSpace(pathvar.Vars(r)["id"])}
 		if req.ID == "" {
 			http.Error(w, "approval ID is required", http.StatusBadRequest)
 			return

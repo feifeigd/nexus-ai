@@ -12,11 +12,13 @@ import (
 	"nexusai/services/api/internal/logic"
 	"nexusai/services/api/internal/svc"
 	"nexusai/services/api/internal/types"
+
+	"github.com/zeromicro/go-zero/rest/pathvar"
 )
 
 func updateTicketStatusHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		req := types.UpdateTicketStatusInput{ID: strings.TrimSpace(r.PathValue("id"))}
+		req := types.UpdateTicketStatusInput{ID: strings.TrimSpace(pathvar.Vars(r)["id"])}
 		if req.ID == "" {
 			http.Error(w, "ticket ID is required", http.StatusBadRequest)
 			return

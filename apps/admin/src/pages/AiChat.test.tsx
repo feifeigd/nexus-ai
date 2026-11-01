@@ -4,6 +4,7 @@ import { AiChatContent } from './AiChat';
 
 const mocks = vi.hoisted(() => ({
   copilotChat: vi.fn(),
+  defaultRenderTool: vi.fn(),
 }));
 
 vi.mock('@copilotkit/react-core/v2', () => ({
@@ -11,6 +12,7 @@ vi.mock('@copilotkit/react-core/v2', () => ({
     mocks.copilotChat(props);
     return <div>Mock Chat</div>;
   },
+  useDefaultRenderTool: mocks.defaultRenderTool,
 }));
 
 describe('AiChatContent', () => {
@@ -21,6 +23,7 @@ describe('AiChatContent', () => {
     expect(html).toContain('回复来源由 go-zero 配置');
     expect(html).toContain('不会未经批准执行后台操作');
     expect(html).not.toContain('NexusAI Mock Agent');
+    expect(mocks.defaultRenderTool).toHaveBeenCalledOnce();
     expect(mocks.copilotChat).toHaveBeenCalledWith(
       expect.objectContaining({
         agentId: 'default',

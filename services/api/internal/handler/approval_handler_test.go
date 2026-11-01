@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"nexusai/services/api/internal/agent"
@@ -40,7 +41,7 @@ func TestApprovalHandlersListAndDecideProposal(t *testing.T) {
 	}
 
 	approveRequest := httptest.NewRequest(http.MethodPost, "/approvals/"+proposal.ID+"/approve", nil)
-	approveRequest.SetPathValue("id", proposal.ID)
+	approveRequest = withPathID(approveRequest, proposal.ID)
 	approveResponse := httptest.NewRecorder()
 	approveApprovalHandler(newTestServiceContext(store, nil)).ServeHTTP(approveResponse, approveRequest)
 	if approveResponse.Code != http.StatusOK {
@@ -75,7 +76,7 @@ func TestApprovalHandlersRejectAndReturnNotFound(t *testing.T) {
 	proposal := mustList(t, store)[0]
 
 	rejectRequest := httptest.NewRequest(http.MethodPost, "/approvals/"+proposal.ID+"/reject", nil)
-	rejectRequest.SetPathValue("id", proposal.ID)
+	rejectRequest = withPathID(rejectRequest, proposal.ID)
 	rejectResponse := httptest.NewRecorder()
 	rejectApprovalHandler(newTestServiceContext(store, nil)).ServeHTTP(rejectResponse, rejectRequest)
 	if rejectResponse.Code != http.StatusOK {
@@ -90,11 +91,59 @@ func TestApprovalHandlersRejectAndReturnNotFound(t *testing.T) {
 	}
 
 	missingRequest := httptest.NewRequest(http.MethodPost, "/approvals/missing/approve", nil)
-	missingRequest.SetPathValue("id", "missing")
+	missingRequest = withPathID(missingRequest, "missing")
 	missingResponse := httptest.NewRecorder()
 	approveApprovalHandler(newTestServiceContext(store, nil)).ServeHTTP(missingResponse, missingRequest)
 	if missingResponse.Code != http.StatusNotFound {
 		t.Fatalf("expected missing approval to return 404, got %d", missingResponse.Code)
+	}
+}
+
+func TestApprovalAndTicketRoutesReadGoZeroPathID(t *testing.T) {
+	store := newTestApprovalStore(t)
+	if err := store.Tool().Propose(context.Background(), agent.ToolProposal{
+		ThreadID:   "thread-route",
+		RunID:      "run-route",
+		ToolCallID: "call-route",
+		Name:       "create_ticket",
+		Arguments:  json.RawMessage(`{"title":"路由工单","description":"验证真实 go-zero 路径参数"}`),
+	}); err != nil {
+		t.Fatalf("create proposal: %v", err)
+	}
+	proposal := mustList(t, store)[0]
+	baseURL := startTestServer(t, store)
+
+	response, err := http.Post(baseURL+"/approvals/"+proposal.ID+"/approve", "", nil)
+	if err != nil {
+		t.Fatalf("approve through real route: %v", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected route status: %d", response.StatusCode)
+	}
+	var approved types.Approval
+	if err := json.NewDecoder(response.Body).Decode(&approved); err != nil {
+		t.Fatalf("decode route approval: %v", err)
+	}
+	if approved.Status != string(approval.StatusApproved) || approved.TicketID == "" {
+		t.Fatalf("unexpected route approval: %+v", approved)
+	}
+
+	ticketRequest, err := http.NewRequest(
+		http.MethodPatch,
+		baseURL+"/tickets/"+approved.TicketID+"/status",
+		strings.NewReader(`{"status":"in_progress"}`),
+	)
+	if err != nil {
+		t.Fatalf("create ticket route request: %v", err)
+	}
+	ticketResponse, err := http.DefaultClient.Do(ticketRequest)
+	if err != nil {
+		t.Fatalf("update ticket through real route: %v", err)
+	}
+	defer ticketResponse.Body.Close()
+	if ticketResponse.StatusCode != http.StatusOK {
+		t.Fatalf("unexpected ticket route status: %d", ticketResponse.StatusCode)
 	}
 }
 

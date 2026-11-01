@@ -73,7 +73,7 @@ func TestUpdateTicketStatusHandlerEnforcesWorkflow(t *testing.T) {
 	}
 
 	invalidRequest := httptest.NewRequest(http.MethodPatch, "/tickets/"+approved.TicketID+"/status", strings.NewReader(`{"status":"resolved"}`))
-	invalidRequest.SetPathValue("id", approved.TicketID)
+	invalidRequest = withPathID(invalidRequest, approved.TicketID)
 	invalidResponse := httptest.NewRecorder()
 	updateTicketStatusHandler(newTestServiceContext(store, nil)).ServeHTTP(invalidResponse, invalidRequest)
 	if invalidResponse.Code != http.StatusConflict {
@@ -81,7 +81,7 @@ func TestUpdateTicketStatusHandlerEnforcesWorkflow(t *testing.T) {
 	}
 
 	request := httptest.NewRequest(http.MethodPatch, "/tickets/"+approved.TicketID+"/status", strings.NewReader(`{"status":"in_progress"}`))
-	request.SetPathValue("id", approved.TicketID)
+	request = withPathID(request, approved.TicketID)
 	response := httptest.NewRecorder()
 	updateTicketStatusHandler(newTestServiceContext(store, nil)).ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
@@ -96,7 +96,7 @@ func TestUpdateTicketStatusHandlerEnforcesWorkflow(t *testing.T) {
 	}
 
 	unknownRequest := httptest.NewRequest(http.MethodPatch, "/tickets/"+approved.TicketID+"/status", strings.NewReader(`{"status":"closed"}`))
-	unknownRequest.SetPathValue("id", approved.TicketID)
+	unknownRequest = withPathID(unknownRequest, approved.TicketID)
 	unknownResponse := httptest.NewRecorder()
 	updateTicketStatusHandler(newTestServiceContext(store, nil)).ServeHTTP(unknownResponse, unknownRequest)
 	if unknownResponse.Code != http.StatusBadRequest {
@@ -104,7 +104,7 @@ func TestUpdateTicketStatusHandlerEnforcesWorkflow(t *testing.T) {
 	}
 
 	missingRequest := httptest.NewRequest(http.MethodPatch, "/tickets/missing/status", strings.NewReader(`{"status":"in_progress"}`))
-	missingRequest.SetPathValue("id", "missing")
+	missingRequest = withPathID(missingRequest, "missing")
 	missingResponse := httptest.NewRecorder()
 	updateTicketStatusHandler(newTestServiceContext(store, nil)).ServeHTTP(missingResponse, missingRequest)
 	if missingResponse.Code != http.StatusNotFound {
