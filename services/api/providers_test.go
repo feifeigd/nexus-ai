@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -9,6 +12,7 @@ import (
 	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/data"
+	"nexusai/services/api/internal/types"
 
 	"entgo.io/ent/dialect"
 )
@@ -40,6 +44,52 @@ func TestWireContextBuildsOptionalKnowledgeService(t *testing.T) {
 	defer cleanup()
 	if ctx.Knowledge == nil {
 		t.Fatal("expected knowledge service when an embedding model is configured")
+	}
+}
+
+func TestWireContextRegistersKnowledgeTool(t *testing.T) {
+	var toolNames []string
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Tools []struct {
+				Function struct {
+					Name string `json:"name"`
+				} `json:"function"`
+			} `json:"tools"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("decode model request: %v", err)
+			return
+		}
+		toolNames = nil
+		for _, tool := range request.Tools {
+			toolNames = append(toolNames, tool.Function.Name)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\n"))
+	}))
+	defer provider.Close()
+	setWireTestEnv(t)
+	t.Setenv("NEXUS_AGENT_MODE", "openai")
+	t.Setenv("NEXUS_OPENAI_BASE_URL", provider.URL)
+	t.Setenv("NEXUS_OPENAI_MODEL", "test-model")
+	t.Setenv("NEXUS_OPENAI_EMBEDDING_MODEL", "embedding-model")
+	c := wireTestConfig("wire_context_knowledge_tool")
+	ctx, cleanup, err := wireContext(&c)
+	if err != nil {
+		t.Fatalf("wire knowledge tool context: %v", err)
+	}
+	defer cleanup()
+	if err := ctx.Runner.Run(context.Background(), types.AGUIRunInput{
+		ThreadID: "thread-1",
+		RunID:    "run-1",
+		Messages: []types.AGUIMessage{{Role: "user", Content: "查询知识库"}},
+	}, func(types.AGUIEvent) error { return nil }); err != nil {
+		t.Fatalf("run wired agent: %v", err)
+	}
+	joined := strings.Join(toolNames, ",")
+	if !strings.Contains(joined, "create_ticket") || !strings.Contains(joined, "search_knowledge") {
+		t.Fatalf("wired runner is missing server tools: %v", toolNames)
 	}
 }
 

@@ -118,8 +118,8 @@ func TestOpenAIRunnerRejectsProviderErrorBeforeEmitting(t *testing.T) {
 		emitCalled = true
 		return nil
 	})
-	if err == nil || !strings.Contains(err.Error(), "401") {
-		t.Fatalf("expected an HTTP 401 error, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), "401") || !strings.Contains(err.Error(), "unauthorized") {
+		t.Fatalf("expected an HTTP 401 error with provider detail, got %v", err)
 	}
 	if emitCalled {
 		t.Fatal("provider errors must be returned before starting AG-UI events")

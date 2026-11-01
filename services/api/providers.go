@@ -21,8 +21,12 @@ func provideAgentConfig(c *config.Config) agent.Config {
 	return agent.ConfigFromEnv(c.Agent)
 }
 
-func newRunner(c agent.Config, approvals *approval.EntStore) (agent.Runner, error) {
-	runner, err := agent.NewRunner(c, approvals.Tool())
+func newRunner(c agent.Config, approvals *approval.EntStore, knowledgeService svc.KnowledgeService) (agent.Runner, error) {
+	tools := []agent.Tool{approvals.Tool()}
+	if provider, ok := knowledgeService.(interface{ Tool() agent.Tool }); ok {
+		tools = append(tools, provider.Tool())
+	}
+	runner, err := agent.NewRunner(c, tools...)
 	if err != nil {
 		return nil, fmt.Errorf("configure agent: %w", err)
 	}

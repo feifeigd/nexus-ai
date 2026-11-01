@@ -12,8 +12,11 @@ import (
 )
 
 const (
-	DefaultChunkSize    = 800
-	DefaultChunkOverlap = 120
+	DefaultChunkSize     = 800
+	DefaultChunkOverlap  = 120
+	DefaultSearchLimit   = 5
+	MaxSearchLimit       = 10
+	MaxSearchQueryLength = 1000
 )
 
 type Embedder interface {
@@ -22,6 +25,7 @@ type Embedder interface {
 
 type Store interface {
 	CreateDocument(ctx context.Context, title, content string, chunks []data.KnowledgeChunkInput) (string, error)
+	SearchSimilar(ctx context.Context, embedding pgvector.Vector, limit int) ([]data.KnowledgeMatch, error)
 }
 
 type Service struct {
@@ -70,6 +74,37 @@ func (s *Service) IngestDocument(ctx context.Context, title, content string) (st
 		inputs[index] = data.KnowledgeChunkInput{Content: chunk, Embedding: embeddings[index]}
 	}
 	return s.store.CreateDocument(ctx, title, content, inputs)
+}
+
+func (s *Service) Search(ctx context.Context, query string, limit int) ([]data.KnowledgeMatch, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, fmt.Errorf("knowledge search query is required")
+	}
+	if len([]rune(query)) > MaxSearchQueryLength {
+		return nil, fmt.Errorf("knowledge search query must contain at most %d characters", MaxSearchQueryLength)
+	}
+	if limit == 0 {
+		limit = DefaultSearchLimit
+	}
+	if limit < 1 || limit > MaxSearchLimit {
+		return nil, fmt.Errorf("knowledge search limit must be between 1 and %d", MaxSearchLimit)
+	}
+	embeddings, err := s.embedder.Embed(ctx, []string{query})
+	if err != nil {
+		return nil, fmt.Errorf("embed knowledge search query: %w", err)
+	}
+	if len(embeddings) != 1 {
+		return nil, fmt.Errorf("embedder returned %d vectors for one search query", len(embeddings))
+	}
+	if len(embeddings[0].Slice()) != entschema.EmbeddingDimensions {
+		return nil, fmt.Errorf("embedding must contain %d dimensions, got %d", entschema.EmbeddingDimensions, len(embeddings[0].Slice()))
+	}
+	matches, err := s.store.SearchSimilar(ctx, embeddings[0], limit)
+	if err != nil {
+		return nil, fmt.Errorf("search knowledge: %w", err)
+	}
+	return matches, nil
 }
 
 func splitText(content string, size, overlap int) []string {
