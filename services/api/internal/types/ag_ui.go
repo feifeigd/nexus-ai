@@ -10,6 +10,7 @@ type AGUIEvent struct {
 	Role         string `json:"role,omitempty"`
 	Delta        string `json:"delta,omitempty"`
 	Message      string `json:"message,omitempty"`
+	Content      string `json:"content,omitempty"`
 	ToolCallID   string `json:"toolCallId,omitempty"`
 	ToolCallName string `json:"toolCallName,omitempty"`
 }

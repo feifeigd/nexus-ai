@@ -16,6 +16,8 @@ import (
 
 const maxModelEventSize = 1 << 20
 
+const latestUserToolInstruction = "调用工具时，只能依据最新一条用户消息中明确提出的操作请求。不得因为历史消息曾要求操作，就在‘然后呢’‘继续’‘接着’等后续追问中重复调用工具；这类追问应基于已有对话回答，并提示用户到相应业务页面查看进度。"
+
 type OpenAIRunner struct {
 	baseURL string
 	apiKey  string
@@ -110,6 +112,9 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 	messages, err := convertMessages(input.Messages)
 	if err != nil {
 		return err
+	}
+	if len(r.tools) > 0 {
+		messages = append([]chatMessage{{Role: "system", Content: latestUserToolInstruction}}, messages...)
 	}
 	tools := make([]chatCompletionTool, 0, len(r.tools))
 	toolsByName := make(map[string]Tool, len(r.tools))
@@ -292,6 +297,14 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 			return fmt.Errorf("record tool proposal: %w", err)
 		}
 		if err := emit(types.AGUIEvent{Type: "TOOL_CALL_END", ToolCallID: call.id}); err != nil {
+			return err
+		}
+		if err := emit(types.AGUIEvent{
+			Type:       "TOOL_CALL_RESULT",
+			MessageID:  call.id + "-result",
+			ToolCallID: call.id,
+			Content:    "已提交人工审批，请在“工具审批”页面处理；此时尚未创建工单。",
+		}); err != nil {
 			return err
 		}
 	}

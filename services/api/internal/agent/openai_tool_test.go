@@ -22,6 +22,12 @@ func TestOpenAIRunnerStreamsToolCallAndRecordsProposal(t *testing.T) {
 		if len(request.Tools) != 1 || request.Tools[0].Function.Name != "create_ticket" {
 			t.Fatalf("model did not receive the server tool definition: %+v", request.Tools)
 		}
+		if len(request.Messages) != 2 || request.Messages[0].Role != "system" ||
+			!strings.Contains(request.Messages[0].Content, "最新一条用户消息") ||
+			!strings.Contains(request.Messages[0].Content, "不得因为历史消息") ||
+			request.Messages[1].Role != "user" || request.Messages[1].Content != "创建工单" {
+			t.Fatalf("model did not receive the latest-user tool instruction: %+v", request.Messages)
+		}
 		w.Header().Set("Content-Type", "text/event-stream")
 		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call-1\",\"type\":\"function\",\"function\":{\"name\":\"create_ticket\",\"arguments\":\"{\\\"title\\\":\"}}]}}]}\n\n")
 		fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"网络故障\\\",\\\"description\\\":\\\"无法访问\\\"}\"}}]}}]}\n\n")
@@ -61,10 +67,16 @@ func TestOpenAIRunnerStreamsToolCallAndRecordsProposal(t *testing.T) {
 		"TOOL_CALL_ARGS",
 		"TOOL_CALL_ARGS",
 		"TOOL_CALL_END",
+		"TOOL_CALL_RESULT",
 		"RUN_FINISHED",
 	}
 	if !reflect.DeepEqual(eventTypes, wantTypes) {
 		t.Fatalf("expected events %v, got %v", wantTypes, eventTypes)
+	}
+	result := events[len(events)-2]
+	if result.MessageID != "call-1-result" || result.ToolCallID != "call-1" ||
+		!strings.Contains(result.Content, "已提交人工审批") || !strings.Contains(result.Content, "尚未创建工单") {
+		t.Fatalf("unexpected tool result: %+v", result)
 	}
 	if proposal.ToolCallID != "call-1" || proposal.Name != "create_ticket" {
 		t.Fatalf("unexpected proposal: %+v", proposal)
