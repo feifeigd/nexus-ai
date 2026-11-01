@@ -47,38 +47,36 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 当前进度
 
-当前分支：`feat/10-go-zero-real-model`。
+当前分支：`main`。
 
-截至 2026-10-29，第 1 至 9 步已合并到 `main` 并推送远端。第 9 步提交为 `c810437`，合并提交为 `9f0d48b`；后续 CI 修复提交为 `8e747aa`。第 10 步实现和本地验证已完成，正在等待用户 review，尚未提交。
+截至 2026-11-01，第 1 至 21 步均已完成并合并到本地 `main`。第 20 步合并提交 `06f3b1e` 已推送到 `origin/main`；第 21 步合并提交为 `a6c5fe3`，本地 `main` 当前领先远端 4 个提交，尚未推送。`feat/21-goctl-api` 分支仍保留，工作区在本节更新前无未提交变更。
 
-### 已完成并提交
+### 当前已具备能力
 
-1. 第 1 步提交 `87788d5 feat: add go-zero health service`：pnpm Monorepo 根结构、go-zero 最小服务、`GET /healthz`、`.api` 契约和 Handler 单元测试。已验证 Go 测试、静态检查、格式和真实 HTTP 响应。
-2. 第 2 步提交 `30e763e feat: add postgres and redis infrastructure`：Docker Compose 配置 PostgreSQL 17、pgvector 和 Redis 7.4。已验证容器健康检查、PostgreSQL 17.11、pgvector 0.8.7、真实向量运算及 Redis 读写。
-3. 第 3 步提交 `302f82e feat: add nextjs web skeleton`：Next.js 16.4.3、React 19.3.0、TypeScript、Tailwind CSS、ESLint、NexusAI 最小首页、页面测试和根级 Web 脚本。
-4. 第 4 步提交 `b0b33cc feat: connect web to go-zero health api`：Next.js 服务端请求 go-zero 健康接口，使用 `Suspense` 保留静态页面外壳，并区分 API 连接状态。已验证测试、静态检查、生产构建和真实前后端联调。
-5. 第 5 步提交 `e3070ed`、`106da6e`：Ant Design Pro 管理后台骨架、登录与权限基础页面、OpenAPI 代码生成命令、项目 CI 配置及验证修复。合并提交为 `34a7467`。
-6. 第 6 步提交 `4fe5376 feat: add copilotkit runtime`：Next.js CopilotKit Runtime v2、用户端 Provider、`default` Agent 注册及 Agent 发现契约测试。已验证 Web 测试、ESLint、生产构建和真实 Runtime 端点。
-7. 第 7 步提交 `1e0e7b0 feat: add go-zero ag-ui mock stream`：go-zero `POST /ag-ui`、SSE Mock 事件流、请求校验、Go 测试和跨平台 Python 联调脚本。已验证直接及经 Runtime 的完整协议链路。
-8. 第 8 步提交 `0ded9cf feat: add web mock chat stream`：用户端 CopilotChat、响应式双栏首页和聊天测试。已验证 Web 测试、ESLint、生产构建和真实浏览器流式聊天闭环。
-9. 第 9 步提交 `c810437 feat: add admin copilotkit chat`：Admin 根容器接入 `CopilotKitProvider`，新增 `/ai-chat` Mock 流式聊天页面，复用 Web 同源 `/api/copilotkit` Runtime，不新增 Agent 后端。补充 Admin 开发代理、Provider 和页面测试、`swagger-ui-dist` 显式依赖、菜单国际化键、现代浏览器构建目标及 goctl VS Code 插件推荐。
+- pnpm Monorepo、Next.js 用户端、Ant Design Pro 管理后台、go-zero API，以及 Docker Compose 中的 PostgreSQL、pgvector 和 Redis 本地基础设施。
+- Web 内嵌 CopilotKit Runtime 与 Admin 独立 `apps/agent-runtime` 均已接入 go-zero AG-UI SSE；Agent 支持 Mock 和 OpenAI 兼容 Chat Completions 流式模型。
+- go-zero 提供服务端白名单 `create_ticket` 工具提议、审批列表、批准和拒绝接口；批准后才创建工单，重复决策返回冲突。
+- Admin 提供 AI 聊天、工具审批和工单页面；工单状态按 `open → in_progress → resolved` 顺序流转，不支持删除、跳级或重新打开。
+- `.api` 契约可生成真实 OpenAPI JSON，并通过 `@umijs/max-plugin-openapi` 生成 Admin TypeScript Service；生成文件按 `.gitignore` 规则不纳入 Git，不手动修改。
+- 数据访问已迁移到 Ent，Approval 与 Ticket Schema 位于 `services/api/internal/data/ent/schema`；Ent 生成代码同样不纳入 Git。
+- go-zero API 已迁移到 `goctl api go --api api/nexus.api --dir .` 标准结构，根命令 `pnpm generate:api` 固定使用 goctl `v1.10.2`。
 
-### 第 9 步验证记录
+### 数据源与代码生成约束
 
-- Admin 共 6 个测试文件、30 个用例均已执行通过；最近一次完整运行在前 28 项后超时，剩余 2 项单独运行通过。Biome 和 TypeScript 检查通过。
-- 第 9 步主体及补充 `swagger-ui-dist` 后的 Admin 生产构建均通过，并生成 `/ai-chat` 静态页面；Web 5 个测试、ESLint 和生产构建通过，Go 测试与 vet 通过。
-- 最后的 ES2017 Webpack 输出目标修改已通过 TypeScript 检查，但随后的 3 次生产构建均在 5 分钟工具时限内未完成，不能标记为最新配置构建通过，后续需要重新验证。
-- 已在真实浏览器中验证 Admin Mock 流式聊天：`/info` 与 Agent `/run` 请求成功，中文消息收到完整 Mock 回复；发送消息过程中未捕获新的控制台错误。
-- 真实模型、知识库、业务工具、租户权限、人工审批和持久化尚未接入；本步没有验证真实后台认证或业务操作。
+- `data.NewData` 是进程唯一的数据库连接所有者，统一负责驱动校验、连接池、Ping、迁移、日志和关闭；Store 必须复用其 Ent Client，不得单独打开或关闭数据库。
+- 默认 `services/api/etc/nexus-api.yaml` 使用 SQLite 共享内存 DSN，服务重启后数据清空；设置 `NEXUS_POSTGRES_DSN` 后统一切换到 PostgreSQL。
+- 已移除 `MemoryStore`，内存开发和测试也通过 SQLite DSN，不再维护另一套内存业务实现。
+- SQLite 使用纯 Go `modernc.org/sqlite`，配置中的 Ent dialect 为 `sqlite3`；PostgreSQL 使用版本化 SQL 迁移，SQLite AutoMigrate 使用 Ent `Schema.Create`。
+- PostgreSQL 审批与状态更新使用事务和 `FOR UPDATE`；SQLite 跳过 `FOR UPDATE`，方言差异只保留在 EntStore 的锁定查询方法中。
+- 修改 `.api` 后运行 `pnpm generate:api`；修改 Ent Schema 后运行 `pnpm generate:ent`；需要同步 Admin Client 时运行 `pnpm generate:contracts`。不要手动编辑生成文件。
 
-### 第 10 步变更与验证记录
+### 最近验证记录
 
-- go-zero 新增可注入的 Agent `Runner`，保留默认 Mock 流，并新增 OpenAI 兼容 `POST /chat/completions` 流式客户端，将模型文本增量转换为 AG-UI 事件。
-- 通过 `NEXUS_AGENT_MODE`、`NEXUS_OPENAI_BASE_URL`、`NEXUS_OPENAI_API_KEY` 和 `NEXUS_OPENAI_MODEL` 配置模型；根目录 `.env.example` 提供示例。本地兼容服务允许不配置 API Key。
-- 模型请求在 SSE 开始前失败时返回 HTTP 502；流开始后失败时发送通用 `RUN_ERROR`，内部错误仅记录到服务端日志。
-- `go test ./...`、`go vet ./...`、gofmt 和 `git diff --check` 均已执行通过。
-- 已运行独立进程级验证：本地 OpenAI 兼容假服务收到正确的 `/v1/chat/completions` 路径、Bearer 测试密钥、模型名和消息；go-zero 输出两条中文文本增量及完整有序的 AG-UI 事件流。验证进程、假服务和临时脚本已清理。
-- 尚未使用真实供应商和真实密钥验证，也尚未重新验证 Next.js Runtime 到 Web、Admin 的真实模型浏览器闭环，不能声称这些验证已通过。
+- 第 21 步已执行并通过 `go test ./...`、`go vet ./...`、gofmt 和 `git diff HEAD --check`；审批与 Handler 测试均使用独立 SQLite 内存数据库。
+- 已验证真实 SQLite 进程的 `GET /healthz`、空审批与工单列表，以及 `POST /ag-ui` 完整有序事件流和中文文本增量；临时进程与文件已清理。
+- 当前没有配置真实 PostgreSQL DSN 执行集成测试，不能声称 PostgreSQL 实库验证通过。
+- 真实模型供应商及密钥、最新真实模型 Web 与 Admin 浏览器闭环仍未验证，不能沿用早期 Mock 或假服务结果宣称通过。
+- 真实后台认证、租户隔离、生产级授权与审计、企业知识库和 RAG 尚未接入。
 
 ### 环境注意事项
 
@@ -86,13 +84,9 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - Docker Desktop 可用；需要时将 `C:\Program Files\Docker\Docker\resources\bin` 加入 PATH，以便 Compose 和凭据助手正常工作。
 - pnpm 未全局安装，可通过 `npx --yes pnpm@11.15.1 <命令>` 执行；Web 和 Admin 依赖均已安装。
 - 当前 npm 默认源为 `https://registry.npmmirror.com`，依赖解析可使用官方源 `https://registry.npmjs.org`。
-- goctl 因依赖下载超时未用于第 1 步代码生成，当前采用与 go-zero 标准结构一致的手写最小实现，保留 `.api` 契约。
-- 第 2 步验证容器已停止并删除，命名数据卷保留。
-- 第 9 步临时 Web、Admin 静态服务、无头浏览器、脚本和日志已清理；用户自行启动的 API、Web 和 Admin 开发服务不在自动清理范围内。
-- 第 10 步进程级验证产生的临时服务、配置、二进制和脚本已清理。
+- goctl 通过根脚本中的 `go run github.com/zeromicro/go-zero/tools/goctl@v1.10.2` 执行，不再采用手写 Handler、Logic 和 Routes 结构。
+- 不遗留临时开发服务器、无头浏览器、验证脚本或后台进程；用户自行启动的开发服务不在自动清理范围内。
 
 ## 下一步
 
-等待用户 review 第 10 步；只有用户明确回复“通过并提交”后才可提交。真实供应商的 Web 与 Admin 浏览器闭环仍需配置有效模型端点和密钥后验证。
-
-后续步骤依次为：后台 AI 工具调用与人工审批、企业知识库与智能工单。
+第 21 步已在本地 `main` 合并，等待用户明确指示后再推送远端。后续功能方向是企业知识库、RAG 与智能工单能力深化；真实 PostgreSQL 实库验证和真实供应商浏览器闭环应在具备相应环境后补做。
