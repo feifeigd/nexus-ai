@@ -2,6 +2,7 @@ import { PageContainer } from '@ant-design/pro-components';
 import { CopilotChat, useDefaultRenderTool } from '@copilotkit/react-core/v2';
 import { Alert, Card } from 'antd';
 import type React from 'react';
+import './AiChat.less';
 
 export const AiChatContent: React.FC = () => {
   useDefaultRenderTool();
@@ -15,7 +16,10 @@ export const AiChatContent: React.FC = () => {
         showIcon
         style={{ marginBottom: 16 }}
       />
-      <div style={{ height: 'min(680px, calc(100vh - 260px))', minHeight: 480 }}>
+      <div
+        className="nexus-ai-chat"
+        style={{ height: 'min(680px, calc(100vh - 260px))', minHeight: 480 }}
+      >
         <CopilotChat
           agentId="default"
           style={{ height: '100%' }}

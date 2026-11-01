@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { AiChatContent } from './AiChat';
@@ -20,6 +21,7 @@ describe('AiChatContent', () => {
     const html = renderToStaticMarkup(<AiChatContent />);
 
     expect(html).toContain('NexusAI 管理助手');
+    expect(html).toContain('class="nexus-ai-chat"');
     expect(html).toContain('回复来源由 go-zero 配置');
     expect(html).toContain('不会未经批准执行后台操作');
     expect(html).not.toContain('NexusAI Mock Agent');
@@ -33,5 +35,14 @@ describe('AiChatContent', () => {
         }),
       }),
     );
+  });
+
+  it('contains long tool payloads within the chat width', () => {
+    const styles = readFileSync(new URL('./AiChat.less', import.meta.url), 'utf8');
+
+    expect(styles).toContain("[data-testid='copilot-tool-render']");
+    expect(styles).toContain('grid-template-columns: minmax(0, 1fr);');
+    expect(styles).toContain('white-space: pre-wrap;');
+    expect(styles).toContain('overflow-wrap: anywhere;');
   });
 });

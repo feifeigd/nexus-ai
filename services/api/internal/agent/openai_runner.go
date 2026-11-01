@@ -315,7 +315,7 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 		toolMessages = append(toolMessages, chatMessage{
 			Role:       "tool",
 			ToolCallID: call.id,
-			Content:    result,
+			Content:    result, // 工具调用的结果
 		})
 		if err := emit(types.AGUIEvent{Type: "TOOL_CALL_END", ToolCallID: call.id}); err != nil {
 			return err

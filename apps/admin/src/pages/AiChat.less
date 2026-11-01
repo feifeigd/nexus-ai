@@ -1,0 +1,22 @@
+.nexus-ai-chat {
+  min-width: 0;
+
+  [data-testid='copilot-tool-render'] {
+    min-width: 0;
+    max-width: 100%;
+
+    div {
+      min-width: 0;
+    }
+
+    div:has(> div > pre) {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    pre {
+      max-width: 100%;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+  }
+}
