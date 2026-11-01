@@ -1,21 +1,21 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strings"
-	"time"
 
 	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/approval"
 	"nexusai/services/api/internal/config"
+	"nexusai/services/api/internal/data"
 	"nexusai/services/api/internal/handler"
+	"nexusai/services/api/internal/svc"
 
 	"github.com/joho/godotenv"
 	"github.com/zeromicro/go-zero/core/conf"
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/rest"
 )
 
@@ -24,45 +24,59 @@ var configFile = flag.String("f", "etc/nexus-api.yaml", "the config file")
 func main() {
 	flag.Parse()
 
+	if err := run(); err != nil {
+		logx.Errorw(
+			"nexus api exited with error",
+			logx.Field("error", err),
+		)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
-		log.Fatalf("load .env: %v", err)
+		return fmt.Errorf("load .env: %w", err)
 	}
 
 	var c config.Config
-	conf.MustLoad(*configFile, &c)
+	if err := conf.Load(*configFile, &c); err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
 
-	approvals, closeStore := approvalStore()
-	defer closeStore()
+	// Preserve the existing environment-based PostgreSQL configuration while
+	// keeping NewData as the only database owner in the process.
+	if dsn := strings.TrimSpace(os.Getenv("NEXUS_POSTGRES_DSN")); dsn != "" {
+		c.Data.Database.Driver = "postgres"
+		c.Data.Database.Source = dsn
+		c.Data.Database.AutoMigrate = true
+	}
+	client, closeData, err := data.NewData(&c.Data)
+	if err != nil {
+		return fmt.Errorf("configure data source: %w", err)
+	}
+	defer closeData()
+	approvals := approval.NewEntStore(client, c.Data.Database.Driver)
+
 	runner, err := agent.NewRunner(agent.ConfigFromEnv(c.Agent), approvals.Tool())
 	if err != nil {
-		log.Fatalf("configure agent: %v", err)
+		return fmt.Errorf("configure agent: %w", err)
 	}
 
-	server := rest.MustNewServer(c.RestConf)
+	server, err := rest.NewServer(c.RestConf)
+	if err != nil {
+		return fmt.Errorf("create http server: %w", err)
+	}
 	defer server.Stop()
 
-	handler.RegisterHandlers(server, runner, approvals)
+	ctx := svc.NewServiceContext(c, runner, approvals)
+	handler.RegisterHandlers(server, ctx)
 
-	fmt.Printf("Starting %s at %s:%d...\n", c.Name, c.Host, c.Port)
+	logx.Infow(
+		"nexus api starting",
+		logx.Field("service", c.Name),
+		logx.Field("host", c.Host),
+		logx.Field("port", c.Port),
+	)
 	server.Start()
-}
-
-func approvalStore() (approval.Store, func()) {
-	dsn := strings.TrimSpace(os.Getenv("NEXUS_POSTGRES_DSN"))
-	if dsn == "" {
-		log.Print("approval store: memory")
-		return approval.NewStore(), func() {}
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	store, err := approval.NewPostgresStore(ctx, dsn)
-	if err != nil {
-		log.Fatalf("configure postgres approval store: %v", err)
-	}
-	log.Print("approval store: postgres")
-	return store, func() {
-		if err := store.Close(); err != nil {
-			log.Printf("close postgres approval store: %v", err)
-		}
-	}
+	return nil
 }

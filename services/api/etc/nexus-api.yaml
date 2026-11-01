@@ -6,3 +6,13 @@ Timeout: 120000
 
 Agent:
   Mode: mock
+
+Data:
+  Database:
+    Driver: sqlite3
+    Source: "file:nexus_ai?mode=memory&cache=shared&_fk=1&_txlock=immediate"
+    MaxOpenConns: 20
+    MaxIdleConns: 10
+    ConnMaxLifetime: 0s
+    Debug: false
+    AutoMigrate: true

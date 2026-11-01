@@ -2,8 +2,6 @@ package approval
 
 import (
 	"context"
-	"database/sql"
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -14,61 +12,29 @@ import (
 	entticket "nexusai/services/api/internal/data/ent/ticket"
 
 	"entgo.io/ent/dialect"
-	entsql "entgo.io/ent/dialect/sql"
-	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-//go:embed migrations/001_approvals.sql
-var migrationSQL string
-
-//go:embed migrations/002_ticket_status.sql
-var ticketStatusMigrationSQL string
-
-type PostgresStore struct {
-	db     *sql.DB
-	client *dataent.Client
-	now    func() time.Time
+// EntStore provides approval and ticket persistence using a process-owned Ent
+// client. The client lifecycle and database migrations belong to internal/data.
+type EntStore struct {
+	client    *dataent.Client
+	now       func() time.Time
+	forUpdate bool
 }
 
-func NewPostgresStore(ctx context.Context, dsn string) (*PostgresStore, error) {
-	db, err := sql.Open("pgx", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("open postgres: %w", err)
+func NewEntStore(client *dataent.Client, driver string) *EntStore {
+	return &EntStore{
+		client:    client,
+		now:       time.Now,
+		forUpdate: driver == dialect.Postgres,
 	}
-	store := &PostgresStore{db: db, now: time.Now}
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("connect postgres: %w", err)
-	}
-	if err := store.Migrate(ctx); err != nil {
-		db.Close()
-		return nil, err
-	}
-	driver := entsql.OpenDB(dialect.Postgres, db)
-	store.client = dataent.NewClient(dataent.Driver(driver))
-	return store, nil
 }
 
-func (s *PostgresStore) Close() error {
-	return s.client.Close()
-}
-
-// Migrate keeps the existing versioned SQL migrations authoritative. Ent is
-// used for data access, not automatic schema migration.
-func (s *PostgresStore) Migrate(ctx context.Context) error {
-	for _, migration := range []string{migrationSQL, ticketStatusMigrationSQL} {
-		if _, err := s.db.ExecContext(ctx, migration); err != nil {
-			return fmt.Errorf("migrate approval store: %w", err)
-		}
-	}
-	return nil
-}
-
-func (s *PostgresStore) Tool() agent.Tool {
+func (s *EntStore) Tool() agent.Tool {
 	return ticketTool(s.propose)
 }
 
-func (s *PostgresStore) propose(ctx context.Context, proposal agent.ToolProposal) error {
+func (s *EntStore) propose(ctx context.Context, proposal agent.ToolProposal) error {
 	approval, err := newPendingApproval(ctx, proposal, s.now().UTC())
 	if err != nil {
 		return err
@@ -92,7 +58,7 @@ func (s *PostgresStore) propose(ctx context.Context, proposal agent.ToolProposal
 	return nil
 }
 
-func (s *PostgresStore) List(ctx context.Context) ([]Approval, error) {
+func (s *EntStore) List(ctx context.Context) ([]Approval, error) {
 	rows, err := s.client.Approval.Query().
 		Order(dataent.Desc(entapproval.FieldCreatedAt), dataent.Asc(entapproval.FieldID)).
 		All(ctx)
@@ -110,7 +76,7 @@ func (s *PostgresStore) List(ctx context.Context) ([]Approval, error) {
 	return approvals, nil
 }
 
-func (s *PostgresStore) ListTickets(ctx context.Context) ([]Ticket, error) {
+func (s *EntStore) ListTickets(ctx context.Context) ([]Ticket, error) {
 	rows, err := s.client.Ticket.Query().
 		Order(dataent.Desc(entticket.FieldCreatedAt), dataent.Asc(entticket.FieldID)).
 		All(ctx)
@@ -124,14 +90,14 @@ func (s *PostgresStore) ListTickets(ctx context.Context) ([]Ticket, error) {
 	return tickets, nil
 }
 
-func (s *PostgresStore) UpdateTicketStatus(ctx context.Context, id string, status TicketStatus) (Ticket, error) {
+func (s *EntStore) UpdateTicketStatus(ctx context.Context, id string, status TicketStatus) (Ticket, error) {
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return Ticket{}, fmt.Errorf("begin ticket status transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	ticket, err := lockedTicketByID(ctx, tx.Client(), id)
+	ticket, err := s.lockedTicketByID(ctx, tx.Client(), id)
 	if err != nil {
 		return Ticket{}, err
 	}
@@ -150,7 +116,7 @@ func (s *PostgresStore) UpdateTicketStatus(ctx context.Context, id string, statu
 	return ticket, nil
 }
 
-func (s *PostgresStore) Approve(ctx context.Context, id string) (Approval, error) {
+func (s *EntStore) Approve(ctx context.Context, id string) (Approval, error) {
 	ticketID, err := newID("ticket")
 	if err != nil {
 		return Approval{}, err
@@ -161,7 +127,7 @@ func (s *PostgresStore) Approve(ctx context.Context, id string) (Approval, error
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	approval, err := lockedApprovalByID(ctx, tx.Client(), id)
+	approval, err := s.lockedApprovalByID(ctx, tx.Client(), id)
 	if err != nil {
 		return Approval{}, err
 	}
@@ -195,14 +161,14 @@ func (s *PostgresStore) Approve(ctx context.Context, id string) (Approval, error
 	return approval, nil
 }
 
-func (s *PostgresStore) Reject(ctx context.Context, id string) (Approval, error) {
+func (s *EntStore) Reject(ctx context.Context, id string) (Approval, error) {
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return Approval{}, fmt.Errorf("begin rejection transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	approval, err := lockedApprovalByID(ctx, tx.Client(), id)
+	approval, err := s.lockedApprovalByID(ctx, tx.Client(), id)
 	if err != nil {
 		return Approval{}, err
 	}
@@ -224,11 +190,12 @@ func (s *PostgresStore) Reject(ctx context.Context, id string) (Approval, error)
 	return approval, nil
 }
 
-func lockedApprovalByID(ctx context.Context, client *dataent.Client, id string) (Approval, error) {
-	row, err := client.Approval.Query().
-		Where(entapproval.ID(id)).
-		ForUpdate().
-		Only(ctx)
+func (s *EntStore) lockedApprovalByID(ctx context.Context, client *dataent.Client, id string) (Approval, error) {
+	query := client.Approval.Query().Where(entapproval.ID(id))
+	if s.forUpdate {
+		query = query.ForUpdate()
+	}
+	row, err := query.Only(ctx)
 	if dataent.IsNotFound(err) {
 		return Approval{}, ErrNotFound
 	}
@@ -238,11 +205,12 @@ func lockedApprovalByID(ctx context.Context, client *dataent.Client, id string) 
 	return approvalFromEnt(row)
 }
 
-func lockedTicketByID(ctx context.Context, client *dataent.Client, id string) (Ticket, error) {
-	row, err := client.Ticket.Query().
-		Where(entticket.ID(id)).
-		ForUpdate().
-		Only(ctx)
+func (s *EntStore) lockedTicketByID(ctx context.Context, client *dataent.Client, id string) (Ticket, error) {
+	query := client.Ticket.Query().Where(entticket.ID(id))
+	if s.forUpdate {
+		query = query.ForUpdate()
+	}
+	row, err := query.Only(ctx)
 	if dataent.IsNotFound(err) {
 		return Ticket{}, ErrTicketNotFound
 	}

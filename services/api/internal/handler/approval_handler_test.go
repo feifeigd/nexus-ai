@@ -9,10 +9,11 @@ import (
 
 	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/approval"
+	"nexusai/services/api/internal/types"
 )
 
 func TestApprovalHandlersListAndDecideProposal(t *testing.T) {
-	store := approval.NewStore()
+	store := newTestApprovalStore(t)
 	if err := store.Tool().Propose(context.Background(), agent.ToolProposal{
 		ThreadID:   "thread-1",
 		RunID:      "run-1",
@@ -26,42 +27,42 @@ func TestApprovalHandlersListAndDecideProposal(t *testing.T) {
 
 	listRequest := httptest.NewRequest(http.MethodGet, "/approvals", nil)
 	listResponse := httptest.NewRecorder()
-	ListApprovalsHandler(store).ServeHTTP(listResponse, listRequest)
+	listApprovalsHandler(newTestServiceContext(store, nil)).ServeHTTP(listResponse, listRequest)
 	if listResponse.Code != http.StatusOK {
 		t.Fatalf("unexpected list status: %d", listResponse.Code)
 	}
-	var list approvalListResponse
+	var list types.ApprovalListResponse
 	if err := json.NewDecoder(listResponse.Body).Decode(&list); err != nil {
 		t.Fatalf("decode list: %v", err)
 	}
-	if len(list.Approvals) != 1 || list.Approvals[0].Status != approval.StatusPending {
+	if len(list.Approvals) != 1 || list.Approvals[0].Status != string(approval.StatusPending) {
 		t.Fatalf("unexpected approvals: %+v", list.Approvals)
 	}
 
 	approveRequest := httptest.NewRequest(http.MethodPost, "/approvals/"+proposal.ID+"/approve", nil)
 	approveRequest.SetPathValue("id", proposal.ID)
 	approveResponse := httptest.NewRecorder()
-	ApproveApprovalHandler(store).ServeHTTP(approveResponse, approveRequest)
+	approveApprovalHandler(newTestServiceContext(store, nil)).ServeHTTP(approveResponse, approveRequest)
 	if approveResponse.Code != http.StatusOK {
 		t.Fatalf("unexpected approve status: %d; body=%s", approveResponse.Code, approveResponse.Body.String())
 	}
-	var approved approval.Approval
+	var approved types.Approval
 	if err := json.NewDecoder(approveResponse.Body).Decode(&approved); err != nil {
 		t.Fatalf("decode approval: %v", err)
 	}
-	if approved.Status != approval.StatusApproved || approved.TicketID == "" {
+	if approved.Status != string(approval.StatusApproved) || approved.TicketID == "" {
 		t.Fatalf("unexpected approval: %+v", approved)
 	}
 
 	duplicateResponse := httptest.NewRecorder()
-	ApproveApprovalHandler(store).ServeHTTP(duplicateResponse, approveRequest)
+	approveApprovalHandler(newTestServiceContext(store, nil)).ServeHTTP(duplicateResponse, approveRequest)
 	if duplicateResponse.Code != http.StatusConflict {
 		t.Fatalf("expected duplicate approval conflict, got %d", duplicateResponse.Code)
 	}
 }
 
 func TestApprovalHandlersRejectAndReturnNotFound(t *testing.T) {
-	store := approval.NewStore()
+	store := newTestApprovalStore(t)
 	if err := store.Tool().Propose(context.Background(), agent.ToolProposal{
 		ThreadID:   "thread-1",
 		RunID:      "run-1",
@@ -76,22 +77,22 @@ func TestApprovalHandlersRejectAndReturnNotFound(t *testing.T) {
 	rejectRequest := httptest.NewRequest(http.MethodPost, "/approvals/"+proposal.ID+"/reject", nil)
 	rejectRequest.SetPathValue("id", proposal.ID)
 	rejectResponse := httptest.NewRecorder()
-	RejectApprovalHandler(store).ServeHTTP(rejectResponse, rejectRequest)
+	rejectApprovalHandler(newTestServiceContext(store, nil)).ServeHTTP(rejectResponse, rejectRequest)
 	if rejectResponse.Code != http.StatusOK {
 		t.Fatalf("unexpected reject status: %d", rejectResponse.Code)
 	}
-	var rejected approval.Approval
+	var rejected types.Approval
 	if err := json.NewDecoder(rejectResponse.Body).Decode(&rejected); err != nil {
 		t.Fatalf("decode rejection: %v", err)
 	}
-	if rejected.Status != approval.StatusRejected || rejected.TicketID != "" {
+	if rejected.Status != string(approval.StatusRejected) || rejected.TicketID != "" {
 		t.Fatalf("unexpected rejection: %+v", rejected)
 	}
 
 	missingRequest := httptest.NewRequest(http.MethodPost, "/approvals/missing/approve", nil)
 	missingRequest.SetPathValue("id", "missing")
 	missingResponse := httptest.NewRecorder()
-	ApproveApprovalHandler(store).ServeHTTP(missingResponse, missingRequest)
+	approveApprovalHandler(newTestServiceContext(store, nil)).ServeHTTP(missingResponse, missingRequest)
 	if missingResponse.Code != http.StatusNotFound {
 		t.Fatalf("expected missing approval to return 404, got %d", missingResponse.Code)
 	}

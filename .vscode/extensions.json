@@ -1,3 +1,8 @@
 {
-  "recommendations": ["xiaoxin-technology.goctl"]
+  "recommendations": [
+    "golang.Go",
+    "xiaoxin-technology.goctl",
+    "zxh404.vscode-proto3",
+    "humao.rest-client"
+  ]
 }

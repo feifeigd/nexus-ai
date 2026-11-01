@@ -8,10 +8,13 @@ import (
 	"testing"
 
 	"nexusai/services/api/internal/agent"
+	"nexusai/services/api/internal/data"
+
+	"entgo.io/ent/dialect"
 )
 
 func TestProposalRecordsPendingApprovalWithoutExecuting(t *testing.T) {
-	store := NewStore()
+	store := newTestStore(t)
 	approval := proposeTicket(t, store, `{"title":"  网络故障  ","description":"  无法访问办公系统  "}`)
 
 	if approval.ID == "" || approval.Status != StatusPending {
@@ -23,13 +26,13 @@ func TestProposalRecordsPendingApprovalWithoutExecuting(t *testing.T) {
 	if approval.Arguments.Title != "网络故障" || approval.Arguments.Description != "无法访问办公系统" {
 		t.Fatalf("arguments were not validated and trimmed: %+v", approval.Arguments)
 	}
-	if approval.TicketID != "" || len(store.tickets) != 0 {
+	if approval.TicketID != "" || len(mustListTickets(t, store)) != 0 {
 		t.Fatal("a proposal must not execute the ticket operation")
 	}
 }
 
 func TestApproveCreatesTicketExactlyOnce(t *testing.T) {
-	store := NewStore()
+	store := newTestStore(t)
 	proposal := proposeTicket(t, store, `{"title":"网络故障","description":"无法访问办公系统"}`)
 
 	approved, err := store.Approve(context.Background(), proposal.ID)
@@ -39,21 +42,21 @@ func TestApproveCreatesTicketExactlyOnce(t *testing.T) {
 	if approved.Status != StatusApproved || approved.TicketID == "" || approved.DecidedAt == nil {
 		t.Fatalf("unexpected approval result: %+v", approved)
 	}
-	ticket, ok := store.tickets[approved.TicketID]
-	if !ok || ticket.Title != proposal.Arguments.Title || ticket.Status != "open" {
-		t.Fatalf("ticket was not created from validated arguments: %+v", ticket)
+	tickets := mustListTickets(t, store)
+	if len(tickets) != 1 || tickets[0].ID != approved.TicketID || tickets[0].Title != proposal.Arguments.Title || tickets[0].Status != TicketStatusOpen {
+		t.Fatalf("ticket was not created from validated arguments: %+v", tickets)
 	}
 
 	if _, err := store.Approve(context.Background(), proposal.ID); !errors.Is(err, ErrAlreadyDecided) {
 		t.Fatalf("expected duplicate approval to fail, got %v", err)
 	}
-	if len(store.tickets) != 1 {
+	if len(mustListTickets(t, store)) != 1 {
 		t.Fatal("duplicate approval must not create another ticket")
 	}
 }
 
 func TestListTicketsReturnsOnlyCreatedTickets(t *testing.T) {
-	store := NewStore()
+	store := newTestStore(t)
 	proposal := proposeTicket(t, store, `{"title":"网络故障","description":"无法访问办公系统"}`)
 	approved, err := store.Approve(context.Background(), proposal.ID)
 	if err != nil {
@@ -73,7 +76,7 @@ func TestListTicketsReturnsOnlyCreatedTickets(t *testing.T) {
 }
 
 func TestTicketStatusTransitionsAreEnforced(t *testing.T) {
-	store := NewStore()
+	store := newTestStore(t)
 	proposal := proposeTicket(t, store, `{"title":"网络故障","description":"无法访问办公系统"}`)
 	approved, err := store.Approve(context.Background(), proposal.ID)
 	if err != nil {
@@ -100,14 +103,14 @@ func TestTicketStatusTransitionsAreEnforced(t *testing.T) {
 }
 
 func TestRejectDoesNotExecuteAndCannotBeApproved(t *testing.T) {
-	store := NewStore()
+	store := newTestStore(t)
 	proposal := proposeTicket(t, store, `{"title":"网络故障","description":"无法访问办公系统"}`)
 
 	rejected, err := store.Reject(context.Background(), proposal.ID)
 	if err != nil {
 		t.Fatalf("reject proposal: %v", err)
 	}
-	if rejected.Status != StatusRejected || rejected.TicketID != "" || len(store.tickets) != 0 {
+	if rejected.Status != StatusRejected || rejected.TicketID != "" || len(mustListTickets(t, store)) != 0 {
 		t.Fatalf("rejection must not create a ticket: %+v", rejected)
 	}
 	if _, err := store.Approve(context.Background(), proposal.ID); !errors.Is(err, ErrAlreadyDecided) {
@@ -128,7 +131,7 @@ func TestProposalRejectsInvalidArguments(t *testing.T) {
 	}
 	for name, arguments := range tests {
 		t.Run(name, func(t *testing.T) {
-			store := NewStore()
+			store := newTestStore(t)
 			err := store.Tool().Propose(context.Background(), agent.ToolProposal{
 				ThreadID:   "thread-1",
 				RunID:      "run-1",
@@ -139,14 +142,31 @@ func TestProposalRejectsInvalidArguments(t *testing.T) {
 			if err == nil {
 				t.Fatal("expected invalid arguments to be rejected")
 			}
-			if len(mustList(t, store)) != 0 || len(store.tickets) != 0 {
+			if len(mustList(t, store)) != 0 || len(mustListTickets(t, store)) != 0 {
 				t.Fatal("invalid arguments must not create approvals or tickets")
 			}
 		})
 	}
 }
 
-func proposeTicket(t *testing.T, store *MemoryStore, arguments string) Approval {
+func newTestStore(t *testing.T) *EntStore {
+	t.Helper()
+	name := strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
+	client, closeData, err := data.NewData(&data.Data{Database: data.Database{
+		Driver:       dialect.SQLite,
+		Source:       "file:" + name + "?mode=memory&cache=shared&_fk=1&_txlock=immediate",
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+		AutoMigrate:  true,
+	}})
+	if err != nil {
+		t.Fatalf("create sqlite data source: %v", err)
+	}
+	t.Cleanup(closeData)
+	return NewEntStore(client, dialect.SQLite)
+}
+
+func proposeTicket(t *testing.T, store Store, arguments string) Approval {
 	t.Helper()
 	if err := store.Tool().Propose(context.Background(), agent.ToolProposal{
 		ThreadID:   "thread-1",
@@ -171,4 +191,13 @@ func mustList(t *testing.T, store Store) []Approval {
 		t.Fatalf("list approvals: %v", err)
 	}
 	return approvals
+}
+
+func mustListTickets(t *testing.T, store Store) []Ticket {
+	t.Helper()
+	tickets, err := store.ListTickets(context.Background())
+	if err != nil {
+		t.Fatalf("list tickets: %v", err)
+	}
+	return tickets
 }

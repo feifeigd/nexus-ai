@@ -47,6 +47,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate goctl API
+        run: pnpm generate:api
+
       - name: Generate Ent data access
         run: pnpm generate:ent
 

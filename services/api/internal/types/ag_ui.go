@@ -1,21 +1,7 @@
 package types
 
-type HealthResponse struct {
-	Status  string `json:"status"`
-	Service string `json:"service"`
-}
-
-type AGUIMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-type AGUIRunInput struct {
-	ThreadID string        `json:"threadId"`
-	RunID    string        `json:"runId"`
-	Messages []AGUIMessage `json:"messages"`
-}
-
+// AGUIEvent remains hand-maintained because it is an outbound streaming event,
+// not an HTTP request or response body described by the API DSL.
 type AGUIEvent struct {
 	Type         string `json:"type"`
 	ThreadID     string `json:"threadId,omitempty"`

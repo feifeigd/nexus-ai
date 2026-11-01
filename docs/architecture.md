@@ -22,7 +22,7 @@ flowchart LR
     subgraph Backend["services/api · go-zero 模块化单体 :8080"]
         AGUI["AG-UI Handler<br/>POST /ag-ui"]
         Runner["Agent Runner<br/>mock / openai"]
-        Approval["工具提议与人工审批<br/>内存 / PostgreSQL"]
+        Approval["工具提议与人工审批<br/>SQLite / PostgreSQL"]
         Health["健康检查<br/>GET /healthz"]
         AGUI --> Runner
         Runner -->|"完整且通过校验的工具提议"| Approval
@@ -48,7 +48,7 @@ flowchart LR
 | CopilotKit Runtime | Agent 发现、`default` Agent 注册、前端协议适配、AG-UI 转发 | 企业业务、模型调用、租户隔离、审批、审计 |
 | go-zero API | 请求校验、AG-UI SSE 响应、Runner 选择、工具白名单、参数校验、审批决策和工单状态流转 | 真实认证、租户隔离与审计 |
 | Agent Runner | Mock 文本流，或调用 OpenAI 兼容模型并转换文本与工具调用事件 | 绕过服务端直接执行后台操作 |
-| 审批与工单存储 | 默认使用内存；配置 `NEXUS_POSTGRES_DSN` 后使用 PostgreSQL，通过行锁与事务处理审批和状态更新 | 生产授权、审计与多租户数据约束 |
+| 审批与工单存储 | `NewData` 统一拥有进程级 Ent Client；默认使用 SQLite 共享内存，配置 `NEXUS_POSTGRES_DSN` 后使用 PostgreSQL，通过事务处理审批和状态更新 | 生产授权、审计与多租户数据约束 |
 | PostgreSQL / pgvector / Redis | Docker Compose 提供本地基础设施；PostgreSQL 可选承载审批与工单 | 聊天链路的数据库依赖、知识检索与缓存集成 |
 
 Web 与 Admin 使用彼此独立的 Runtime 进程，关闭 Web 不会中断 Admin 的 AI 聊天链路。两个 Runtime 都只允许转发 `authorization` 和 `x-tenant-id` 请求头，以减少浏览器请求头的无意泄露。请求头转发只是协议能力，不代表认证或租户隔离已经实现。
@@ -84,7 +84,7 @@ sequenceDiagram
 
 正常文本运行包含 `RUN_STARTED`、`TEXT_MESSAGE_START`、若干 `TEXT_MESSAGE_CONTENT`、`TEXT_MESSAGE_END` 和 `RUN_FINISHED`。运行失败时，go-zero 在响应尚未开始时返回错误；流已经开始后则发送 `RUN_ERROR`。客户端断开连接会取消后续模型请求。
 
-OpenAI 兼容模型提议 `create_ticket` 时，go-zero 转发 `TOOL_CALL_START`、`TOOL_CALL_ARGS` 和 `TOOL_CALL_END` 事件，并只在完整模型流结束后校验参数、写入待审批记录。Admin `/approvals` 页面通过同源 `/api/nexus` 代理读取记录并提交人工决策；`POST /approvals/:id/approve` 批准后才在当前存储中创建工单，`POST /approvals/:id/reject` 拒绝则不执行，重复决策返回 409。Admin `/tickets` 页面通过 `GET /tickets` 读取工单，并通过 `PATCH /tickets/:id/status` 按 `open → in_progress → resolved` 顺序处理；go-zero 拒绝非法状态、跳级和回退，当前不提供删除或重新打开操作。默认存储为内存；配置 `NEXUS_POSTGRES_DSN` 后使用 PostgreSQL，并通过行锁与事务保证批准和状态更新的一致性。不完整流、未知工具和无效参数均不会生成审批记录。
+OpenAI 兼容模型提议 `create_ticket` 时，go-zero 转发 `TOOL_CALL_START`、`TOOL_CALL_ARGS` 和 `TOOL_CALL_END` 事件，并只在完整模型流结束后校验参数、写入待审批记录。Admin `/approvals` 页面通过同源 `/api/nexus` 代理读取记录并提交人工决策；`POST /approvals/:id/approve` 批准后才在当前存储中创建工单，`POST /approvals/:id/reject` 拒绝则不执行，重复决策返回 409。Admin `/tickets` 页面通过 `GET /tickets` 读取工单，并通过 `PATCH /tickets/:id/status` 按 `open → in_progress → resolved` 顺序处理；go-zero 拒绝非法状态、跳级和回退，当前不提供删除或重新打开操作。默认存储为 SQLite 共享内存；配置 `NEXUS_POSTGRES_DSN` 后使用 PostgreSQL，并通过事务保证批准和状态更新的一致性，PostgreSQL 额外使用行锁避免并发重复决策。不完整流、未知工具和无效参数均不会生成审批记录。
 
 ## 3. 目标架构（规划）
 

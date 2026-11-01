@@ -10,10 +10,11 @@ import (
 
 	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/approval"
+	"nexusai/services/api/internal/types"
 )
 
 func TestListTicketsHandlerReturnsCreatedTickets(t *testing.T) {
-	store := approval.NewStore()
+	store := newTestApprovalStore(t)
 	if err := store.Tool().Propose(context.Background(), agent.ToolProposal{
 		ThreadID:   "thread-1",
 		RunID:      "run-1",
@@ -34,11 +35,11 @@ func TestListTicketsHandlerReturnsCreatedTickets(t *testing.T) {
 
 	request := httptest.NewRequest(http.MethodGet, "/tickets", nil)
 	response := httptest.NewRecorder()
-	ListTicketsHandler(store).ServeHTTP(response, request)
+	listTicketsHandler(newTestServiceContext(store, nil)).ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
 		t.Fatalf("unexpected list status: %d", response.Code)
 	}
-	var list ticketListResponse
+	var list types.TicketListResponse
 	if err := json.NewDecoder(response.Body).Decode(&list); err != nil {
 		t.Fatalf("decode ticket list: %v", err)
 	}
@@ -52,7 +53,7 @@ func TestListTicketsHandlerReturnsCreatedTickets(t *testing.T) {
 }
 
 func TestUpdateTicketStatusHandlerEnforcesWorkflow(t *testing.T) {
-	store := approval.NewStore()
+	store := newTestApprovalStore(t)
 	if err := store.Tool().Propose(context.Background(), agent.ToolProposal{
 		ThreadID:   "thread-1",
 		RunID:      "run-1",
@@ -72,36 +73,40 @@ func TestUpdateTicketStatusHandlerEnforcesWorkflow(t *testing.T) {
 	}
 
 	invalidRequest := httptest.NewRequest(http.MethodPatch, "/tickets/"+approved.TicketID+"/status", strings.NewReader(`{"status":"resolved"}`))
+	invalidRequest.SetPathValue("id", approved.TicketID)
 	invalidResponse := httptest.NewRecorder()
-	UpdateTicketStatusHandler(store).ServeHTTP(invalidResponse, invalidRequest)
+	updateTicketStatusHandler(newTestServiceContext(store, nil)).ServeHTTP(invalidResponse, invalidRequest)
 	if invalidResponse.Code != http.StatusConflict {
 		t.Fatalf("expected skipped transition to return 409, got %d", invalidResponse.Code)
 	}
 
 	request := httptest.NewRequest(http.MethodPatch, "/tickets/"+approved.TicketID+"/status", strings.NewReader(`{"status":"in_progress"}`))
+	request.SetPathValue("id", approved.TicketID)
 	response := httptest.NewRecorder()
-	UpdateTicketStatusHandler(store).ServeHTTP(response, request)
+	updateTicketStatusHandler(newTestServiceContext(store, nil)).ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
 		t.Fatalf("unexpected update status: %d; body=%s", response.Code, response.Body.String())
 	}
-	var ticket approval.Ticket
+	var ticket types.Ticket
 	if err := json.NewDecoder(response.Body).Decode(&ticket); err != nil {
 		t.Fatalf("decode updated ticket: %v", err)
 	}
-	if ticket.Status != approval.TicketStatusInProgress {
+	if ticket.Status != string(approval.TicketStatusInProgress) {
 		t.Fatalf("unexpected ticket status: %+v", ticket)
 	}
 
 	unknownRequest := httptest.NewRequest(http.MethodPatch, "/tickets/"+approved.TicketID+"/status", strings.NewReader(`{"status":"closed"}`))
+	unknownRequest.SetPathValue("id", approved.TicketID)
 	unknownResponse := httptest.NewRecorder()
-	UpdateTicketStatusHandler(store).ServeHTTP(unknownResponse, unknownRequest)
+	updateTicketStatusHandler(newTestServiceContext(store, nil)).ServeHTTP(unknownResponse, unknownRequest)
 	if unknownResponse.Code != http.StatusBadRequest {
 		t.Fatalf("expected unknown status to return 400, got %d", unknownResponse.Code)
 	}
 
 	missingRequest := httptest.NewRequest(http.MethodPatch, "/tickets/missing/status", strings.NewReader(`{"status":"in_progress"}`))
+	missingRequest.SetPathValue("id", "missing")
 	missingResponse := httptest.NewRecorder()
-	UpdateTicketStatusHandler(store).ServeHTTP(missingResponse, missingRequest)
+	updateTicketStatusHandler(newTestServiceContext(store, nil)).ServeHTTP(missingResponse, missingRequest)
 	if missingResponse.Code != http.StatusNotFound {
 		t.Fatalf("expected missing ticket to return 404, got %d", missingResponse.Code)
 	}

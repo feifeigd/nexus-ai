@@ -8,19 +8,23 @@ type CreateTicketInput {
 
 type Approval {
 	ID         string           `json:"id"`
-	ThreadId   string           `json:"threadId"`
-	RunId      string           `json:"runId"`
-	ToolCallId string           `json:"toolCallId"`
+	ThreadID   string           `json:"threadId"`
+	RunID      string           `json:"runId"`
+	ToolCallID string           `json:"toolCallId"`
 	ToolName   string           `json:"toolName"`
 	Arguments  CreateTicketInput `json:"arguments"`
 	Status     string           `json:"status"`
-	TicketId   string           `json:"ticketId,optional"`
+	TicketID   string           `json:"ticketId,optional,omitempty"`
 	CreatedAt  string           `json:"createdAt"`
-	DecidedAt  string           `json:"decidedAt,optional"`
+	DecidedAt  string           `json:"decidedAt,optional,omitempty"`
 }
 
 type ApprovalListResponse {
 	Approvals []Approval `json:"approvals"`
+}
+
+type ApprovalDecisionInput {
+	ID string `path:"id"`
 }
 
 service nexus-api {
@@ -28,8 +32,8 @@ service nexus-api {
 	get /approvals returns (ApprovalListResponse)
 
 	@handler approveApproval
-	post /approvals/:id/approve returns (Approval)
+	post /approvals/:id/approve (ApprovalDecisionInput) returns (Approval)
 
 	@handler rejectApproval
-	post /approvals/:id/reject returns (Approval)
+	post /approvals/:id/reject (ApprovalDecisionInput) returns (Approval)
 }

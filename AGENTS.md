@@ -26,6 +26,15 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - AG-UI 或 CopilotKit 升级前必须核对实际包依赖声明；升级后必须确认锁文件不保留互不兼容的 AG-UI 重复版本，并执行 Web 测试、Lint 和生产构建，未实际执行的验证不得写成通过。
 - OpenAI 兼容协议当前继续采用 go-zero 内手写 Chat Completions 客户端，不在第 14 步混入 SDK 替换。手写范围只维护当前文本与函数调用子集，不继续扩展 Responses API、多模态或通用重试等完整 SDK 能力；OpenAI 协议类型与 SSE 解析必须留在 `OpenAIRunner` 内部。后续迁移官方 `openai-go` 时应作为独立小增量，保持 `Runner` 接口、AG-UI 事件和业务行为不变，并复用假服务测试覆盖文本流、工具参数分片、HTTP 错误、异常 EOF、非法 JSON、中途错误和取消。
 
+## 日志规范
+
+- go-zero 进程的新增和修改日志统一使用 `logx`，不再新增标准库 `log` 调用；既有标准库日志在触及相应代码时逐步迁移。
+- 服务启动、关闭、配置加载、数据库连接与资源释放等进程级日志，直接使用包级 `logx.Info`、`logx.Infow`、`logx.Errorf`、`logx.Errorw`，不要求请求 Context。
+- 后台任务等无请求日志使用包级 `logx`；任务拥有独立生命周期 Context 时，可使用 `logx.WithContext(ctx)`。
+- HTTP 请求日志使用 `logx.WithContext(r.Context())`；goctl Logic 直接使用内嵌的 `l.Infof`、`l.Infow`、`l.Errorf`、`l.Errorw`，保留请求链路上下文。
+- 关键操作优先使用结构化字段记录审批 ID、工单 ID、错误等信息；不得记录 DSN、API Key、完整模型请求或用户敏感内容。同一个错误尽量只在一个层级记录，避免重复日志。
+- 资源关闭失败使用 Error 级别，不使用 Fatal。启动失败应优先返回错误，让资源清理完成后由 `main` 记录并退出，避免直接退出跳过 defer。
+
 ## 协作规则
 
 - 任务尽量拆细，每一步都必须可以运行和验证。
