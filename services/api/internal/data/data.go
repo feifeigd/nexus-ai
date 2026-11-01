@@ -23,6 +23,9 @@ var postgresApprovalMigration string
 //go:embed migrations/002_ticket_status.sql
 var postgresTicketStatusMigration string
 
+//go:embed migrations/003_knowledge_base.sql
+var postgresKnowledgeBaseMigration string
+
 // NewData opens the process-owned database client. Stores share this client;
 // only the returned cleanup function may close it.
 func NewData(c *Data) (*ent.Client, func(), error) {
@@ -115,7 +118,7 @@ func migrate(ctx context.Context, driverName string, db *stdsql.DB, client *ent.
 	}
 
 	// PostgreSQL keeps the reviewed, versioned SQL migrations authoritative.
-	for _, migration := range []string{postgresApprovalMigration, postgresTicketStatusMigration} {
+	for _, migration := range []string{postgresApprovalMigration, postgresTicketStatusMigration, postgresKnowledgeBaseMigration} {
 		if _, err := db.ExecContext(ctx, migration); err != nil {
 			return fmt.Errorf("migrate postgres database: %w", err)
 		}

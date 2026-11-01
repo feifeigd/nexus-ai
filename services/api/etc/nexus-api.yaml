@@ -10,6 +10,7 @@ Agent:
 Data:
   Database:
     Driver: sqlite3
+    # mode=memory 不会创建文件，数据在内存，进程关闭，数据不保存，适用于开发中的测试
     Source: "file:nexus_ai?mode=memory&cache=shared&_fk=1&_txlock=immediate"
     MaxOpenConns: 20
     MaxIdleConns: 10
