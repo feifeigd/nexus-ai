@@ -5,6 +5,7 @@ import (
 	stdsql "database/sql"
 	_ "embed"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -29,13 +30,32 @@ var postgresKnowledgeBaseMigration string
 //go:embed migrations/004_knowledge_embeddings.sql
 var postgresKnowledgeEmbeddingsMigration string
 
+// DriverName returns the effective dialect after applying environment overrides.
+func DriverName(c *Data) string {
+	if c == nil {
+		return ""
+	}
+	return strings.TrimSpace(resolveDatabase(c).Driver)
+}
+
+func resolveDatabase(c *Data) Database {
+	dc := c.Database
+	if dsn := strings.TrimSpace(os.Getenv("NEXUS_POSTGRES_DSN")); dsn != "" {
+		dc.Driver = "postgres"
+		dc.Source = dsn
+		dc.AutoMigrate = true
+	}
+	return dc
+}
+
 // NewData opens the process-owned database client. Stores share this client;
 // only the returned cleanup function may close it.
 func NewData(c *Data) (*ent.Client, func(), error) {
 	if c == nil {
 		return nil, nil, fmt.Errorf("database config is required")
 	}
-	dc := c.Database
+
+	dc := resolveDatabase(c)
 	driverName := strings.TrimSpace(dc.Driver)
 	source := strings.TrimSpace(dc.Source)
 	if driverName != dialect.Postgres && driverName != dialect.SQLite {

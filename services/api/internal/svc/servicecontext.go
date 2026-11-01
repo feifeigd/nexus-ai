@@ -16,13 +16,13 @@ type KnowledgeService interface {
 }
 
 type ServiceContext struct {
-	Config    config.Config
+	Config    *config.Config
 	Runner    agent.Runner
 	Approvals approval.Store
 	Knowledge KnowledgeService
 }
 
-func NewServiceContext(c config.Config, runner agent.Runner, approvals approval.Store, knowledge KnowledgeService) *ServiceContext {
+func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval.Store, knowledge KnowledgeService) *ServiceContext {
 	return &ServiceContext{
 		Config:    c,
 		Runner:    runner,

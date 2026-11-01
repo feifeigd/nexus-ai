@@ -6,8 +6,9 @@
   "scripts": {
     "generate:api": "cd services/api && go run github.com/zeromicro/go-zero/tools/goctl@v1.10.2 api go --api api/nexus.api --dir .",
     "generate:ent": "cd services/api && go generate ./internal/data/ent",
-    "dev:api": "pnpm generate:api && pnpm generate:ent && cd services/api && go run .",
-    "test:api": "pnpm generate:api && pnpm generate:ent && cd services/api && go test ./...",
+    "generate:wire": "cd services/api && go run -mod=mod github.com/google/wire/cmd/wire",
+    "dev:api": "pnpm generate:api && pnpm generate:ent && pnpm generate:wire && cd services/api && go run .",
+    "test:api": "pnpm generate:api && pnpm generate:ent && pnpm generate:wire && cd services/api && go test ./...",
     "dev:runtime": "pnpm --filter agent-runtime dev",
     "build:runtime": "pnpm --filter agent-runtime build",
     "test:runtime": "pnpm --filter agent-runtime run test",
