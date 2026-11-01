@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 
 	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/types"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 const maxAGUIRequestSize = 1 << 20
@@ -63,7 +64,12 @@ func AGUIHandler(runner agent.Runner) http.HandlerFunc {
 			return
 		}
 
-		log.Printf("AG-UI run %s failed: %v", input.RunID, err)
+		logx.WithContext(r.Context()).Errorw(
+			"AG-UI run failed",
+			logx.Field("threadId", input.ThreadID),
+			logx.Field("runId", input.RunID),
+			logx.Field("error", err),
+		)
 		if !started {
 			http.Error(w, "agent run failed", http.StatusBadGateway)
 			return

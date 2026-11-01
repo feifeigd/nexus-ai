@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -17,6 +16,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/zeromicro/go-zero/core/conf"
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/rest"
 )
 
@@ -25,46 +25,83 @@ var configFile = flag.String("f", "etc/nexus-api.yaml", "the config file")
 func main() {
 	flag.Parse()
 
+	if err := run(); err != nil {
+		logx.Errorw(
+			"nexus api exited with error",
+			logx.Field("error", err),
+		)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
-		log.Fatalf("load .env: %v", err)
+		return fmt.Errorf("load .env: %w", err)
 	}
 
 	var c config.Config
-	conf.MustLoad(*configFile, &c)
-
-	approvals, closeStore := approvalStore()
-	defer closeStore()
-	runner, err := agent.NewRunner(agent.ConfigFromEnv(c.Agent), approvals.Tool())
-	if err != nil {
-		log.Fatalf("configure agent: %v", err)
+	if err := conf.Load(*configFile, &c); err != nil {
+		return fmt.Errorf("load config: %w", err)
 	}
 
-	server := rest.MustNewServer(c.RestConf)
+	approvals, closeStore, err := approvalStore()
+	if err != nil {
+		return err
+	}
+	defer closeStore()
+
+	runner, err := agent.NewRunner(agent.ConfigFromEnv(c.Agent), approvals.Tool())
+	if err != nil {
+		return fmt.Errorf("configure agent: %w", err)
+	}
+
+	server, err := rest.NewServer(c.RestConf)
+	if err != nil {
+		return fmt.Errorf("create http server: %w", err)
+	}
 	defer server.Stop()
 
 	ctx := svc.NewServiceContext(c, runner, approvals)
 	handler.RegisterHandlers(server, ctx)
 
-	fmt.Printf("Starting %s at %s:%d...\n", c.Name, c.Host, c.Port)
+	logx.Infow(
+		"nexus api starting",
+		logx.Field("service", c.Name),
+		logx.Field("host", c.Host),
+		logx.Field("port", c.Port),
+	)
 	server.Start()
+	return nil
 }
 
-func approvalStore() (approval.Store, func()) {
+func approvalStore() (approval.Store, func(), error) {
 	dsn := strings.TrimSpace(os.Getenv("NEXUS_POSTGRES_DSN"))
 	if dsn == "" {
-		log.Print("approval store: memory")
-		return approval.NewStore(), func() {}
+		logx.Info("approval store configured as memory")
+		return approval.NewStore(), func() {}, nil
 	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
 	store, err := approval.NewPostgresStore(ctx, dsn)
 	if err != nil {
-		log.Fatalf("configure postgres approval store: %v", err)
+		return nil, nil, fmt.Errorf("configure postgres approval store: %w", err)
 	}
-	log.Print("approval store: postgres")
+
+	logx.Info("approval store configured as postgres")
+
 	return store, func() {
+		logx.Info("closing postgres approval store")
+
 		if err := store.Close(); err != nil {
-			log.Printf("close postgres approval store: %v", err)
+			logx.Errorw(
+				"close postgres approval store failed",
+				logx.Field("error", err),
+			)
+			return
 		}
-	}
+
+		logx.Info("postgres approval store closed")
+	}, nil
 }
