@@ -9,9 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
 	"strings"
-	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -95,27 +93,6 @@ type Store interface {
 	Reject(context.Context, string) (Approval, error)
 }
 
-type MemoryStore struct {
-	mu        sync.RWMutex
-	approvals map[string]*Approval
-	tickets   map[string]Ticket
-	now       func() time.Time
-}
-
-func NewStore() *MemoryStore {
-	return &MemoryStore{
-		approvals: make(map[string]*Approval),
-		tickets:   make(map[string]Ticket),
-		now:       time.Now,
-	}
-}
-
-// Tool returns the only tool exposed to the model in this increment. The
-// callback records a proposal; it never creates a ticket.
-func (s *MemoryStore) Tool() agent.Tool {
-	return ticketTool(s.propose)
-}
-
 func ticketTool(propose func(context.Context, agent.ToolProposal) error) agent.Tool {
 	return agent.Tool{
 		Name:        createTicketToolName,
@@ -131,17 +108,6 @@ func ticketTool(propose func(context.Context, agent.ToolProposal) error) agent.T
 		}`),
 		Propose: propose,
 	}
-}
-
-func (s *MemoryStore) propose(ctx context.Context, proposal agent.ToolProposal) error {
-	approval, err := newPendingApproval(ctx, proposal, s.now().UTC())
-	if err != nil {
-		return err
-	}
-	s.mu.Lock()
-	s.approvals[approval.ID] = &approval
-	s.mu.Unlock()
-	return nil
 }
 
 func newPendingApproval(ctx context.Context, proposal agent.ToolProposal, now time.Time) (Approval, error) {
@@ -198,122 +164,6 @@ func newPendingApproval(ctx context.Context, proposal agent.ToolProposal, now ti
 		Status:     StatusPending,
 		CreatedAt:  now,
 	}, nil
-}
-
-func (s *MemoryStore) List(ctx context.Context) ([]Approval, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	s.mu.RLock()
-	approvals := make([]Approval, 0, len(s.approvals))
-	for _, approval := range s.approvals {
-		approvals = append(approvals, *approval)
-	}
-	s.mu.RUnlock()
-	sortApprovals(approvals)
-	return approvals, nil
-}
-
-func (s *MemoryStore) ListTickets(ctx context.Context) ([]Ticket, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	s.mu.RLock()
-	tickets := make([]Ticket, 0, len(s.tickets))
-	for _, ticket := range s.tickets {
-		tickets = append(tickets, ticket)
-	}
-	s.mu.RUnlock()
-	sort.Slice(tickets, func(i, j int) bool {
-		if tickets[i].CreatedAt.Equal(tickets[j].CreatedAt) {
-			return tickets[i].ID < tickets[j].ID
-		}
-		return tickets[i].CreatedAt.After(tickets[j].CreatedAt)
-	})
-	return tickets, nil
-}
-
-func (s *MemoryStore) UpdateTicketStatus(ctx context.Context, id string, status TicketStatus) (Ticket, error) {
-	if err := ctx.Err(); err != nil {
-		return Ticket{}, err
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	ticket, ok := s.tickets[id]
-	if !ok {
-		return Ticket{}, ErrTicketNotFound
-	}
-	if err := validateTicketTransition(ticket.Status, status); err != nil {
-		return Ticket{}, err
-	}
-	ticket.Status = status
-	s.tickets[id] = ticket
-	return ticket, nil
-}
-
-func sortApprovals(approvals []Approval) {
-	sort.Slice(approvals, func(i, j int) bool {
-		if approvals[i].CreatedAt.Equal(approvals[j].CreatedAt) {
-			return approvals[i].ID < approvals[j].ID
-		}
-		return approvals[i].CreatedAt.After(approvals[j].CreatedAt)
-	})
-}
-
-func (s *MemoryStore) Approve(ctx context.Context, id string) (Approval, error) {
-	if err := ctx.Err(); err != nil {
-		return Approval{}, err
-	}
-	ticketID, err := newID("ticket")
-	if err != nil {
-		return Approval{}, err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	approval, err := s.pendingApproval(id)
-	if err != nil {
-		return Approval{}, err
-	}
-	now := s.now().UTC()
-	s.tickets[ticketID] = Ticket{
-		ID:          ticketID,
-		Title:       approval.Arguments.Title,
-		Description: approval.Arguments.Description,
-		Status:      "open",
-		CreatedAt:   now,
-	}
-	approval.Status = StatusApproved
-	approval.TicketID = ticketID
-	approval.DecidedAt = &now
-	return *approval, nil
-}
-
-func (s *MemoryStore) Reject(ctx context.Context, id string) (Approval, error) {
-	if err := ctx.Err(); err != nil {
-		return Approval{}, err
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	approval, err := s.pendingApproval(id)
-	if err != nil {
-		return Approval{}, err
-	}
-	now := s.now().UTC()
-	approval.Status = StatusRejected
-	approval.DecidedAt = &now
-	return *approval, nil
-}
-
-func (s *MemoryStore) pendingApproval(id string) (*Approval, error) {
-	approval, ok := s.approvals[id]
-	if !ok {
-		return nil, ErrNotFound
-	}
-	if approval.Status != StatusPending {
-		return nil, ErrAlreadyDecided
-	}
-	return approval, nil
 }
 
 func ensureJSONEnd(decoder *json.Decoder) error {

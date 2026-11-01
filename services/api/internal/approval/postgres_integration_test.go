@@ -2,6 +2,7 @@ package approval
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"os"
@@ -9,9 +10,13 @@ import (
 	"time"
 
 	"nexusai/services/api/internal/agent"
+	"nexusai/services/api/internal/data"
+
+	"entgo.io/ent/dialect"
+	_ "github.com/lib/pq"
 )
 
-func TestPostgresStorePersistsApprovalAndTicketAcrossReopen(t *testing.T) {
+func TestEntStorePersistsApprovalAndTicketAcrossReopen(t *testing.T) {
 	dsn := os.Getenv("NEXUS_TEST_POSTGRES_DSN")
 	if dsn == "" {
 		t.Skip("NEXUS_TEST_POSTGRES_DSN is not configured")
@@ -19,15 +24,29 @@ func TestPostgresStorePersistsApprovalAndTicketAcrossReopen(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	store, err := NewPostgresStore(ctx, dsn)
+	config := &data.Data{Database: data.Database{
+		Driver:       dialect.Postgres,
+		Source:       dsn,
+		MaxOpenConns: 5,
+		MaxIdleConns: 2,
+		AutoMigrate:  true,
+	}}
+	client, closeData, err := data.NewData(config)
 	if err != nil {
-		t.Fatalf("create postgres store: %v", err)
+		t.Fatalf("create postgres data source: %v", err)
+	}
+	store := NewEntStore(client, dialect.Postgres)
+	rawDB, err := sql.Open(dialect.Postgres, dsn)
+	if err != nil {
+		closeData()
+		t.Fatalf("open integration cleanup connection: %v", err)
 	}
 	defer func() {
-		_, _ = store.db.ExecContext(context.Background(), `TRUNCATE tickets, approvals`)
-		_ = store.Close()
+		_, _ = rawDB.ExecContext(context.Background(), `TRUNCATE tickets, approvals`)
+		_ = rawDB.Close()
+		closeData()
 	}()
-	if _, err := store.db.ExecContext(ctx, `TRUNCATE tickets, approvals`); err != nil {
+	if _, err := rawDB.ExecContext(ctx, `TRUNCATE tickets, approvals`); err != nil {
 		t.Fatalf("reset integration tables: %v", err)
 	}
 
@@ -50,18 +69,19 @@ func TestPostgresStorePersistsApprovalAndTicketAcrossReopen(t *testing.T) {
 	}
 
 	var title, status string
-	if err := store.db.QueryRowContext(ctx, `SELECT title, status FROM tickets WHERE id = $1`, approved.TicketID).Scan(&title, &status); err != nil {
+	if err := rawDB.QueryRowContext(ctx, `SELECT title, status FROM tickets WHERE id = $1`, approved.TicketID).Scan(&title, &status); err != nil {
 		t.Fatalf("query created ticket: %v", err)
 	}
 	if title != "持久化验证" || status != "open" {
 		t.Fatalf("unexpected ticket: title=%q status=%q", title, status)
 	}
 
-	reopened, err := NewPostgresStore(ctx, dsn)
+	reopenedClient, closeReopened, err := data.NewData(config)
 	if err != nil {
-		t.Fatalf("reopen postgres store: %v", err)
+		t.Fatalf("reopen postgres data source: %v", err)
 	}
-	defer reopened.Close()
+	defer closeReopened()
+	reopened := NewEntStore(reopenedClient, dialect.Postgres)
 	persisted, err := reopened.List(ctx)
 	if err != nil || len(persisted) != 1 {
 		t.Fatalf("list persisted approvals: %+v, %v", persisted, err)
@@ -81,7 +101,7 @@ func TestPostgresStorePersistsApprovalAndTicketAcrossReopen(t *testing.T) {
 		t.Fatalf("update persisted ticket status: %+v, %v", updated, err)
 	}
 	var persistedStatus TicketStatus
-	if err := store.db.QueryRowContext(ctx, `SELECT status FROM tickets WHERE id = $1`, approved.TicketID).Scan(&persistedStatus); err != nil {
+	if err := rawDB.QueryRowContext(ctx, `SELECT status FROM tickets WHERE id = $1`, approved.TicketID).Scan(&persistedStatus); err != nil {
 		t.Fatalf("query updated ticket status: %v", err)
 	}
 	if persistedStatus != TicketStatusInProgress {

@@ -3,83 +3,122 @@ package data
 import (
 	"context"
 	stdsql "database/sql"
-
-	// "kratos-todo-service/internal/conf"
+	_ "embed"
+	"fmt"
+	"strings"
 	"time"
 
+	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
+	_ "github.com/lib/pq"
+	"github.com/zeromicro/go-zero/core/logx"
+	_ "modernc.org/sqlite"
 
 	"nexusai/services/api/internal/data/ent"
-
-	// _ "github.com/go-sql-driver/mysql" // 导入数据库驱动
-
-	// PostgreSQL 驱动，注册名为 "postgres"
-	_ "github.com/lib/pq"
-
-	// SQLite 驱动，注册名为 "sqlite3"
-	_ "github.com/mattn/go-sqlite3"
-
-	"github.com/zeromicro/go-zero/core/logx"
-	// "github.com/google/wire"
 )
 
-// var ProviderSet = wire.NewSet(NewData, NewTodoRepo)
+//go:embed migrations/001_approvals.sql
+var postgresApprovalMigration string
 
-// NewData opens the database client and returns it with a cleanup function.
-// 创建数据库连接
-// 构建函数的返回值:
-// 1: *
-// 2: *, error
-// 3: *, cleanup func(), error
+//go:embed migrations/002_ticket_status.sql
+var postgresTicketStatusMigration string
+
+// NewData opens the process-owned database client. Stores share this client;
+// only the returned cleanup function may close it.
 func NewData(c *Data) (*ent.Client, func(), error) {
-	dc := c.Database
-	sqlDB, err := stdsql.Open(dc.Driver, dc.Source)
-	if err != nil {
-		return nil, nil, err
+	if c == nil {
+		return nil, nil, fmt.Errorf("database config is required")
 	}
-	// 连接池配置:database/sql 默认 MaxIdleConns=2,空闲连接很快被回收,
-	// 每个请求都新建连接。本机 MySQL 建连要几百毫秒(反向 DNS),
-	// 不配池子会直接把请求拖过 deadline。
-	// 配置里留 0 则回落到下面的默认值。
+	dc := c.Database
+	driverName := strings.TrimSpace(dc.Driver)
+	source := strings.TrimSpace(dc.Source)
+	if driverName != dialect.Postgres && driverName != dialect.SQLite {
+		return nil, nil, fmt.Errorf("unsupported database driver %q", driverName)
+	}
+	if source == "" {
+		return nil, nil, fmt.Errorf("database source is required")
+	}
+
+	sqlDriverName := driverName
+	if driverName == dialect.SQLite {
+		// modernc registers "sqlite"; Ent's SQLite dialect is named "sqlite3".
+		sqlDriverName = "sqlite"
+	}
+	sqlDB, err := stdsql.Open(sqlDriverName, source)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open %s database: %w", driverName, err)
+	}
 	maxOpenConns := dc.MaxOpenConns
 	if maxOpenConns <= 0 {
 		maxOpenConns = 20
+		if driverName == dialect.SQLite {
+			maxOpenConns = 1
+		}
 	}
 	maxIdleConns := dc.MaxIdleConns
 	if maxIdleConns <= 0 {
 		maxIdleConns = 10
+		if driverName == dialect.SQLite {
+			maxIdleConns = 1
+		}
 	}
-	connMaxLifetime := time.Hour
-	if d := dc.ConnMaxLifetime; d != nil {
-		connMaxLifetime = d.AsDuration()
+	// Zero keeps connections alive indefinitely. Negative values use the
+	// one-hour default; in-memory SQLite should normally leave this at zero.
+	connMaxLifetime := dc.ConnMaxLifetime
+	if connMaxLifetime < 0 {
+		connMaxLifetime = time.Hour
 	}
 	sqlDB.SetMaxOpenConns(maxOpenConns)
 	sqlDB.SetMaxIdleConns(maxIdleConns)
-	// 寿命要小于 MySQL wait_timeout(默认 28800s),避免服务端掐连接后
-	// 客户端拿到死连接报 driver: bad connection。
 	sqlDB.SetConnMaxLifetime(connMaxLifetime)
 
-	// 用配好池子的 *sql.DB 构建 ent client
-	db := ent.NewClient(ent.Driver(entsql.OpenDB(dc.Driver, sqlDB)))
-
-	if dc.Debug {
-		db = db.Debug()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := sqlDB.PingContext(ctx); err != nil {
+		_ = sqlDB.Close()
+		return nil, nil, fmt.Errorf("connect %s database: %w", driverName, err)
 	}
 
-	// Auto migration is a convenience for local development.
-	// In production, apply schema changes as a separate reviewed step instead.
+	client := ent.NewClient(ent.Driver(entsql.OpenDB(driverName, sqlDB)))
+	if dc.Debug {
+		client = client.Debug()
+	}
 	if dc.AutoMigrate {
-		if err := db.Schema.Create(context.Background()); err != nil {
-			db.Close()
+		if err := migrate(ctx, driverName, sqlDB, client); err != nil {
+			_ = client.Close()
 			return nil, nil, err
 		}
 	}
-	// 析构函数
+
+	logx.Infow("database connected", logx.Field("driver", driverName))
 	cleanup := func() {
-		logx.Info("Closing the data resources.")
-		if err := db.Close(); err != nil {
-			logx.Error("failed closing the database", "err", err)
+		logx.Infow("closing database", logx.Field("driver", driverName))
+		if err := client.Close(); err != nil {
+			logx.Errorw(
+				"close database failed",
+				logx.Field("driver", driverName),
+				logx.Field("error", err),
+			)
+			return
+		}
+		logx.Infow("database closed", logx.Field("driver", driverName))
+	}
+	return client, cleanup, nil
+}
+
+func migrate(ctx context.Context, driverName string, db *stdsql.DB, client *ent.Client) error {
+	if driverName == dialect.SQLite {
+		if err := client.Schema.Create(ctx); err != nil {
+			return fmt.Errorf("migrate sqlite database: %w", err)
+		}
+		return nil
+	}
+
+	// PostgreSQL keeps the reviewed, versioned SQL migrations authoritative.
+	for _, migration := range []string{postgresApprovalMigration, postgresTicketStatusMigration} {
+		if _, err := db.ExecContext(ctx, migration); err != nil {
+			return fmt.Errorf("migrate postgres database: %w", err)
 		}
 	}
-	return db, cleanup, nil
+	return nil
 }

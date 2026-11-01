@@ -13,7 +13,7 @@ import (
 )
 
 func TestApprovalHandlersListAndDecideProposal(t *testing.T) {
-	store := approval.NewStore()
+	store := newTestApprovalStore(t)
 	if err := store.Tool().Propose(context.Background(), agent.ToolProposal{
 		ThreadID:   "thread-1",
 		RunID:      "run-1",
@@ -62,7 +62,7 @@ func TestApprovalHandlersListAndDecideProposal(t *testing.T) {
 }
 
 func TestApprovalHandlersRejectAndReturnNotFound(t *testing.T) {
-	store := approval.NewStore()
+	store := newTestApprovalStore(t)
 	if err := store.Tool().Propose(context.Background(), agent.ToolProposal{
 		ThreadID:   "thread-1",
 		RunID:      "run-1",

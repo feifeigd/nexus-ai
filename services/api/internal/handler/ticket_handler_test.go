@@ -14,7 +14,7 @@ import (
 )
 
 func TestListTicketsHandlerReturnsCreatedTickets(t *testing.T) {
-	store := approval.NewStore()
+	store := newTestApprovalStore(t)
 	if err := store.Tool().Propose(context.Background(), agent.ToolProposal{
 		ThreadID:   "thread-1",
 		RunID:      "run-1",
@@ -53,7 +53,7 @@ func TestListTicketsHandlerReturnsCreatedTickets(t *testing.T) {
 }
 
 func TestUpdateTicketStatusHandlerEnforcesWorkflow(t *testing.T) {
-	store := approval.NewStore()
+	store := newTestApprovalStore(t)
 	if err := store.Tool().Propose(context.Background(), agent.ToolProposal{
 		ThreadID:   "thread-1",
 		RunID:      "run-1",

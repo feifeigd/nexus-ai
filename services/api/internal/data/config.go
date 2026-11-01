@@ -1,12 +1,15 @@
 package data
 
+import "time"
+
 type Database struct {
-	Driver       string // mysql|postgres|sqlite
-	Source       string // DSN
-	MaxOpenConns int
-	MaxIdleConns int
-	Debug        bool
-	AutoMigrate  bool
+	Driver          string // postgres|sqlite3
+	Source          string // DSN
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
+	Debug           bool
+	AutoMigrate     bool
 }
 
 type Data struct {

@@ -1,16 +1,15 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/approval"
 	"nexusai/services/api/internal/config"
+	"nexusai/services/api/internal/data"
 	"nexusai/services/api/internal/handler"
 	"nexusai/services/api/internal/svc"
 
@@ -44,11 +43,19 @@ func run() error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	approvals, closeStore, err := approvalStore()
-	if err != nil {
-		return err
+	// Preserve the existing environment-based PostgreSQL configuration while
+	// keeping NewData as the only database owner in the process.
+	if dsn := strings.TrimSpace(os.Getenv("NEXUS_POSTGRES_DSN")); dsn != "" {
+		c.Data.Database.Driver = "postgres"
+		c.Data.Database.Source = dsn
+		c.Data.Database.AutoMigrate = true
 	}
-	defer closeStore()
+	client, closeData, err := data.NewData(&c.Data)
+	if err != nil {
+		return fmt.Errorf("configure data source: %w", err)
+	}
+	defer closeData()
+	approvals := approval.NewEntStore(client, c.Data.Database.Driver)
 
 	runner, err := agent.NewRunner(agent.ConfigFromEnv(c.Agent), approvals.Tool())
 	if err != nil {
@@ -72,36 +79,4 @@ func run() error {
 	)
 	server.Start()
 	return nil
-}
-
-func approvalStore() (approval.Store, func(), error) {
-	dsn := strings.TrimSpace(os.Getenv("NEXUS_POSTGRES_DSN"))
-	if dsn == "" {
-		logx.Info("approval store configured as memory")
-		return approval.NewStore(), func() {}, nil
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	store, err := approval.NewPostgresStore(ctx, dsn)
-	if err != nil {
-		return nil, nil, fmt.Errorf("configure postgres approval store: %w", err)
-	}
-
-	logx.Info("approval store configured as postgres")
-
-	return store, func() {
-		logx.Info("closing postgres approval store")
-
-		if err := store.Close(); err != nil {
-			logx.Errorw(
-				"close postgres approval store failed",
-				logx.Field("error", err),
-			)
-			return
-		}
-
-		logx.Info("postgres approval store closed")
-	}, nil
 }
