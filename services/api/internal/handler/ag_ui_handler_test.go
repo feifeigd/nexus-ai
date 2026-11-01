@@ -28,7 +28,7 @@ func TestAGUIHandlerStreamsMockRun(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/ag-ui", strings.NewReader(body))
 	resp := httptest.NewRecorder()
 
-	AGUIHandler(agent.MockRunner{}).ServeHTTP(resp, req)
+	agUIHandler(newTestServiceContext(nil, agent.MockRunner{})).ServeHTTP(resp, req)
 
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, resp.Code, resp.Body.String())
@@ -83,7 +83,7 @@ func TestAGUIHandlerRejectsInvalidInput(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/ag-ui", strings.NewReader(body))
 			resp := httptest.NewRecorder()
 
-			AGUIHandler(agent.MockRunner{}).ServeHTTP(resp, req)
+			agUIHandler(newTestServiceContext(nil, agent.MockRunner{})).ServeHTTP(resp, req)
 
 			if resp.Code != http.StatusBadRequest {
 				t.Fatalf("expected status %d, got %d", http.StatusBadRequest, resp.Code)
@@ -110,7 +110,7 @@ func TestAGUIHandlerReturnsBadGatewayBeforeStream(t *testing.T) {
 	))
 	resp := httptest.NewRecorder()
 
-	AGUIHandler(runner).ServeHTTP(resp, req)
+	agUIHandler(newTestServiceContext(nil, runner)).ServeHTTP(resp, req)
 
 	if resp.Code != http.StatusBadGateway {
 		t.Fatalf("expected status %d, got %d", http.StatusBadGateway, resp.Code)
@@ -132,7 +132,7 @@ func TestAGUIHandlerEmitsRunErrorAfterStreamStarts(t *testing.T) {
 	))
 	resp := httptest.NewRecorder()
 
-	AGUIHandler(runner).ServeHTTP(resp, req)
+	agUIHandler(newTestServiceContext(nil, runner)).ServeHTTP(resp, req)
 
 	if resp.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, resp.Code)

@@ -8,8 +8,8 @@ type AGUIMessage {
 }
 
 type AGUIRunInput {
-	ThreadId string        `json:"threadId"`
-	RunId    string        `json:"runId"`
+	ThreadID string        `json:"threadId"`
+	RunID    string        `json:"runId"`
 	Messages []AGUIMessage `json:"messages"`
 }
 

@@ -13,6 +13,7 @@ import (
 	"nexusai/services/api/internal/approval"
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/handler"
+	"nexusai/services/api/internal/svc"
 
 	"github.com/joho/godotenv"
 	"github.com/zeromicro/go-zero/core/conf"
@@ -41,7 +42,8 @@ func main() {
 	server := rest.MustNewServer(c.RestConf)
 	defer server.Stop()
 
-	handler.RegisterHandlers(server, runner, approvals)
+	ctx := svc.NewServiceContext(c, runner, approvals)
+	handler.RegisterHandlers(server, ctx)
 
 	fmt.Printf("Starting %s at %s:%d...\n", c.Name, c.Host, c.Port)
 	server.Start()
