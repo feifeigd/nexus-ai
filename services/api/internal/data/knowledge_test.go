@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"nexusai/services/api/internal/data/ent/chunk"
@@ -50,6 +51,25 @@ func TestKnowledgeBaseSQLiteSchema(t *testing.T) {
 			Exec(ctx); err != nil {
 			t.Fatalf("create %s: %v", input.id, err)
 		}
+	}
+
+	embedding := knowledgeTestVector(1, 0)
+	if err := client.Chunk.UpdateOneID("chunk-1").SetEmbedding(embedding).Exec(ctx); err != nil {
+		t.Fatalf("store sqlite embedding: %v", err)
+	}
+	stored, err := client.Chunk.Get(ctx, "chunk-1")
+	if err != nil {
+		t.Fatalf("load sqlite embedding: %v", err)
+	}
+	if stored.Embedding == nil {
+		t.Fatal("sqlite embedding was not persisted")
+	}
+	values := stored.Embedding.Slice()
+	if len(values) != len(embedding.Slice()) || values[0] != 1 || values[1] != 0 {
+		t.Fatalf("sqlite embedding did not round-trip: got %v", values)
+	}
+	if _, err := NewKnowledgeStore(client, dialect.SQLite).SearchSimilar(ctx, embedding, 1); !errors.Is(err, ErrVectorSearchUnsupported) {
+		t.Fatalf("expected sqlite vector search to be unsupported, got %v", err)
 	}
 
 	if err := client.Chunk.Create().
