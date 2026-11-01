@@ -7,6 +7,7 @@ func TestConfigFromEnvOverridesAgentSettings(t *testing.T) {
 	t.Setenv("NEXUS_OPENAI_BASE_URL", " http://localhost:9999/v1 ")
 	t.Setenv("NEXUS_OPENAI_API_KEY", " test-key ")
 	t.Setenv("NEXUS_OPENAI_MODEL", " test-model ")
+	t.Setenv("NEXUS_OPENAI_EMBEDDING_MODEL", " test-embedding-model ")
 
 	config := ConfigFromEnv(Config{Mode: "mock"})
 	if config.Mode != "openai" {
@@ -20,6 +21,9 @@ func TestConfigFromEnvOverridesAgentSettings(t *testing.T) {
 	}
 	if config.OpenAI.Model != "test-model" {
 		t.Errorf("unexpected model: %q", config.OpenAI.Model)
+	}
+	if config.OpenAI.EmbeddingModel != "test-embedding-model" {
+		t.Errorf("unexpected embedding model: %q", config.OpenAI.EmbeddingModel)
 	}
 }
 

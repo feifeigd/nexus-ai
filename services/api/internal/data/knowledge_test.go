@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	dataent "nexusai/services/api/internal/data/ent"
 	"nexusai/services/api/internal/data/ent/chunk"
 
 	"entgo.io/ent/dialect"
@@ -100,5 +101,25 @@ func TestKnowledgeBaseSQLiteSchema(t *testing.T) {
 	}
 	if remaining != 0 {
 		t.Fatalf("deleting a document must cascade to its chunks, got %d", remaining)
+	}
+
+	client.Chunk.Use(func(next dataent.Mutator) dataent.Mutator {
+		return dataent.MutateFunc(func(ctx context.Context, mutation dataent.Mutation) (dataent.Value, error) {
+			ordinal, exists := mutation.Field(chunk.FieldOrdinal)
+			if exists && ordinal == 1 {
+				return nil, errors.New("forced second chunk failure")
+			}
+			return next.Mutate(ctx, mutation)
+		})
+	})
+	if _, err := NewKnowledgeStore(client, dialect.SQLite).CreateDocument(ctx, "事务回滚", "完整内容", []KnowledgeChunkInput{
+		{Content: "第一块", Embedding: embedding},
+		{Content: "第二块", Embedding: embedding},
+	}); err == nil {
+		t.Fatal("expected forced chunk insertion failure")
+	}
+	documents, err := client.Document.Query().Count(ctx)
+	if err != nil || documents != 0 {
+		t.Fatalf("failed chunk insertion must roll back the document, count=%d err=%v", documents, err)
 	}
 }

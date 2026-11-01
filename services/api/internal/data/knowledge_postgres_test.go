@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect"
 	"github.com/pgvector/pgvector-go"
 
+	"nexusai/services/api/internal/data/ent/chunk"
 	entschema "nexusai/services/api/internal/data/ent/schema"
 )
 
@@ -87,6 +88,23 @@ func TestKnowledgeStorePostgres(t *testing.T) {
 	}
 	if _, err := store.SearchSimilar(ctx, knowledgeTestVector(1, 0), -1); err == nil {
 		t.Fatal("expected a search limit validation error")
+	}
+
+	ingestedID, err := store.CreateDocument(ctx, "事务写入测试", "完整文档", []KnowledgeChunkInput{
+		{Content: "第一块", Embedding: knowledgeTestVector(1, 0)},
+		{Content: "第二块", Embedding: knowledgeTestVector(0, 1)},
+	})
+	if err != nil {
+		t.Fatalf("ingest postgres document: %v", err)
+	}
+	defer func() {
+		if err := client.Document.DeleteOneID(ingestedID).Exec(ctx); err != nil {
+			t.Errorf("clean up ingested postgres document: %v", err)
+		}
+	}()
+	chunkCount, err := client.Chunk.Query().Where(chunk.DocumentID(ingestedID)).Count(ctx)
+	if err != nil || chunkCount != 2 {
+		t.Fatalf("postgres ingestion must persist both chunks, count=%d err=%v", chunkCount, err)
 	}
 }
 

@@ -17,9 +17,10 @@ type Config struct {
 }
 
 type OpenAIConfig struct {
-	BaseURL string `json:",optional"`
-	APIKey  string `json:",optional"`
-	Model   string `json:",optional"`
+	BaseURL        string `json:",optional"`
+	APIKey         string `json:",optional"`
+	Model          string `json:",optional"`
+	EmbeddingModel string `json:",optional"`
 }
 
 func ConfigFromEnv(base Config) Config {
@@ -27,6 +28,7 @@ func ConfigFromEnv(base Config) Config {
 	base.OpenAI.BaseURL = envOrDefault("NEXUS_OPENAI_BASE_URL", base.OpenAI.BaseURL)
 	base.OpenAI.APIKey = envOrDefault("NEXUS_OPENAI_API_KEY", base.OpenAI.APIKey)
 	base.OpenAI.Model = envOrDefault("NEXUS_OPENAI_MODEL", base.OpenAI.Model)
+	base.OpenAI.EmbeddingModel = envOrDefault("NEXUS_OPENAI_EMBEDDING_MODEL", base.OpenAI.EmbeddingModel)
 	return base
 }
 
