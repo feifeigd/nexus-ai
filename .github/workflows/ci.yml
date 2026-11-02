@@ -53,6 +53,9 @@ jobs:
       - name: Generate Ent data access
         run: pnpm generate:ent
 
+      - name: Generate Wire injectors
+        run: pnpm generate:wire
+
       - name: Test Go API
         working-directory: services/api
         run: go test ./...
