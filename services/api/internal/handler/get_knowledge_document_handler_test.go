@@ -26,6 +26,10 @@ func (f knowledgeDocumentDetailStoreFunc) GetDocument(ctx context.Context, id st
 	return f(ctx, id)
 }
 
+func (f knowledgeDocumentDetailStoreFunc) DeleteDocument(context.Context, string) error {
+	return errors.New("unexpected DeleteDocument call")
+}
+
 func TestGetKnowledgeDocumentHandler(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		createdAt := time.Date(2026, time.November, 2, 4, 0, 0, 0, time.UTC)

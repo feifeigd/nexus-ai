@@ -23,18 +23,24 @@ flowchart LR
         AGUI["AG-UI Handler<br/>POST /ag-ui"]
         Runner["Agent Runner<br/>mock / openai"]
         Approval["工具提议与人工审批<br/>SQLite / PostgreSQL"]
+        Knowledge["知识库服务<br/>文档管理 / search_knowledge"]
         Health["健康检查<br/>GET /healthz"]
         AGUI --> Runner
         Runner -->|"完整且通过校验的工具提议"| Approval
+        Runner -->|"只读知识检索"| Knowledge
     end
 
-    Model["OpenAI 兼容模型服务<br/>POST /chat/completions"]
+    Model["OpenAI 兼容对话模型<br/>POST /chat/completions"]
+    Embedding["OpenAI 兼容嵌入模型<br/>POST /embeddings"]
+    VectorDB[("PostgreSQL + pgvector<br/>文档、分块与向量")]
 
     WebUI -->|"同源 HTTP / SSE"| WebRuntime
     AdminUI -->|"同源请求 · 开发代理到 :4000"| AdminRuntime
     WebRuntime -->|"HttpAgent · AG-UI"| AGUI
     AdminRuntime -->|"HttpAgent · AG-UI"| AGUI
     Runner -.->|"openai 模式 · SSE"| Model
+    Knowledge -.->|"文档 / 查询向量"| Embedding
+    Knowledge -->|"事务写入 / 余弦距离检索"| VectorDB
     WebUI -.->|"Next.js 服务端请求"| Health
 ```
 
@@ -43,13 +49,14 @@ flowchart LR
 | 组件 | 当前职责 | 明确不负责 |
 | --- | --- | --- |
 | `apps/web` | 用户端页面、聊天 UI、API 健康状态；承载 Web 自己的 CopilotKit Runtime | 企业业务规则、权限最终判定、Admin Runtime 托管 |
-| `apps/admin` | 管理后台页面、AI 聊天、工具审批与工单处理 UI；开发环境代理到独立 Runtime 和 go-zero | 生产反向代理、业务权限权威 |
+| `apps/admin` | 管理后台页面、AI 聊天、知识文档管理、工具审批与工单处理 UI；开发环境代理到独立 Runtime 和 go-zero | 生产反向代理、业务权限权威 |
 | `apps/agent-runtime` | 独立运行的 Admin CopilotKit Runtime，默认监听 `127.0.0.1:4000` | 企业业务、模型调用、用户端页面托管 |
 | CopilotKit Runtime | Agent 发现、`default` Agent 注册、前端协议适配、AG-UI 转发 | 企业业务、模型调用、租户隔离、审批、审计 |
-| go-zero API | 请求校验、AG-UI SSE 响应、Runner 选择、工具白名单、参数校验、审批决策和工单状态流转 | 真实认证、租户隔离与审计 |
-| Agent Runner | Mock 文本流，或调用 OpenAI 兼容模型并转换文本与工具调用事件 | 绕过服务端直接执行后台操作 |
+| go-zero API | 请求校验、AG-UI SSE 响应、Runner 选择、工具白名单、知识文档管理、参数校验、审批决策和工单状态流转 | 真实认证、租户隔离与审计 |
+| Agent Runner | Mock 文本流，或调用 OpenAI 兼容模型并转换文本与工具调用事件；只读工具完成后发起第二次模型请求 | 绕过服务端直接执行后台操作 |
+| 知识库服务 | Unicode 分块、1536 维向量生成、文档与分块事务写入、`search_knowledge` 只读检索和文档删除级联 | 文件解析、知识权限与租户隔离、答案引用及事实校验 |
 | 审批与工单存储 | `NewData` 统一拥有进程级 Ent Client；默认使用 SQLite 共享内存，配置 `NEXUS_POSTGRES_DSN` 后使用 PostgreSQL，通过事务处理审批和状态更新 | 生产授权、审计与多租户数据约束 |
-| PostgreSQL / pgvector / Redis | Docker Compose 提供本地基础设施；PostgreSQL 可选承载审批与工单 | 聊天链路的数据库依赖、知识检索与缓存集成 |
+| PostgreSQL / pgvector / Redis | PostgreSQL 承载业务数据和知识向量，pgvector 提供 HNSW 余弦距离检索；Docker Compose 提供本地基础设施 | Redis 业务缓存集成、SQLite 向量相似度检索 |
 
 Web 与 Admin 使用彼此独立的 Runtime 进程，关闭 Web 不会中断 Admin 的 AI 聊天链路。两个 Runtime 都只允许转发 `authorization` 和 `x-tenant-id` 请求头，以减少浏览器请求头的无意泄露。请求头转发只是协议能力，不代表认证或租户隔离已经实现。
 

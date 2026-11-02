@@ -26,6 +26,10 @@ func (f knowledgeDocumentStoreFunc) GetDocument(context.Context, string) (data.K
 	return data.KnowledgeDocumentDetail{}, errors.New("unexpected GetDocument call")
 }
 
+func (f knowledgeDocumentStoreFunc) DeleteDocument(context.Context, string) error {
+	return errors.New("unexpected DeleteDocument call")
+}
+
 func TestListKnowledgeDocumentsHandler(t *testing.T) {
 	t.Run("success without an embedding service", func(t *testing.T) {
 		createdAt := time.Date(2026, time.November, 2, 4, 0, 0, 0, time.UTC)

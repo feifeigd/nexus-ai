@@ -58,20 +58,25 @@ describe('Knowledge', () => {
     expect(html).toContain('Embedding 服务不可用');
   });
 
-  it('shows imported document metadata and a detail action', () => {
+  it('shows imported document metadata with detail and deletion actions', () => {
     const html = renderToStaticMarkup(
-      <KnowledgeDocumentTable documents={[document]} onView={vi.fn()} />,
+      <KnowledgeDocumentTable
+        documents={[document]}
+        onView={vi.fn()}
+        onDelete={vi.fn()}
+      />,
     );
 
     expect(html).toContain('NexusAI 测试运维手册');
     expect(html).toContain('document-1');
     expect(html).toContain('导入时间');
     expect(html).toContain('查看');
+    expect(html).toContain('删除');
   });
 
   it('shows an empty document list state', () => {
     const html = renderToStaticMarkup(
-      <KnowledgeDocumentTable documents={[]} onView={vi.fn()} />,
+      <KnowledgeDocumentTable documents={[]} onView={vi.fn()} onDelete={vi.fn()} />,
     );
 
     expect(html).toContain('暂无已导入文档');

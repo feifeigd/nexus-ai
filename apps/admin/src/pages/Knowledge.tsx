@@ -16,6 +16,7 @@ import {
   Drawer,
   Form,
   Input,
+  Popconfirm,
   Row,
   Space,
   Spin,
@@ -25,6 +26,7 @@ import {
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import {
+  deleteKnowledgeDocument,
   getKnowledgeDocument,
   ingestDocument,
   listKnowledgeDocuments,
@@ -40,13 +42,17 @@ export type KnowledgeDocumentDetail = API.GetKnowledgeDocumentResponse;
 interface KnowledgeDocumentTableProps {
   documents: KnowledgeDocument[];
   loading?: boolean;
+  deletingId?: string;
   onView: (documentId: string) => void;
+  onDelete: (documentId: string) => void;
 }
 
 export const KnowledgeDocumentTable: React.FC<KnowledgeDocumentTableProps> = ({
   documents,
   loading,
+  deletingId,
   onView,
+  onDelete,
 }) => (
   <Table<KnowledgeDocument>
     rowKey="documentId"
@@ -77,12 +83,31 @@ export const KnowledgeDocumentTable: React.FC<KnowledgeDocumentTableProps> = ({
       {
         title: '操作',
         key: 'actions',
-        width: 80,
+        width: 140,
         fixed: 'right',
         render: (_, record) => (
-          <Button type="link" size="small" onClick={() => onView(record.documentId)}>
-            查看
-          </Button>
+          <Space size={0}>
+            <Button type="link" size="small" onClick={() => onView(record.documentId)}>
+              查看
+            </Button>
+            <Popconfirm
+              title="删除这篇知识文档？"
+              description="将同时删除其知识分块，且不可恢复。"
+              okText="确认删除"
+              cancelText="取消"
+              okButtonProps={{ danger: true, loading: deletingId === record.documentId }}
+              onConfirm={() => onDelete(record.documentId)}
+            >
+              <Button
+                type="link"
+                size="small"
+                danger
+                loading={deletingId === record.documentId}
+              >
+                删除
+              </Button>
+            </Popconfirm>
+          </Space>
         ),
       },
     ]}
@@ -193,6 +218,7 @@ export const KnowledgeContent: React.FC = () => {
   const [detail, setDetail] = useState<KnowledgeDocumentDetail>();
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string>();
+  const [deletingId, setDeletingId] = useState<string>();
 
   const loadDocuments = useCallback(async () => {
     setDocumentsLoading(true);
@@ -233,6 +259,32 @@ export const KnowledgeContent: React.FC = () => {
       setDetailLoading(false);
     }
   }, []);
+
+  const removeDocument = useCallback(
+    async (id: string) => {
+      setDeletingId(id);
+      try {
+        await deleteKnowledgeDocument({ id }, NEXUS_API_OPTIONS);
+        await message.success('知识文档及其分块已删除。');
+        if (detail?.documentId === id) {
+          setDetailOpen(false);
+          setDetail(undefined);
+        }
+        // Refresh failures are reported by loadDocuments and must not turn a
+        // successful deletion into a deletion error message.
+        void loadDocuments();
+      } catch (requestError) {
+        await message.error(
+          requestError instanceof Error
+            ? requestError.message
+            : '文档删除失败，请稍后重试。',
+        );
+      } finally {
+        setDeletingId(undefined);
+      }
+    },
+    [detail?.documentId, loadDocuments, message],
+  );
 
   const submit = useCallback(
     async (values: API.IngestDocumentInput) => {
@@ -414,7 +466,9 @@ export const KnowledgeContent: React.FC = () => {
         <KnowledgeDocumentTable
           documents={documents}
           loading={documentsLoading}
+          deletingId={deletingId}
           onView={(id) => void viewDocument(id)}
+          onDelete={(id) => void removeDocument(id)}
         />
       </Card>
       <Drawer

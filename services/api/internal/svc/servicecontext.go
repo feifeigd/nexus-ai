@@ -19,6 +19,7 @@ type KnowledgeService interface {
 type KnowledgeDocumentStore interface {
 	ListDocuments(ctx context.Context) ([]data.KnowledgeDocument, error)
 	GetDocument(ctx context.Context, id string) (data.KnowledgeDocumentDetail, error)
+	DeleteDocument(ctx context.Context, id string) error
 }
 
 type ServiceContext struct {

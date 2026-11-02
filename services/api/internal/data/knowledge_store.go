@@ -99,6 +99,28 @@ func (s *KnowledgeStore) GetDocument(ctx context.Context, id string) (KnowledgeD
 	}, nil
 }
 
+// DeleteDocument removes the document and relies on the schema's foreign-key
+// cascade to remove its chunks in the same transaction.
+func (s *KnowledgeStore) DeleteDocument(ctx context.Context, id string) error {
+	if s == nil || s.client == nil {
+		return fmt.Errorf("knowledge store client is required")
+	}
+	tx, err := s.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin knowledge document deletion transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if err := tx.Client().Document.DeleteOneID(id).Exec(ctx); ent.IsNotFound(err) {
+		return ErrKnowledgeDocumentNotFound
+	} else if err != nil {
+		return fmt.Errorf("delete knowledge document: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit knowledge document deletion transaction: %w", err)
+	}
+	return nil
+}
+
 // SearchSimilar returns chunks ordered by pgvector cosine distance. SQLite can
 // persist embeddings for development tests, but deliberately has no fallback
 // search implementation that would differ from production retrieval behavior.

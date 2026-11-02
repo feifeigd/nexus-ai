@@ -33,12 +33,23 @@ type KnowledgeDocumentDetail {
 	UpdatedAt  string `json:"updatedAt"`
 }
 
+type DeleteKnowledgeDocumentInput {
+	ID string `path:"id"`
+}
+
+type DeleteKnowledgeDocumentResponse {
+	DocumentID string `json:"documentId"`
+}
+
 service nexus-api {
 	@handler listKnowledgeDocuments
 	get /knowledge/documents returns (ListKnowledgeDocumentsResponse)
 
 	@handler getKnowledgeDocument
 	get /knowledge/documents/:id (GetKnowledgeDocumentInput) returns (KnowledgeDocumentDetail)
+
+	@handler deleteKnowledgeDocument
+	delete /knowledge/documents/:id (DeleteKnowledgeDocumentInput) returns (DeleteKnowledgeDocumentResponse)
 
 	@handler ingestDocument
 	post /knowledge/documents (IngestDocumentInput) returns (IngestDocumentResponse)
