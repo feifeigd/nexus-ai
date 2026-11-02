@@ -91,16 +91,30 @@ func (s *Service) executeSearch(ctx context.Context, proposal agent.ToolProposal
 	return string(encoded), nil
 }
 
-// validateSearchAnswer checks that every document ID cited in the follow-up
-// answer was actually returned by this retrieval. It returns a non-empty note
-// listing fabricated citations, or an empty string when the answer is clean.
+// validateSearchAnswer checks the follow-up answer produced after this
+// retrieval: it validates cited document IDs and sentence-level source
+// support. It returns a non-empty note describing detected problems, or an
+// empty string when the answer is clean.
 func validateSearchAnswer(_ context.Context, answer, toolResult string) (string, error) {
 	var result searchKnowledgeResult
 	if err := json.Unmarshal([]byte(toolResult), &result); err != nil {
-		return "", fmt.Errorf("decode search_knowledge result for citation validation: %w", err)
+		return "", fmt.Errorf("decode search_knowledge result for answer validation: %w", err)
 	}
-	valid := make(map[string]struct{}, len(result.Matches))
-	for _, match := range result.Matches {
+	notes := make([]string, 0, 2)
+	if note := citationValidationNote(answer, result.Matches); note != "" {
+		notes = append(notes, note)
+	}
+	if note := answerSupportNote(answer, result.Matches); note != "" {
+		notes = append(notes, note)
+	}
+	return strings.Join(notes, "\n"), nil
+}
+
+// citationValidationNote lists document IDs cited in the answer that were not
+// returned by this retrieval.
+func citationValidationNote(answer string, matches []searchKnowledgeMatch) string {
+	valid := make(map[string]struct{}, len(matches))
+	for _, match := range matches {
 		valid[match.DocumentID] = struct{}{}
 	}
 	unknown := make([]string, 0)
@@ -116,8 +130,8 @@ func validateSearchAnswer(_ context.Context, answer, toolResult string) (string,
 		unknown = append(unknown, token)
 	}
 	if len(unknown) == 0 {
-		return "", nil
+		return ""
 	}
 	sort.Strings(unknown)
-	return fmt.Sprintf("回答中以下来源不在本次检索结果内，请谨慎核实：%s", strings.Join(unknown, "、")), nil
+	return fmt.Sprintf("回答中以下来源不在本次检索结果内，请谨慎核实：%s", strings.Join(unknown, "、"))
 }

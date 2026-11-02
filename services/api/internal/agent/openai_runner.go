@@ -462,7 +462,7 @@ func (r *OpenAIRunner) streamFollowUp(ctx context.Context, messages []chatMessag
 				return err
 			}
 		}
-		logx.WithContext(ctx).Infow("answer citation validation note", logx.Field("note", strings.Join(notes, " | ")))
+		logx.WithContext(ctx).Infow("answer validation note", logx.Field("note", strings.Join(notes, " | ")))
 	}
 	if textStarted {
 		if err := emit(types.AGUIEvent{Type: "TEXT_MESSAGE_END", MessageID: messageID}); err != nil {
