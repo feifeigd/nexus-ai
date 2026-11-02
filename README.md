@@ -153,23 +153,33 @@ cp apps/admin/.env.example apps/admin/.env
 cp apps/web/.env.example apps/web/.env
 ```
 
-Mock 模式无需密钥，也是默认模式。需要 OpenAI 兼容模型时，只在 `services/api/.env` 中设置：
+Mock 模式无需密钥，也是默认模式。对话与嵌入模型可以分别使用不同的 OpenAI 兼容提供商、密钥和模型，只在 `services/api/.env` 中设置：
 
 ```dotenv
 NEXUS_AGENT_MODE=openai
-NEXUS_OPENAI_BASE_URL=https://api.openai.com/v1
-NEXUS_OPENAI_API_KEY=replace-with-your-key
-NEXUS_OPENAI_MODEL=your-model-name
+
+# 对话模型
+NEXUS_OPENAI_BASE_URL=https://api.deepseek.com/v1
+NEXUS_OPENAI_API_KEY=replace-with-chat-key
+NEXUS_OPENAI_MODEL=deepseek-chat
+
+# 嵌入模型
+NEXUS_OPENAI_EMBEDDING_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+NEXUS_OPENAI_EMBEDDING_API_KEY=replace-with-embedding-key
+NEXUS_OPENAI_EMBEDDING_MODEL=text-embedding-v4
 ```
 
-保存后重启 go-zero 即可，不需要每次启动前执行 `export` 或设置 PowerShell 环境变量。
+保存后重启 go-zero 即可，不需要每次启动前执行 `export` 或设置 PowerShell 环境变量。未设置嵌入专用地址时，仍复用对话模型的地址和密钥，兼容单一提供商配置。
 
 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `NEXUS_AGENT_MODE` | `mock` | `mock` 或 `openai` |
-| `NEXUS_OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI 兼容服务的基础地址，不包含 `/chat/completions` |
-| `NEXUS_OPENAI_API_KEY` | 空 | 模型服务密钥；允许密钥为空的本地兼容服务可不设置 |
-| `NEXUS_OPENAI_MODEL` | 空 | 模型名称，`openai` 模式必填 |
+| `NEXUS_OPENAI_BASE_URL` | `https://api.openai.com/v1` | 对话模型 OpenAI 兼容服务的基础地址，不包含 `/chat/completions` |
+| `NEXUS_OPENAI_API_KEY` | 空 | 对话模型服务密钥；允许密钥为空的本地兼容服务可不设置 |
+| `NEXUS_OPENAI_MODEL` | 空 | 对话模型名称，`openai` 模式必填 |
+| `NEXUS_OPENAI_EMBEDDING_BASE_URL` | 复用对话地址 | 嵌入模型 OpenAI 兼容服务的基础地址，不包含 `/embeddings`；设置不同地址时必须单独配置嵌入密钥 |
+| `NEXUS_OPENAI_EMBEDDING_API_KEY` | 复用对话密钥 | 嵌入模型服务密钥；仅在未设置嵌入专用地址时复用对话密钥 |
+| `NEXUS_OPENAI_EMBEDDING_MODEL` | 空 | 嵌入模型名称；留空则禁用知识库导入与检索 |
 | `NEXUS_POSTGRES_DSN` | 空 | PostgreSQL 连接串；留空使用 SQLite 共享内存，配置后覆盖默认数据源并自动迁移审批与工单表 |
 
 各进程的 `.env` 均已被 Git 忽略。不要将真实密钥写入任何 `.env.example` 或提交到 Git。

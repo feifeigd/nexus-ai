@@ -125,8 +125,8 @@ func TestIngestDocumentHandlerPersistsEmbeddedDocument(t *testing.T) {
 	}
 	defer closeData()
 	embedder, err := agent.NewOpenAIEmbedder(agent.OpenAIConfig{
-		BaseURL:        provider.URL,
-		EmbeddingModel: "embedding-model",
+		BaseURL: provider.URL,
+		Model:   "embedding-model",
 	}, provider.Client(), entschema.EmbeddingDimensions)
 	if err != nil {
 		t.Fatalf("create embedder: %v", err)

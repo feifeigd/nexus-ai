@@ -40,7 +40,7 @@ type embeddingResponse struct {
 }
 
 func NewOpenAIEmbedder(config OpenAIConfig, client *http.Client, dimensions int) (*OpenAIEmbedder, error) {
-	model := strings.TrimSpace(config.EmbeddingModel)
+	model := strings.TrimSpace(config.Model)
 	if model == "" {
 		return nil, fmt.Errorf("NEXUS_OPENAI_EMBEDDING_MODEL is required for knowledge ingestion")
 	}

@@ -12,15 +12,15 @@ const (
 )
 
 type Config struct {
-	Mode   string `json:",default=mock"`
-	OpenAI OpenAIConfig
+	Mode      string `json:",default=mock"`
+	OpenAI    OpenAIConfig
+	Embedding OpenAIConfig
 }
 
 type OpenAIConfig struct {
-	BaseURL        string `json:",optional"`
-	APIKey         string `json:",optional"`
-	Model          string `json:",optional"`
-	EmbeddingModel string `json:",optional"`
+	BaseURL string `json:",optional"`
+	APIKey  string `json:",optional"`
+	Model   string `json:",optional"`
 }
 
 func ConfigFromEnv(base Config) Config {
@@ -28,7 +28,17 @@ func ConfigFromEnv(base Config) Config {
 	base.OpenAI.BaseURL = envOrDefault("NEXUS_OPENAI_BASE_URL", base.OpenAI.BaseURL)
 	base.OpenAI.APIKey = envOrDefault("NEXUS_OPENAI_API_KEY", base.OpenAI.APIKey)
 	base.OpenAI.Model = envOrDefault("NEXUS_OPENAI_MODEL", base.OpenAI.Model)
-	base.OpenAI.EmbeddingModel = envOrDefault("NEXUS_OPENAI_EMBEDDING_MODEL", base.OpenAI.EmbeddingModel)
+	base.Embedding.BaseURL = envOrDefault("NEXUS_OPENAI_EMBEDDING_BASE_URL", base.Embedding.BaseURL)
+	base.Embedding.APIKey = envOrDefault("NEXUS_OPENAI_EMBEDDING_API_KEY", base.Embedding.APIKey)
+	base.Embedding.Model = envOrDefault("NEXUS_OPENAI_EMBEDDING_MODEL", base.Embedding.Model)
+	// Keep single-provider configurations working without sharing chat credentials
+	// with an explicitly different embedding provider.
+	if base.Embedding.BaseURL == "" {
+		base.Embedding.BaseURL = base.OpenAI.BaseURL
+		if base.Embedding.APIKey == "" {
+			base.Embedding.APIKey = base.OpenAI.APIKey
+		}
+	}
 	return base
 }
 

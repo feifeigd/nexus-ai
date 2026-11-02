@@ -34,10 +34,10 @@ func newRunner(c agent.Config, approvals *approval.EntStore, knowledgeService sv
 }
 
 func newKnowledgeService(c agent.Config, client *dataent.Client, driver string) (svc.KnowledgeService, error) {
-	if c.OpenAI.EmbeddingModel == "" {
+	if c.Embedding.Model == "" {
 		return nil, nil
 	}
-	embedder, err := agent.NewOpenAIEmbedder(c.OpenAI, nil, entschema.EmbeddingDimensions)
+	embedder, err := agent.NewOpenAIEmbedder(c.Embedding, nil, entschema.EmbeddingDimensions)
 	if err != nil {
 		return nil, fmt.Errorf("configure knowledge embedder: %w", err)
 	}

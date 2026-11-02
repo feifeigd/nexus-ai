@@ -6,6 +6,12 @@ Timeout: 120000
 
 Agent:
   Mode: mock
+  OpenAI:
+    BaseURL: https://api.deepseek.com/v1
+    Model: deepseek-v4-flash
+  Embedding:
+    BaseURL: https://dashscope.aliyuncs.com/compatible-mode/v1/
+    Model: text-embedding-v4
 
 Data:
   Database:

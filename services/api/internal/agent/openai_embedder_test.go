@@ -29,9 +29,9 @@ func TestOpenAIEmbedderEmbedsInputsInOrder(t *testing.T) {
 	}))
 	defer server.Close()
 	embedder, err := NewOpenAIEmbedder(OpenAIConfig{
-		BaseURL:        server.URL,
-		APIKey:         "test-key",
-		EmbeddingModel: "embedding-model",
+		BaseURL: server.URL,
+		APIKey:  "test-key",
+		Model:   "embedding-model",
 	}, server.Client(), 3)
 	if err != nil {
 		t.Fatalf("create embedder: %v", err)
@@ -52,7 +52,7 @@ func TestOpenAIEmbedderRejectsProviderFailures(t *testing.T) {
 			http.Error(w, "secret provider detail", http.StatusUnauthorized)
 		}))
 		defer server.Close()
-		embedder, err := NewOpenAIEmbedder(OpenAIConfig{BaseURL: server.URL, EmbeddingModel: "embedding-model"}, server.Client(), 3)
+		embedder, err := NewOpenAIEmbedder(OpenAIConfig{BaseURL: server.URL, Model: "embedding-model"}, server.Client(), 3)
 		if err != nil {
 			t.Fatalf("create embedder: %v", err)
 		}
@@ -65,7 +65,7 @@ func TestOpenAIEmbedderRejectsProviderFailures(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{{"index": 0, "embedding": []float32{1, 0}}}})
 		}))
 		defer server.Close()
-		embedder, err := NewOpenAIEmbedder(OpenAIConfig{BaseURL: server.URL, EmbeddingModel: "embedding-model"}, server.Client(), 3)
+		embedder, err := NewOpenAIEmbedder(OpenAIConfig{BaseURL: server.URL, Model: "embedding-model"}, server.Client(), 3)
 		if err != nil {
 			t.Fatalf("create embedder: %v", err)
 		}

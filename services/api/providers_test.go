@@ -12,6 +12,7 @@ import (
 	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/data"
+	entschema "nexusai/services/api/internal/data/ent/schema"
 	"nexusai/services/api/internal/types"
 
 	"entgo.io/ent/dialect"
@@ -93,6 +94,82 @@ func TestWireContextRegistersKnowledgeTool(t *testing.T) {
 	}
 }
 
+func TestWireContextUsesIndependentChatAndEmbeddingProviders(t *testing.T) {
+	chatCalled := false
+	chatProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		chatCalled = true
+		if r.URL.Path != "/chat/completions" || r.Header.Get("Authorization") != "Bearer chat-key" {
+			t.Errorf("unexpected chat request path or authorization: %s %s", r.URL.Path, r.Header.Get("Authorization"))
+		}
+		var request struct {
+			Model string `json:"model"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("decode chat request: %v", err)
+			return
+		}
+		if request.Model != "chat-model" {
+			t.Errorf("unexpected chat model: %q", request.Model)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\n"))
+	}))
+	defer chatProvider.Close()
+
+	embeddingCalled := false
+	embeddingProvider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		embeddingCalled = true
+		if r.URL.Path != "/embeddings" || r.Header.Get("Authorization") != "Bearer embedding-key" {
+			t.Errorf("unexpected embedding request path or authorization: %s %s", r.URL.Path, r.Header.Get("Authorization"))
+		}
+		var request struct {
+			Model string `json:"model"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("decode embedding request: %v", err)
+			return
+		}
+		if request.Model != "embedding-model" {
+			t.Errorf("unexpected embedding model: %q", request.Model)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": []map[string]any{{
+			"index": 0, "embedding": make([]float32, entschema.EmbeddingDimensions),
+		}}})
+	}))
+	defer embeddingProvider.Close()
+
+	setWireTestEnv(t)
+	t.Setenv("NEXUS_AGENT_MODE", "openai")
+	t.Setenv("NEXUS_OPENAI_BASE_URL", chatProvider.URL)
+	t.Setenv("NEXUS_OPENAI_API_KEY", "chat-key")
+	t.Setenv("NEXUS_OPENAI_MODEL", "chat-model")
+	t.Setenv("NEXUS_OPENAI_EMBEDDING_BASE_URL", embeddingProvider.URL)
+	t.Setenv("NEXUS_OPENAI_EMBEDDING_API_KEY", "embedding-key")
+	t.Setenv("NEXUS_OPENAI_EMBEDDING_MODEL", "embedding-model")
+	c := wireTestConfig("wire_context_independent_providers")
+	ctx, cleanup, err := wireContext(&c)
+	if err != nil {
+		t.Fatalf("wire independent providers: %v", err)
+	}
+	defer cleanup()
+	if ctx.Knowledge == nil {
+		t.Fatal("expected knowledge service for the independent embedding provider")
+	}
+	if _, err := ctx.Knowledge.IngestDocument(context.Background(), "运维手册", "故障排查"); err != nil {
+		t.Fatalf("ingest through independent embedding provider: %v", err)
+	}
+	if err := ctx.Runner.Run(context.Background(), types.AGUIRunInput{
+		ThreadID: "thread-independent",
+		RunID:    "run-independent",
+		Messages: []types.AGUIMessage{{Role: "user", Content: "你好"}},
+	}, func(types.AGUIEvent) error { return nil }); err != nil {
+		t.Fatalf("run independent chat provider: %v", err)
+	}
+	if !chatCalled || !embeddingCalled {
+		t.Fatalf("expected both providers to be called: chat=%t embedding=%t", chatCalled, embeddingCalled)
+	}
+}
+
 func TestDriverNameUsesPostgresEnvironmentOverride(t *testing.T) {
 	setWireTestEnv(t)
 	t.Setenv("NEXUS_POSTGRES_DSN", "postgres://nexus:test@127.0.0.1:5432/nexus_test?sslmode=disable")
@@ -134,6 +211,11 @@ func setWireTestEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("NEXUS_POSTGRES_DSN", "")
 	t.Setenv("NEXUS_AGENT_MODE", "mock")
+	t.Setenv("NEXUS_OPENAI_BASE_URL", "")
+	t.Setenv("NEXUS_OPENAI_API_KEY", "")
+	t.Setenv("NEXUS_OPENAI_MODEL", "")
+	t.Setenv("NEXUS_OPENAI_EMBEDDING_BASE_URL", "")
+	t.Setenv("NEXUS_OPENAI_EMBEDDING_API_KEY", "")
 	t.Setenv("NEXUS_OPENAI_EMBEDDING_MODEL", "")
 }
 
