@@ -1,7 +1,14 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { CopilotChat, CopilotChatAssistantMessage, useDefaultRenderTool } from '@copilotkit/react-core/v2';
+import {
+  CopilotChat,
+  CopilotChatAssistantMessage,
+  useDefaultRenderTool,
+  useRenderTool,
+} from '@copilotkit/react-core/v2';
 import { Alert, Card } from 'antd';
 import type React from 'react';
+import { z } from 'zod';
+import { KnowledgeSearchToolResult } from '@/components/KnowledgeSearchToolResult';
 import './AiChat.less';
 
 /**
@@ -20,6 +27,17 @@ const AssistantMessageWithoutEmptyCopy = Object.assign(
 
 export const AiChatContent: React.FC = () => {
   useDefaultRenderTool();
+  useRenderTool({
+    name: 'search_knowledge',
+    agentId: 'default',
+    parameters: z.object({
+      query: z.string().min(1).max(1000),
+      limit: z.number().int().min(1).max(10).optional(),
+    }),
+    render: ({ status, parameters, result }) => (
+      <KnowledgeSearchToolResult status={status} query={parameters.query} result={result} />
+    ),
+  });
 
   return (
     <Card>
