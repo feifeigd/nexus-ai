@@ -112,3 +112,50 @@ func TestSearchKnowledgeToolReturnsStructuredMatches(t *testing.T) {
 		t.Fatal("expected the server-side limit validation to reject the tool call")
 	}
 }
+
+func TestSearchFiltersByDistanceThreshold(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		matches []data.KnowledgeMatch
+		want    []string
+	}{
+		{
+			name: "keeps chunks at or below the threshold",
+			matches: []data.KnowledgeMatch{
+				{ChunkID: "at-threshold", Distance: SearchDistanceThreshold},
+				{ChunkID: "below", Distance: 0.1},
+				{ChunkID: "above", Distance: 0.5000001},
+				{ChunkID: "far", Distance: 1.2},
+			},
+			want: []string{"at-threshold", "below"},
+		},
+		{
+			name: "empty result when every chunk exceeds the threshold",
+			matches: []data.KnowledgeMatch{
+				{ChunkID: "far", Distance: 0.9},
+			},
+			want: nil,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			store := &knowledgeSearchStore{matches: test.matches}
+			service, err := NewService(embedderFunc(func(context.Context, []string) ([]pgvector.Vector, error) {
+				return []pgvector.Vector{knowledgeServiceTestVector(1)}, nil
+			}), store, 5, 1)
+			if err != nil {
+				t.Fatalf("create knowledge service: %v", err)
+			}
+			matches, err := service.Search(context.Background(), "阈值过滤", len(test.matches))
+			if err != nil {
+				t.Fatalf("search knowledge: %v", err)
+			}
+			var got []string
+			for _, match := range matches {
+				got = append(got, match.ChunkID)
+			}
+			if !reflect.DeepEqual(got, test.want) {
+				t.Fatalf("unexpected threshold filtering: got %v want %v", got, test.want)
+			}
+		})
+	}
+}

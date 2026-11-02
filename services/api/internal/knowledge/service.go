@@ -17,6 +17,10 @@ const (
 	DefaultSearchLimit   = 5
 	MaxSearchLimit       = 10
 	MaxSearchQueryLength = 1000
+
+	// SearchDistanceThreshold drops chunks whose cosine distance exceeds it
+	// (range [0,2], 0 identical / 2 opposite), filtering low-relevance matches.
+	SearchDistanceThreshold = 0.5
 )
 
 type Embedder interface {
@@ -104,7 +108,13 @@ func (s *Service) Search(ctx context.Context, query string, limit int) ([]data.K
 	if err != nil {
 		return nil, fmt.Errorf("search knowledge: %w", err)
 	}
-	return matches, nil
+	filtered := make([]data.KnowledgeMatch, 0, len(matches))
+	for _, match := range matches {
+		if match.Distance <= SearchDistanceThreshold {
+			filtered = append(filtered, match)
+		}
+	}
+	return filtered, nil
 }
 
 func splitText(content string, size, overlap int) []string {
