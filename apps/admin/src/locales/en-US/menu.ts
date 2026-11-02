@@ -50,6 +50,7 @@ export default {
   'menu.editor.mind': 'Mind Editor',
   'menu.editor.koni': 'Koni Editor',
   'menu.chatbot': 'AI Assistant',
+  'menu.knowledge': 'Knowledge Base',
   'menu.approvals': 'Tool Approvals',
   'menu.tickets': 'Tickets',
 };

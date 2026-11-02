@@ -23,18 +23,24 @@ flowchart LR
         AGUI["AG-UI Handler<br/>POST /ag-ui"]
         Runner["Agent Runner<br/>mock / openai"]
         Approval["工具提议与人工审批<br/>SQLite / PostgreSQL"]
+        Knowledge["知识库服务<br/>文档管理 / search_knowledge"]
         Health["健康检查<br/>GET /healthz"]
         AGUI --> Runner
         Runner -->|"完整且通过校验的工具提议"| Approval
+        Runner -->|"只读知识检索"| Knowledge
     end
 
-    Model["OpenAI 兼容模型服务<br/>POST /chat/completions"]
+    Model["OpenAI 兼容对话模型<br/>POST /chat/completions"]
+    Embedding["OpenAI 兼容嵌入模型<br/>POST /embeddings"]
+    VectorDB[("PostgreSQL + pgvector<br/>文档、分块与向量")]
 
     WebUI -->|"同源 HTTP / SSE"| WebRuntime
     AdminUI -->|"同源请求 · 开发代理到 :4000"| AdminRuntime
     WebRuntime -->|"HttpAgent · AG-UI"| AGUI
     AdminRuntime -->|"HttpAgent · AG-UI"| AGUI
     Runner -.->|"openai 模式 · SSE"| Model
+    Knowledge -.->|"文档 / 查询向量"| Embedding
+    Knowledge -->|"事务写入 / 余弦距离检索"| VectorDB
     WebUI -.->|"Next.js 服务端请求"| Health
 ```
 
@@ -43,13 +49,14 @@ flowchart LR
 | 组件 | 当前职责 | 明确不负责 |
 | --- | --- | --- |
 | `apps/web` | 用户端页面、聊天 UI、API 健康状态；承载 Web 自己的 CopilotKit Runtime | 企业业务规则、权限最终判定、Admin Runtime 托管 |
-| `apps/admin` | 管理后台页面、AI 聊天、工具审批与工单处理 UI；开发环境代理到独立 Runtime 和 go-zero | 生产反向代理、业务权限权威 |
+| `apps/admin` | 管理后台页面、AI 聊天、知识文档管理、工具审批与工单处理 UI；开发环境代理到独立 Runtime 和 go-zero | 生产反向代理、业务权限权威 |
 | `apps/agent-runtime` | 独立运行的 Admin CopilotKit Runtime，默认监听 `127.0.0.1:4000` | 企业业务、模型调用、用户端页面托管 |
 | CopilotKit Runtime | Agent 发现、`default` Agent 注册、前端协议适配、AG-UI 转发 | 企业业务、模型调用、租户隔离、审批、审计 |
-| go-zero API | 请求校验、AG-UI SSE 响应、Runner 选择、工具白名单、参数校验、审批决策和工单状态流转 | 真实认证、租户隔离与审计 |
-| Agent Runner | Mock 文本流，或调用 OpenAI 兼容模型并转换文本与工具调用事件 | 绕过服务端直接执行后台操作 |
+| go-zero API | 请求校验、AG-UI SSE 响应、Runner 选择、工具白名单、知识文档管理、参数校验、审批决策和工单状态流转 | 真实认证、租户隔离与审计 |
+| Agent Runner | Mock 文本流，或调用 OpenAI 兼容模型并转换文本与工具调用事件；只读工具完成后发起第二次模型请求 | 绕过服务端直接执行后台操作 |
+| 知识库服务 | Unicode 分块、1536 维向量生成、文档与分块事务写入、`search_knowledge` 只读检索和文档删除级联 | 文件解析、知识权限与租户隔离、答案引用及事实校验 |
 | 审批与工单存储 | `NewData` 统一拥有进程级 Ent Client；默认使用 SQLite 共享内存，配置 `NEXUS_POSTGRES_DSN` 后使用 PostgreSQL，通过事务处理审批和状态更新 | 生产授权、审计与多租户数据约束 |
-| PostgreSQL / pgvector / Redis | Docker Compose 提供本地基础设施；PostgreSQL 可选承载审批与工单 | 聊天链路的数据库依赖、知识检索与缓存集成 |
+| PostgreSQL / pgvector / Redis | PostgreSQL 承载业务数据和知识向量，pgvector 提供 HNSW 余弦距离检索；Docker Compose 提供本地基础设施 | Redis 业务缓存集成、SQLite 向量相似度检索 |
 
 Web 与 Admin 使用彼此独立的 Runtime 进程，关闭 Web 不会中断 Admin 的 AI 聊天链路。两个 Runtime 都只允许转发 `authorization` 和 `x-tenant-id` 请求头，以减少浏览器请求头的无意泄露。请求头转发只是协议能力，不代表认证或租户隔离已经实现。
 
@@ -84,11 +91,13 @@ sequenceDiagram
 
 正常文本运行包含 `RUN_STARTED`、`TEXT_MESSAGE_START`、若干 `TEXT_MESSAGE_CONTENT`、`TEXT_MESSAGE_END` 和 `RUN_FINISHED`。运行失败时，go-zero 在响应尚未开始时返回错误；流已经开始后则发送 `RUN_ERROR`。客户端断开连接会取消后续模型请求。
 
+知识问答使用两段式模型调用：第一次请求由模型决定是否调用 `search_knowledge`，go-zero 生成查询向量并通过 pgvector 返回最相关分块，第二次请求携带工具结果生成最终答案。知识检索是只读工具，不进入人工审批；文档导入、列表、详情和删除使用普通 REST。完整流程见[知识库问答流程](./knowledge-qa-flow.md)。
+
 OpenAI 兼容模型提议 `create_ticket` 时，go-zero 转发 `TOOL_CALL_START`、`TOOL_CALL_ARGS` 和 `TOOL_CALL_END` 事件，并只在完整模型流结束后校验参数、写入待审批记录。Admin `/approvals` 页面通过同源 `/api/nexus` 代理读取记录并提交人工决策；`POST /approvals/:id/approve` 批准后才在当前存储中创建工单，`POST /approvals/:id/reject` 拒绝则不执行，重复决策返回 409。Admin `/tickets` 页面通过 `GET /tickets` 读取工单，并通过 `PATCH /tickets/:id/status` 按 `open → in_progress → resolved` 顺序处理；go-zero 拒绝非法状态、跳级和回退，当前不提供删除或重新打开操作。默认存储为 SQLite 共享内存；配置 `NEXUS_POSTGRES_DSN` 后使用 PostgreSQL，并通过事务保证批准和状态更新的一致性，PostgreSQL 额外使用行锁避免并发重复决策。不完整流、未知工具和无效参数均不会生成审批记录。
 
 ## 3. 目标架构（规划）
 
-目标仍是 **go-zero 模块化单体**，不是提前拆分微服务。下图中的知识库、工单、身份权限、审批审计、A2UI 和移动端均为后续建设内容。
+目标仍是 **go-zero 模块化单体**，不是提前拆分微服务。知识库、工单和人工审批已有当前实现；下图重点表达身份权限、生产级审批审计、A2UI 和移动端等后续建设方向，不代表这些模块全部尚未开始。
 
 ```mermaid
 flowchart TB
@@ -184,17 +193,17 @@ flowchart TB
 
 ### 4.5 数据与密钥
 
-- PostgreSQL 保存业务数据，pgvector 提供知识检索，Redis 提供缓存。
+- PostgreSQL 保存业务数据，pgvector 提供知识检索；Redis 规划用于缓存，但尚未接入业务链路。
 - 模型密钥只注入 go-zero 运行环境，不下发到浏览器或写入仓库。
 - 多租户数据访问必须由后端统一约束，不能仅依赖前端传入的租户标识。
 
 ## 5. 当前缺口
 
-以下能力不能依据现有聊天页面推断为已完成：
+以下能力不能依据现有聊天和知识库页面推断为已完成：
 
-- 真实后台认证、授权和租户隔离。
+- 真实后台认证、授权和租户隔离，包括知识文档与检索结果的租户级隔离。
 - 生产级审批授权与审计。
-- 知识库 ingestion、检索和引用。
-- 默认内存模式下的审批与工单记录会在重启后清空；PostgreSQL 持久化需要显式配置 DSN。
-- pgvector 知识检索、Redis 缓存与业务链路的实际集成。
+- PDF、Word 等文件解析、异步导入、检索重排序和标准化答案引用校验；当前知识入口接收纯文本，检索按余弦距离返回 Top N。
+- 默认 SQLite 共享内存模式下的审批、工单和知识文档会在重启后清空；PostgreSQL 持久化需要显式配置 DSN，真实向量检索也必须使用 PostgreSQL + pgvector。
+- Redis 缓存与业务链路的实际集成。
 - Admin 生产环境同源反向代理与完整部署拓扑。

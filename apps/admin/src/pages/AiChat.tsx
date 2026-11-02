@@ -1,7 +1,22 @@
 import { PageContainer } from '@ant-design/pro-components';
-import { CopilotChat, useDefaultRenderTool } from '@copilotkit/react-core/v2';
+import { CopilotChat, CopilotChatAssistantMessage, useDefaultRenderTool } from '@copilotkit/react-core/v2';
 import { Alert, Card } from 'antd';
 import type React from 'react';
+import './AiChat.less';
+
+/**
+ * 纯工具调用消息没有正文，隐藏无意义的复制按钮；
+ * 有正文时不覆盖 copyButton，保留 CopilotKit 原生复制行为。
+ */
+const AssistantMessageWithoutEmptyCopy = Object.assign(
+  (props: React.ComponentProps<typeof CopilotChatAssistantMessage>) => {
+    if (!props.message.content?.trim()) {
+      return <CopilotChatAssistantMessage {...props} copyButton={() => null} />;
+    }
+    return <CopilotChatAssistantMessage {...props} />;
+  },
+  CopilotChatAssistantMessage,
+);
 
 export const AiChatContent: React.FC = () => {
   useDefaultRenderTool();
@@ -15,10 +30,14 @@ export const AiChatContent: React.FC = () => {
         showIcon
         style={{ marginBottom: 16 }}
       />
-      <div style={{ height: 'min(680px, calc(100vh - 260px))', minHeight: 480 }}>
+      <div
+        className="nexus-ai-chat"
+        style={{ height: 'min(680px, calc(100vh - 260px))', minHeight: 480 }}
+      >
         <CopilotChat
           agentId="default"
           style={{ height: '100%' }}
+          messageView={{ assistantMessage: AssistantMessageWithoutEmptyCopy }}
           labels={{
             chatInputPlaceholder: '输入消息，按 Enter 发送…',
             chatDisclaimerText: '回复来源由 go-zero 配置；未经人工批准，不会执行真实后台操作。',

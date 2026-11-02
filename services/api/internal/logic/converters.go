@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"nexusai/services/api/internal/approval"
+	"nexusai/services/api/internal/data"
 	"nexusai/services/api/internal/types"
 )
 
@@ -51,6 +52,29 @@ func ticketResponse(item approval.Ticket) types.Ticket {
 		Description: item.Description,
 		Status:      string(item.Status),
 		CreatedAt:   formatTime(item.CreatedAt),
+	}
+}
+
+func knowledgeDocumentResponses(documents []data.KnowledgeDocument) []types.KnowledgeDocument {
+	responses := make([]types.KnowledgeDocument, len(documents))
+	for i, item := range documents {
+		responses[i] = types.KnowledgeDocument{
+			DocumentID: item.DocumentID,
+			Title:      item.Title,
+			CreatedAt:  formatTime(item.CreatedAt),
+			UpdatedAt:  formatTime(item.UpdatedAt),
+		}
+	}
+	return responses
+}
+
+func knowledgeDocumentDetailResponse(item data.KnowledgeDocumentDetail) types.KnowledgeDocumentDetail {
+	return types.KnowledgeDocumentDetail{
+		DocumentID: item.DocumentID,
+		Title:      item.Title,
+		Content:    item.Content,
+		CreatedAt:  formatTime(item.CreatedAt),
+		UpdatedAt:  formatTime(item.UpdatedAt),
 	}
 }
 

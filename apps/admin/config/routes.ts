@@ -23,6 +23,12 @@ export default [
     component: './AiChat',
   },
   {
+    path: '/knowledge',
+    name: 'knowledge',
+    icon: 'database',
+    component: './Knowledge',
+  },
+  {
     path: '/approvals',
     name: 'approvals',
     icon: 'audit',

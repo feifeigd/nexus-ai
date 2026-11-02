@@ -4,8 +4,10 @@ go 1.26.0
 
 require (
 	entgo.io/ent v0.14.6
+	github.com/google/wire v0.7.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.12.3
+	github.com/pgvector/pgvector-go v0.4.1
 	github.com/zeromicro/go-zero v1.10.3
 	modernc.org/sqlite v1.61.1
 )

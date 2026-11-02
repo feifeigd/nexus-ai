@@ -16,7 +16,7 @@ import (
 
 const maxModelEventSize = 1 << 20
 
-const latestUserToolInstruction = "调用工具时，只能依据最新一条用户消息中明确提出的操作请求。不得因为历史消息曾要求操作，就在‘然后呢’‘继续’‘接着’等后续追问中重复调用工具；这类追问应基于已有对话回答，并提示用户到相应业务页面查看进度。"
+const latestUserToolInstruction = "调用工具时，只能依据最新一条用户消息中明确提出的操作请求。不得因为历史消息曾要求操作，就在‘然后呢’‘继续’‘接着’等后续追问中重复调用工具；这类追问应基于已有对话回答，并提示用户到相应业务页面查看进度。只读工具返回后，只能依据工具结果回答；结果不包含答案时明确说明，不得编造。"
 
 type OpenAIRunner struct {
 	baseURL string
@@ -30,8 +30,10 @@ type OpenAIRunner struct {
 var _ Runner = (*OpenAIRunner)(nil)
 
 type chatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role       string                   `json:"role"`
+	Content    string                   `json:"content"`
+	ToolCallID string                   `json:"tool_call_id,omitempty"`
+	ToolCalls  []chatCompletionToolCall `json:"tool_calls,omitempty"`
 }
 
 type chatCompletionRequest struct {
@@ -64,7 +66,7 @@ type chatCompletionChunk struct {
 }
 
 type chatCompletionToolCall struct {
-	Index    int    `json:"index"`
+	Index    int    `json:"index,omitempty"`
 	ID       string `json:"id"`
 	Type     string `json:"type"`
 	Function struct {
@@ -160,8 +162,7 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("model provider returned HTTP %d", resp.StatusCode)
+		return modelProviderHTTPError(resp, "")
 	}
 
 	messageID := input.RunID + "-assistant"
@@ -273,6 +274,9 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 		indexes = append(indexes, index)
 	}
 	sort.Ints(indexes)
+	assistantCalls := make([]chatCompletionToolCall, 0, len(indexes))
+	toolMessages := make([]chatMessage, 0, len(indexes))
+	followUp := false
 	for _, index := range indexes {
 		call := pendingCalls[index]
 		if !call.started || call.arguments.Len() == 0 {
@@ -286,16 +290,33 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 		if !json.Valid(arguments) {
 			return fmt.Errorf("model returned invalid JSON for tool %q", call.name)
 		}
-		// 调用函数
-		if err := tool.Propose(ctx, ToolProposal{
+		proposal := ToolProposal{
 			ThreadID:   input.ThreadID,
 			RunID:      input.RunID,
 			ToolCallID: call.id,
 			Name:       call.name,
 			Arguments:  arguments,
-		}); err != nil {
+		}
+		result := "已提交人工审批，请在“工具审批”页面处理；此时尚未创建工单。"
+		if tool.Execute != nil {
+			var err error
+			result, err = tool.Execute(ctx, proposal)
+			if err != nil {
+				return fmt.Errorf("execute tool %q: %w", call.name, err)
+			}
+			followUp = true
+		} else if err := tool.Propose(ctx, proposal); err != nil {
 			return fmt.Errorf("record tool proposal: %w", err)
 		}
+		assistantCall := chatCompletionToolCall{ID: call.id, Type: "function"}
+		assistantCall.Function.Name = call.name
+		assistantCall.Function.Arguments = call.arguments.String()
+		assistantCalls = append(assistantCalls, assistantCall)
+		toolMessages = append(toolMessages, chatMessage{
+			Role:       "tool",
+			ToolCallID: call.id,
+			Content:    result, // 工具调用的结果
+		})
 		if err := emit(types.AGUIEvent{Type: "TOOL_CALL_END", ToolCallID: call.id}); err != nil {
 			return err
 		}
@@ -303,7 +324,7 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 			Type:       "TOOL_CALL_RESULT",
 			MessageID:  call.id + "-result",
 			ToolCallID: call.id,
-			Content:    "已提交人工审批，请在“工具审批”页面处理；此时尚未创建工单。",
+			Content:    result,
 		}); err != nil {
 			return err
 		}
@@ -313,14 +334,120 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 			return err
 		}
 	}
+	// 发起第二次模型请求
+	if followUp {
+		followUpMessages := make([]chatMessage, 0, len(messages)+1+len(toolMessages))
+		followUpMessages = append(followUpMessages, messages...)
+		followUpMessages = append(followUpMessages, chatMessage{Role: "assistant", ToolCalls: assistantCalls})
+		followUpMessages = append(followUpMessages, toolMessages...)
+		if err := r.streamFollowUp(ctx, followUpMessages, messageID+"-follow-up", emit); err != nil {
+			return err
+		}
+	}
 	return emit(types.AGUIEvent{Type: "RUN_FINISHED", ThreadID: input.ThreadID, RunID: input.RunID})
+}
+
+func (r *OpenAIRunner) streamFollowUp(ctx context.Context, messages []chatMessage, messageID string, emit EmitFunc) error {
+	payload, err := json.Marshal(chatCompletionRequest{Model: r.model, Stream: true, Messages: messages})
+	if err != nil {
+		return fmt.Errorf("encode read-only tool follow-up request: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, r.baseURL+"/chat/completions", bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("create read-only tool follow-up request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+	if r.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+r.apiKey)
+	}
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("call model provider for read-only tool follow-up: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return modelProviderHTTPError(resp, " for read-only tool follow-up")
+	}
+
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 64*1024), maxModelEventSize)
+	textStarted := false
+	streamCompleted := false
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" || strings.HasPrefix(line, ":") || !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "[DONE]" {
+			streamCompleted = true
+			break
+		}
+		var chunk chatCompletionChunk
+		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+			return fmt.Errorf("decode read-only tool follow-up stream: %w", err)
+		}
+		if len(chunk.Error) > 0 && string(chunk.Error) != "null" {
+			return fmt.Errorf("model provider returned a read-only tool follow-up stream error")
+		}
+		for _, choice := range chunk.Choices {
+			if choice.FinishReason != "" {
+				streamCompleted = true
+			}
+			if len(choice.Delta.ToolCalls) > 0 {
+				return fmt.Errorf("model requested another tool call during read-only tool follow-up")
+			}
+			if choice.Delta.Content == "" {
+				continue
+			}
+			if !textStarted {
+				if err := emit(types.AGUIEvent{Type: "TEXT_MESSAGE_START", MessageID: messageID, Role: "assistant"}); err != nil {
+					return err
+				}
+				textStarted = true
+			}
+			if err := emit(types.AGUIEvent{
+				Type:      "TEXT_MESSAGE_CONTENT",
+				MessageID: messageID,
+				Delta:     choice.Delta.Content,
+			}); err != nil {
+				return err
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("read read-only tool follow-up stream: %w", err)
+	}
+	if !streamCompleted {
+		return fmt.Errorf("model provider read-only tool follow-up ended before completion")
+	}
+	if textStarted {
+		if err := emit(types.AGUIEvent{Type: "TEXT_MESSAGE_END", MessageID: messageID}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func modelProviderHTTPError(resp *http.Response, operation string) error {
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	message := fmt.Sprintf("model provider returned HTTP %d%s", resp.StatusCode, operation)
+	if detail := strings.TrimSpace(string(body)); detail != "" {
+		message += ": " + detail
+	}
+	return fmt.Errorf("%s", message)
 }
 
 func validateTools(tools []Tool) error {
 	names := make(map[string]struct{}, len(tools))
 	for _, tool := range tools {
-		if strings.TrimSpace(tool.Name) == "" || tool.Propose == nil {
-			return fmt.Errorf("tool name and proposal handler are required")
+		if strings.TrimSpace(tool.Name) == "" {
+			return fmt.Errorf("tool name is required")
+		}
+		// 不能同时配置这两个字段
+		if (tool.Execute == nil) == (tool.Propose == nil) {
+			return fmt.Errorf("tool %q requires exactly one execution or proposal handler", tool.Name)
 		}
 		if _, exists := names[tool.Name]; exists {
 			return fmt.Errorf("duplicate tool %q", tool.Name)

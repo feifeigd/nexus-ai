@@ -1,0 +1,56 @@
+// API DSL reference: https://go-zero.dev/reference/api-dsl/
+syntax = "v1"
+
+type IngestDocumentInput {
+	Title   string `json:"title"`
+	Content string `json:"content"`
+}
+
+type IngestDocumentResponse {
+	DocumentID string `json:"documentId"`
+}
+
+type KnowledgeDocument {
+	DocumentID string `json:"documentId"`
+	Title      string `json:"title"`
+	CreatedAt  string `json:"createdAt"`
+	UpdatedAt  string `json:"updatedAt"`
+}
+
+type ListKnowledgeDocumentsResponse {
+	Documents []KnowledgeDocument `json:"documents"`
+}
+
+type GetKnowledgeDocumentInput {
+	ID string `path:"id"`
+}
+
+type KnowledgeDocumentDetail {
+	DocumentID string `json:"documentId"`
+	Title      string `json:"title"`
+	Content    string `json:"content"`
+	CreatedAt  string `json:"createdAt"`
+	UpdatedAt  string `json:"updatedAt"`
+}
+
+type DeleteKnowledgeDocumentInput {
+	ID string `path:"id"`
+}
+
+type DeleteKnowledgeDocumentResponse {
+	DocumentID string `json:"documentId"`
+}
+
+service nexus-api {
+	@handler listKnowledgeDocuments
+	get /knowledge/documents returns (ListKnowledgeDocumentsResponse)
+
+	@handler getKnowledgeDocument
+	get /knowledge/documents/:id (GetKnowledgeDocumentInput) returns (KnowledgeDocumentDetail)
+
+	@handler deleteKnowledgeDocument
+	delete /knowledge/documents/:id (DeleteKnowledgeDocumentInput) returns (DeleteKnowledgeDocumentResponse)
+
+	@handler ingestDocument
+	post /knowledge/documents (IngestDocumentInput) returns (IngestDocumentResponse)
+}

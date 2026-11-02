@@ -152,6 +152,110 @@ func TestOpenAIRunnerRejectsUnknownTool(t *testing.T) {
 	}
 }
 
+func TestOpenAIRunnerExecutesReadOnlyToolAndStreamsFollowUp(t *testing.T) {
+	const toolResult = `{"matches":[{"documentId":"document-1","content":"蓝雀告警需要先检查 API 服务。"}]}`
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		var request chatCompletionRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("decode request: %v", err)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		switch requestCount {
+		case 1:
+			if len(request.Tools) != 1 || request.Tools[0].Function.Name != "search_knowledge" {
+				t.Errorf("model did not receive the read-only tool: %+v", request.Tools)
+			}
+			fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call-search\",\"type\":\"function\",\"function\":{\"name\":\"search_knowledge\",\"arguments\":\"{\\\"query\\\":\\\"蓝雀告警\\\"}\"}}]}}]}\n\n")
+			fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n")
+		case 2:
+			if len(request.Tools) != 0 {
+				t.Errorf("follow-up must not allow another tool call: %+v", request.Tools)
+			}
+			if len(request.Messages) != 4 || request.Messages[2].Role != "assistant" ||
+				len(request.Messages[2].ToolCalls) != 1 || request.Messages[2].ToolCalls[0].ID != "call-search" ||
+				request.Messages[3].Role != "tool" || request.Messages[3].ToolCallID != "call-search" ||
+				request.Messages[3].Content != toolResult {
+				t.Errorf("tool result was not returned to the model: %+v", request.Messages)
+			}
+			fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"根据文档，\"}}]}\n\n")
+			fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"先检查 API 服务。\"}}]}\n\n")
+			fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n")
+		default:
+			t.Errorf("unexpected model request %d", requestCount)
+		}
+	}))
+	defer server.Close()
+
+	var proposal ToolProposal
+	runner, err := NewOpenAIRunnerWithTools(OpenAIConfig{BaseURL: server.URL, Model: "test-model"}, server.Client(), []Tool{{
+		Name:        "search_knowledge",
+		Description: "检索知识库",
+		Parameters:  json.RawMessage(`{"type":"object"}`),
+		Execute: func(_ context.Context, value ToolProposal) (string, error) {
+			proposal = value
+			return toolResult, nil
+		},
+	}})
+	if err != nil {
+		t.Fatalf("create runner: %v", err)
+	}
+	var events []types.AGUIEvent
+	if err := runner.Run(context.Background(), toolRunInput(), func(event types.AGUIEvent) error {
+		events = append(events, event)
+		return nil
+	}); err != nil {
+		t.Fatalf("run read-only tool stream: %v", err)
+	}
+	if requestCount != 2 || proposal.Name != "search_knowledge" || string(proposal.Arguments) != `{"query":"蓝雀告警"}` {
+		t.Fatalf("unexpected read-only execution: requests=%d proposal=%+v", requestCount, proposal)
+	}
+	eventTypes := make([]string, 0, len(events))
+	var answer strings.Builder
+	for _, event := range events {
+		eventTypes = append(eventTypes, event.Type)
+		if event.Type == "TEXT_MESSAGE_CONTENT" {
+			answer.WriteString(event.Delta)
+		}
+	}
+	wantTypes := []string{
+		"RUN_STARTED",
+		"TOOL_CALL_START",
+		"TOOL_CALL_ARGS",
+		"TOOL_CALL_END",
+		"TOOL_CALL_RESULT",
+		"TEXT_MESSAGE_START",
+		"TEXT_MESSAGE_CONTENT",
+		"TEXT_MESSAGE_CONTENT",
+		"TEXT_MESSAGE_END",
+		"RUN_FINISHED",
+	}
+	if !reflect.DeepEqual(eventTypes, wantTypes) {
+		t.Fatalf("expected events %v, got %v", wantTypes, eventTypes)
+	}
+	if answer.String() != "根据文档，先检查 API 服务。" {
+		t.Fatalf("unexpected follow-up answer: %q", answer.String())
+	}
+}
+
+func TestOpenAIRunnerRejectsToolWithTwoHandlers(t *testing.T) {
+	_, err := NewOpenAIRunnerWithTools(OpenAIConfig{Model: "test-model"}, nil, []Tool{{
+		Name:       "invalid_tool",
+		Parameters: json.RawMessage(`{"type":"object"}`),
+		Execute: func(context.Context, ToolProposal) (string, error) {
+			return "", nil
+		},
+		Propose: func(context.Context, ToolProposal) error {
+			return nil
+		},
+	}})
+	if err == nil || !strings.Contains(err.Error(), "exactly one") {
+		t.Fatalf("expected exactly-one handler validation, got %v", err)
+	}
+}
+
 func toolRunInput() types.AGUIRunInput {
 	return types.AGUIRunInput{
 		ThreadID: "thread-1",

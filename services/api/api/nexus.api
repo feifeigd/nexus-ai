@@ -12,5 +12,6 @@ import (
 	"ag-ui.api"
 	"approval.api"
 	"ticket.api"
+	"knowledge.api"
 )
 

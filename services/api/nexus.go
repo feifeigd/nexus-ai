@@ -4,14 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
-	"nexusai/services/api/internal/agent"
-	"nexusai/services/api/internal/approval"
 	"nexusai/services/api/internal/config"
-	"nexusai/services/api/internal/data"
 	"nexusai/services/api/internal/handler"
-	"nexusai/services/api/internal/svc"
 
 	"github.com/joho/godotenv"
 	"github.com/zeromicro/go-zero/core/conf"
@@ -43,24 +38,11 @@ func run() error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	// Preserve the existing environment-based PostgreSQL configuration while
-	// keeping NewData as the only database owner in the process.
-	if dsn := strings.TrimSpace(os.Getenv("NEXUS_POSTGRES_DSN")); dsn != "" {
-		c.Data.Database.Driver = "postgres"
-		c.Data.Database.Source = dsn
-		c.Data.Database.AutoMigrate = true
-	}
-	client, closeData, err := data.NewData(&c.Data)
+	ctx, cleanup, err := wireContext(&c)
 	if err != nil {
-		return fmt.Errorf("configure data source: %w", err)
+		return fmt.Errorf("wire service context: %w", err)
 	}
-	defer closeData()
-	approvals := approval.NewEntStore(client, c.Data.Database.Driver)
-
-	runner, err := agent.NewRunner(agent.ConfigFromEnv(c.Agent), approvals.Tool())
-	if err != nil {
-		return fmt.Errorf("configure agent: %w", err)
-	}
+	defer cleanup()
 
 	server, err := rest.NewServer(c.RestConf)
 	if err != nil {
@@ -68,7 +50,6 @@ func run() error {
 	}
 	defer server.Stop()
 
-	ctx := svc.NewServiceContext(c, runner, approvals)
 	handler.RegisterHandlers(server, ctx)
 
 	logx.Infow(
