@@ -50,7 +50,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 当前分支：`main`。
 
-截至 2026-11-02，第 1 至 23 步均已完成、合并到 `main` 并推送到 `origin/main`。第 22 步合并提交为 `a44ad27`，第 23 步合并提交为 `4a39302`（含 `c6c4710` 可折叠检索结果卡片）；本地与远端 `main` 已同步。此后依赖升级到 CopilotKit `1.83.0`（仍锁 `@ag-ui/*` 为 `1.0.2`），dependabot 新增 `@ag-ui/*` ignore 规则，CI 在 Go 测试前新增 `pnpm generate:wire`；相关特性分支已随合并清理。存在未跟踪的 `services/api/__debug_bin.exe*` 调试文件，不要提交。
+截至 2026-11-02，第 1 至 25 步均已完成、合并到 `main` 并推送到 `origin/main`。第 22 步合并提交为 `a44ad27`，第 23 步合并提交为 `4a39302`（含 `c6c4710` 可折叠检索结果卡片），第 24 步为 `f002171`（检索距离阈值），第 25 步为 `22d9a69`（答案级引用校验），另有 `a8efcef` 强制 LF 换行配置；本地与远端 `main` 已同步。此后依赖升级到 CopilotKit `1.83.0`（仍锁 `@ag-ui/*` 为 `1.0.2`），dependabot 新增 `@ag-ui/*` ignore 规则，CI 在 Go 测试前新增 `pnpm generate:wire`；相关特性分支已随合并清理。存在未跟踪的 `services/api/__debug_bin.exe*` 调试文件，不要提交。
 
 ### 当前已具备能力
 
@@ -59,7 +59,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - go-zero 提供服务端白名单 `create_ticket` 工具提议、审批列表、批准和拒绝接口；批准后才创建工单，重复决策返回冲突。
 - Admin 提供 AI 聊天、工具审批和工单页面；工单状态按 `open → in_progress → resolved` 顺序流转，不支持删除、跳级或重新打开。
 - 知识库支持纯文本文档导入、Unicode 安全分块、1536 维向量生成、文档与分块事务写入，以及文档列表、详情和删除；删除文档时通过外键级联删除分块。
-- Agent 已注册只读 `search_knowledge` 工具：第一次模型请求决定检索，go-zero 生成查询向量并通过 pgvector 按余弦距离返回 Top N 分块，第二次模型请求依据工具结果生成流式回答；该工具不需要人工审批。
+- Agent 已注册只读 `search_knowledge` 工具：第一次模型请求决定检索，go-zero 生成查询向量并通过 pgvector 按余弦距离检索、过滤超过 `0.5` 阈值的低相关分块，第二次模型请求依据工具结果生成流式回答；go-zero 还会校验回答中的 `documentId` 引用是否来自本次检索结果，不可验证时在答案末尾追加告警并写结构化日志。该工具不需要人工审批。
 - Admin 为 `search_knowledge` 提供专用检索结果卡片，展示命中文档 ID、分块序号、正文与余弦距离，并与模型最终回答分离；解析、空结果与异常结果均有前端测试覆盖。
 - 对话与嵌入模型可分别配置 OpenAI 兼容提供商、地址、密钥和模型；密钥只注入 go-zero，不下发到 Runtime 或浏览器。
 - `.api` 契约可生成真实 OpenAPI JSON，并通过 `@umijs/max-plugin-openapi` 生成 Admin TypeScript Service；生成文件按 `.gitignore` 规则不纳入 Git，不手动修改。
@@ -85,11 +85,12 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 第 23 步检索结果卡片增量已执行并通过 Admin 测试（11 个测试文件、59 项用例，含 `KnowledgeSearchToolResult` 与 `AiChat` 用例）、Biome（138 个文件无问题）与 TypeScript 检查。
 - 依赖升级验证已执行并通过：runtime/web/admin 的 test、lint、build 全部通过（web 5 项、admin 59 项测试），锁文件无互不兼容的 AG-UI 重复版本（client/core/encoder/proto 均 1.0.2）。
 - 第 24 步检索距离阈值增量已执行并通过 `go test ./...`、`go vet ./...` 与 gofmt；新增 `TestSearchFiltersByDistanceThreshold` 覆盖阈值边界与空结果。阈值来源为常量 `SearchDistanceThreshold = 0.5`（余弦距离，约相似度 0.5 / 夹角 60°），不是配置项。
+- 第 25 步答案级引用校验增量已执行并通过 `go test ./...`、`go vet ./...`、gofmt 与 `git diff HEAD --check`；新增 `TestValidateSearchAnswer`（6 项）、`TestOpenAIRunnerAppendsAnswerValidationNote` 与 `TestOpenAIRunnerRejectsAnswerValidationWithoutExecute`。校验通过 `Tool.ValidateAnswer` 钩子实现，知识域逻辑留在 `knowledge` 包，`agent` 包不反向依赖。未执行真实模型浏览器验收，不能标记为已通过。
 - 第 23 步未执行真实浏览器检索验收，不能标记为已通过。
 - 第 22 步未执行真实浏览器删除验收，不能标记为已通过。
 - 当前没有配置真实 PostgreSQL DSN 执行自动化集成测试，不能声称 PostgreSQL + pgvector 实库验证通过。
 - 未执行完整的真实供应商 Web 与 Admin 浏览器回归，单次手工模型回答不能替代检索事件、引用内容和多页面闭环验收。
-- 真实后台认证、租户隔离、生产级授权与审计仍未接入；知识检索目前缺少重排序和答案级引用校验。
+- 真实后台认证、租户隔离、生产级授权与审计仍未接入；知识检索目前缺少重排序和答案级事实核验。
 
 ### 环境注意事项
 
@@ -102,4 +103,4 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 下一步
 
-第 25 步建议为 `search_knowledge` 增加答案级引用校验：约束模型在回答中标注命中的 `documentId`，并在后端校验回答引用的来源确实存在于本次检索结果中。完成后考虑检索重排序。真实 PostgreSQL + pgvector 实库验证及完整真实供应商浏览器回归应在具备环境后补做。
+第 26 步建议为知识检索增加重排序：在 pgvector 向量 Top N 召回后引入重排序（如关键词相关性加权、交叉编码或规则加权），提升排序质量并补充相应测试。完成后考虑答案级事实核验（逐句一致性）。真实 PostgreSQL + pgvector 实库验证及完整真实供应商浏览器回归应在具备环境后补做。
