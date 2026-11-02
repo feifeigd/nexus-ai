@@ -240,6 +240,85 @@ func TestOpenAIRunnerExecutesReadOnlyToolAndStreamsFollowUp(t *testing.T) {
 	}
 }
 
+func TestOpenAIRunnerAppendsAnswerValidationNote(t *testing.T) {
+	const toolResult = `{"matches":[{"documentId":"document-1","content":"先检查 API 服务。"}]}`
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestCount++
+		w.Header().Set("Content-Type", "text/event-stream")
+		switch requestCount {
+		case 1:
+			fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call-search\",\"type\":\"function\",\"function\":{\"name\":\"search_knowledge\",\"arguments\":\"{\\\"query\\\":\\\"蓝雀告警\\\"}\"}}]}}]}\n\n")
+			fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n")
+		case 2:
+			fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"根据文档，先检查 API 服务。\"}}]}\n\n")
+			fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n")
+		default:
+			t.Errorf("unexpected model request %d", requestCount)
+		}
+	}))
+	defer server.Close()
+
+	runner, err := NewOpenAIRunnerWithTools(OpenAIConfig{BaseURL: server.URL, Model: "test-model"}, server.Client(), []Tool{{
+		Name:        "search_knowledge",
+		Description: "检索知识库",
+		Parameters:  json.RawMessage(`{"type":"object"}`),
+		Execute: func(context.Context, ToolProposal) (string, error) {
+			return toolResult, nil
+		},
+		ValidateAnswer: func(_ context.Context, answer, _ string) (string, error) {
+			if strings.Contains(answer, "先检查") {
+				return "回答中以下来源不在本次检索结果内，请谨慎核实：document_deadbeef", nil
+			}
+			return "", nil
+		},
+	}})
+	if err != nil {
+		t.Fatalf("create runner: %v", err)
+	}
+	var events []types.AGUIEvent
+	if err := runner.Run(context.Background(), toolRunInput(), func(event types.AGUIEvent) error {
+		events = append(events, event)
+		return nil
+	}); err != nil {
+		t.Fatalf("run read-only tool stream: %v", err)
+	}
+
+	var answer strings.Builder
+	contentCount := 0
+	for _, event := range events {
+		if event.Type == "TEXT_MESSAGE_CONTENT" {
+			contentCount++
+			answer.WriteString(event.Delta)
+		}
+	}
+	if contentCount != 2 {
+		t.Fatalf("expected model answer plus validation note, got %d content deltas", contentCount)
+	}
+	if !strings.Contains(answer.String(), "先检查 API 服务。") {
+		t.Fatalf("missing model answer: %q", answer.String())
+	}
+	if !strings.Contains(answer.String(), "document_deadbeef") {
+		t.Fatalf("expected validation note appended to answer, got %q", answer.String())
+	}
+}
+
+func TestOpenAIRunnerRejectsAnswerValidationWithoutExecute(t *testing.T) {
+	_, err := NewOpenAIRunnerWithTools(OpenAIConfig{Model: "test-model"}, nil, []Tool{{
+		Name:       "invalid_tool",
+		Parameters: json.RawMessage(`{"type":"object"}`),
+		Propose: func(context.Context, ToolProposal) error {
+			return nil
+		},
+		ValidateAnswer: func(context.Context, string, string) (string, error) {
+			return "", nil
+		},
+	}})
+	if err == nil || !strings.Contains(err.Error(), "execute handler") {
+		t.Fatalf("expected execute-handler validation, got %v", err)
+	}
+}
+
 func TestOpenAIRunnerRejectsToolWithTwoHandlers(t *testing.T) {
 	_, err := NewOpenAIRunnerWithTools(OpenAIConfig{Model: "test-model"}, nil, []Tool{{
 		Name:       "invalid_tool",

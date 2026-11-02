@@ -159,3 +159,79 @@ func TestSearchFiltersByDistanceThreshold(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateSearchAnswer(t *testing.T) {
+	valid := "document_" + strings.Repeat("a", 32)
+	fabricated := "document_" + strings.Repeat("f", 32)
+	toolResult := `{"matches":[{"documentId":"` + valid + `"}]}`
+
+	for _, test := range []struct {
+		name       string
+		answer     string
+		toolResult string
+		wantErr    bool
+		wantListed string
+		wantAbsent string
+	}{
+		{
+			name:       "clean answer citing only retrieved source",
+			answer:     "根据 " + valid + " 处理。",
+			toolResult: toolResult,
+		},
+		{
+			name:       "empty answer",
+			answer:     "",
+			toolResult: toolResult,
+		},
+		{
+			name:       "fabricated citation is reported",
+			answer:     "根据 " + fabricated + " 处理。",
+			toolResult: toolResult,
+			wantListed: fabricated,
+		},
+		{
+			name:       "mixed citations list only the fabricated one",
+			answer:     "参见 " + valid + " 与 " + fabricated + "。",
+			toolResult: toolResult,
+			wantListed: fabricated,
+			wantAbsent: valid,
+		},
+		{
+			name:       "duplicate fabricated citation listed once",
+			answer:     fabricated + " 和 " + fabricated,
+			toolResult: toolResult,
+			wantListed: fabricated,
+		},
+		{
+			name:       "malformed tool result",
+			answer:     "任意回答",
+			toolResult: `not-json`,
+			wantErr:    true,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			note, err := validateSearchAnswer(context.Background(), test.answer, test.toolResult)
+			if test.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got note %q", note)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("validate answer: %v", err)
+			}
+			if test.wantListed == "" {
+				if note != "" {
+					t.Fatalf("expected clean answer, got note %q", note)
+				}
+				return
+			}
+			if !strings.Contains(note, test.wantListed) {
+				t.Fatalf("expected note to list %q, got %q", test.wantListed, note)
+			}
+			if test.wantAbsent != "" && strings.Contains(note, test.wantAbsent) {
+				t.Fatalf("note should not list the valid source %q, got %q", test.wantAbsent, note)
+			}
+		})
+	}
+}

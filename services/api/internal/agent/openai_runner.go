@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/zeromicro/go-zero/core/logx"
+
 	"nexusai/services/api/internal/types"
 )
 
@@ -80,6 +82,11 @@ type pendingToolCall struct {
 	name      string
 	arguments strings.Builder
 	started   bool
+}
+
+type answerValidation struct {
+	run        func(ctx context.Context, answer, toolResult string) (string, error)
+	toolResult string
 }
 
 func NewOpenAIRunner(config OpenAIConfig, client *http.Client) (*OpenAIRunner, error) {
@@ -277,6 +284,7 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 	assistantCalls := make([]chatCompletionToolCall, 0, len(indexes))
 	toolMessages := make([]chatMessage, 0, len(indexes))
 	followUp := false
+	answerValidations := make([]answerValidation, 0)
 	for _, index := range indexes {
 		call := pendingCalls[index]
 		if !call.started || call.arguments.Len() == 0 {
@@ -305,6 +313,9 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 				return fmt.Errorf("execute tool %q: %w", call.name, err)
 			}
 			followUp = true
+			if tool.ValidateAnswer != nil {
+				answerValidations = append(answerValidations, answerValidation{run: tool.ValidateAnswer, toolResult: result})
+			}
 		} else if err := tool.Propose(ctx, proposal); err != nil {
 			return fmt.Errorf("record tool proposal: %w", err)
 		}
@@ -340,14 +351,14 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 		followUpMessages = append(followUpMessages, messages...)
 		followUpMessages = append(followUpMessages, chatMessage{Role: "assistant", ToolCalls: assistantCalls})
 		followUpMessages = append(followUpMessages, toolMessages...)
-		if err := r.streamFollowUp(ctx, followUpMessages, messageID+"-follow-up", emit); err != nil {
+		if err := r.streamFollowUp(ctx, followUpMessages, messageID+"-follow-up", answerValidations, emit); err != nil {
 			return err
 		}
 	}
 	return emit(types.AGUIEvent{Type: "RUN_FINISHED", ThreadID: input.ThreadID, RunID: input.RunID})
 }
 
-func (r *OpenAIRunner) streamFollowUp(ctx context.Context, messages []chatMessage, messageID string, emit EmitFunc) error {
+func (r *OpenAIRunner) streamFollowUp(ctx context.Context, messages []chatMessage, messageID string, validations []answerValidation, emit EmitFunc) error {
 	payload, err := json.Marshal(chatCompletionRequest{Model: r.model, Stream: true, Messages: messages})
 	if err != nil {
 		return fmt.Errorf("encode read-only tool follow-up request: %w", err)
@@ -374,6 +385,7 @@ func (r *OpenAIRunner) streamFollowUp(ctx context.Context, messages []chatMessag
 	scanner.Buffer(make([]byte, 64*1024), maxModelEventSize)
 	textStarted := false
 	streamCompleted := false
+	var answer strings.Builder
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" || strings.HasPrefix(line, ":") || !strings.HasPrefix(line, "data:") {
@@ -401,6 +413,7 @@ func (r *OpenAIRunner) streamFollowUp(ctx context.Context, messages []chatMessag
 			if choice.Delta.Content == "" {
 				continue
 			}
+			answer.WriteString(choice.Delta.Content)
 			if !textStarted {
 				if err := emit(types.AGUIEvent{Type: "TEXT_MESSAGE_START", MessageID: messageID, Role: "assistant"}); err != nil {
 					return err
@@ -421,6 +434,35 @@ func (r *OpenAIRunner) streamFollowUp(ctx context.Context, messages []chatMessag
 	}
 	if !streamCompleted {
 		return fmt.Errorf("model provider read-only tool follow-up ended before completion")
+	}
+	notes := make([]string, 0, len(validations))
+	for _, validation := range validations {
+		note, err := validation.run(ctx, answer.String(), validation.toolResult)
+		if err != nil {
+			return fmt.Errorf("validate read-only tool follow-up answer: %w", err)
+		}
+		if note != "" { // 不正常
+			notes = append(notes, note)
+		}
+	}
+	// 如果有验证不通过的情况，记录日志并在回答中附上提示
+	if len(notes) > 0 {
+		if !textStarted {
+			if err := emit(types.AGUIEvent{Type: "TEXT_MESSAGE_START", MessageID: messageID, Role: "assistant"}); err != nil {
+				return err
+			}
+			textStarted = true
+		}
+		for _, note := range notes {
+			if err := emit(types.AGUIEvent{
+				Type:      "TEXT_MESSAGE_CONTENT",
+				MessageID: messageID,
+				Delta:     "\n\n" + note,
+			}); err != nil {
+				return err
+			}
+		}
+		logx.WithContext(ctx).Infow("answer citation validation note", logx.Field("note", strings.Join(notes, " | ")))
 	}
 	if textStarted {
 		if err := emit(types.AGUIEvent{Type: "TEXT_MESSAGE_END", MessageID: messageID}); err != nil {
@@ -448,6 +490,9 @@ func validateTools(tools []Tool) error {
 		// 不能同时配置这两个字段
 		if (tool.Execute == nil) == (tool.Propose == nil) {
 			return fmt.Errorf("tool %q requires exactly one execution or proposal handler", tool.Name)
+		}
+		if tool.ValidateAnswer != nil && tool.Execute == nil {
+			return fmt.Errorf("tool %q must have an execute handler to validate answers", tool.Name)
 		}
 		if _, exists := names[tool.Name]; exists {
 			return fmt.Errorf("duplicate tool %q", tool.Name)
