@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   assistantMessage: vi.fn(),
   copilotChat: vi.fn(),
   defaultRenderTool: vi.fn(),
+  renderTool: vi.fn(),
 }));
 
 vi.mock('@copilotkit/react-core/v2', () => ({
@@ -19,6 +20,7 @@ vi.mock('@copilotkit/react-core/v2', () => ({
     return <div>Mock Assistant Message</div>;
   },
   useDefaultRenderTool: mocks.defaultRenderTool,
+  useRenderTool: mocks.renderTool,
 }));
 
 describe('AiChatContent', () => {
@@ -31,6 +33,14 @@ describe('AiChatContent', () => {
     expect(html).toContain('不会未经批准执行后台操作');
     expect(html).not.toContain('NexusAI Mock Agent');
     expect(mocks.defaultRenderTool).toHaveBeenCalledOnce();
+    expect(mocks.renderTool).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'search_knowledge',
+        agentId: 'default',
+        parameters: expect.anything(),
+        render: expect.any(Function),
+      }),
+    );
     expect(mocks.copilotChat).toHaveBeenCalledWith(
       expect.objectContaining({
         agentId: 'default',
