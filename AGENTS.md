@@ -49,7 +49,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 当前分支：`main`。
 
-截至 2026-11-01，第 1 至 21 步均已完成并合并到本地 `main`。第 20 步合并提交 `06f3b1e` 已推送到 `origin/main`；第 21 步合并提交为 `a6c5fe3`，本地 `main` 当前领先远端 4 个提交，尚未推送。`feat/21-goctl-api` 分支仍保留，工作区在本节更新前无未提交变更。
+截至 2026-11-02，第 1 至 22 步均已完成、合并到 `main` 并推送到 `origin/main`。第 22 步合并提交为 `a44ad27`，本地与远端 `main` 已同步；`feat/22-knowledge-base` 分支仍保留。除两个未跟踪的 `services/api/__debug_bin.exe*` 调试文件外，没有未提交的已跟踪文件变更，这些调试文件不要提交。
 
 ### 当前已具备能力
 
@@ -57,9 +57,13 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - Web 内嵌 CopilotKit Runtime 与 Admin 独立 `apps/agent-runtime` 均已接入 go-zero AG-UI SSE；Agent 支持 Mock 和 OpenAI 兼容 Chat Completions 流式模型。
 - go-zero 提供服务端白名单 `create_ticket` 工具提议、审批列表、批准和拒绝接口；批准后才创建工单，重复决策返回冲突。
 - Admin 提供 AI 聊天、工具审批和工单页面；工单状态按 `open → in_progress → resolved` 顺序流转，不支持删除、跳级或重新打开。
+- 知识库支持纯文本文档导入、Unicode 安全分块、1536 维向量生成、文档与分块事务写入，以及文档列表、详情和删除；删除文档时通过外键级联删除分块。
+- Agent 已注册只读 `search_knowledge` 工具：第一次模型请求决定检索，go-zero 生成查询向量并通过 pgvector 按余弦距离返回 Top N 分块，第二次模型请求依据工具结果生成流式回答；该工具不需要人工审批。
+- 对话与嵌入模型可分别配置 OpenAI 兼容提供商、地址、密钥和模型；密钥只注入 go-zero，不下发到 Runtime 或浏览器。
 - `.api` 契约可生成真实 OpenAPI JSON，并通过 `@umijs/max-plugin-openapi` 生成 Admin TypeScript Service；生成文件按 `.gitignore` 规则不纳入 Git，不手动修改。
-- 数据访问已迁移到 Ent，Approval 与 Ticket Schema 位于 `services/api/internal/data/ent/schema`；Ent 生成代码同样不纳入 Git。
+- 数据访问已迁移到 Ent，Approval、Ticket、Document 与 Chunk Schema 位于 `services/api/internal/data/ent/schema`；Ent 生成代码同样不纳入 Git。
 - go-zero API 已迁移到 `goctl api go --api api/nexus.api --dir .` 标准结构，根命令 `pnpm generate:api` 固定使用 goctl `v1.10.2`。
+- 当前架构与知识库两段式问答流程分别记录在 `docs/architecture.md` 和 `docs/knowledge-qa-flow.md`。
 
 ### 数据源与代码生成约束
 
@@ -68,15 +72,18 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 已移除 `MemoryStore`，内存开发和测试也通过 SQLite DSN，不再维护另一套内存业务实现。
 - SQLite 使用纯 Go `modernc.org/sqlite`，配置中的 Ent dialect 为 `sqlite3`；PostgreSQL 使用版本化 SQL 迁移，SQLite AutoMigrate 使用 Ent `Schema.Create`。
 - PostgreSQL 审批与状态更新使用事务和 `FOR UPDATE`；SQLite 跳过 `FOR UPDATE`，方言差异只保留在 EntStore 的锁定查询方法中。
-- 修改 `.api` 后运行 `pnpm generate:api`；修改 Ent Schema 后运行 `pnpm generate:ent`；需要同步 Admin Client 时运行 `pnpm generate:contracts`。不要手动编辑生成文件。
+- 知识向量固定为 1536 维；PostgreSQL 使用 pgvector 和 HNSW 余弦索引。SQLite 可保存向量用于开发测试，但不实现相似度检索，不得添加与生产行为不同的本地检索替代实现。
+- 修改 `.api` 后运行 `pnpm generate:api`；修改 Ent Schema 后运行 `pnpm generate:ent`；修改 Wire 后运行 `pnpm generate:wire`；需要同步 Admin Client 时运行 `pnpm generate:contracts`。不要手动编辑生成文件。
 
 ### 最近验证记录
 
-- 第 21 步已执行并通过 `go test ./...`、`go vet ./...`、gofmt 和 `git diff HEAD --check`；审批与 Handler 测试均使用独立 SQLite 内存数据库。
-- 已验证真实 SQLite 进程的 `GET /healthz`、空审批与工单列表，以及 `POST /ag-ui` 完整有序事件流和中文文本增量；临时进程与文件已清理。
-- 当前没有配置真实 PostgreSQL DSN 执行集成测试，不能声称 PostgreSQL 实库验证通过。
-- 真实模型供应商及密钥、最新真实模型 Web 与 Admin 浏览器闭环仍未验证，不能沿用早期 Mock 或假服务结果宣称通过。
-- 真实后台认证、租户隔离、生产级授权与审计、企业知识库和 RAG 尚未接入。
+- 第 22 步删除文档增量已执行并通过 `go test ./...`、`go vet ./...`、gofmt、Admin Biome 与 TypeScript 检查、`pnpm check:contracts` 和 `git diff HEAD --check`。
+- Admin 全量测试共 10 个测试文件、47 项用例通过，其中知识库页面 6 项用例通过。
+- 知识删除测试使用独立 SQLite 内存数据库，已验证文档与两个分块级联删除、重复删除返回 404，以及 Handler 不泄露内部数据库错误。
+- 第 22 步未执行 Admin 生产构建和真实浏览器删除验收，不能标记为这些验证已通过。
+- 当前没有配置真实 PostgreSQL DSN 执行自动化集成测试，不能声称 PostgreSQL + pgvector 实库验证通过。
+- 未执行完整的真实供应商 Web 与 Admin 浏览器回归，单次手工模型回答不能替代检索事件、引用内容和多页面闭环验收。
+- 真实后台认证、租户隔离、生产级授权与审计仍未接入；知识检索目前缺少距离阈值、重排序和答案级引用校验。
 
 ### 环境注意事项
 
@@ -89,4 +96,4 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 下一步
 
-第 21 步已在本地 `main` 合并，等待用户明确指示后再推送远端。后续功能方向是企业知识库、RAG 与智能工单能力深化；真实 PostgreSQL 实库验证和真实供应商浏览器闭环应在具备相应环境后补做。
+第 23 步建议实现 `search_knowledge` 专用检索结果卡片：在 Admin 展示命中文档 ID、分块序号、正文和距离，明确区分工具结果与模型最终回答，并补充解析、空结果和异常结果测试。该增量完成并验收后，再考虑检索距离阈值、重排序和标准化引用校验。真实 PostgreSQL + pgvector 实库验证及完整真实供应商浏览器回归应在具备环境后补做。
