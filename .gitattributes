@@ -1,0 +1,7 @@
+# Keep LF line endings in the repository and in every platform's working tree,
+# regardless of the local core.autocrlf / core.eol setting.
+* text=auto eol=lf
+
+# Never line-ending convert binary assets.
+*.ico binary
+*.png binary
