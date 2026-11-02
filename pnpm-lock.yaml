@@ -72,8 +72,8 @@ importers:
         specifier: 1.14.1
         version: 1.14.1(chokidar@3.6.0)(encoding@0.1.14)(typescript@7.0.2)
       '@utoo/pack':
-        specifier: 1.5.35
-        version: 1.5.35(less-loader@12.3.3(less@4.9.1(supports-color@8.1.1))(webpack@5.112.2(clean-css@5.3.3)(csso@4.2.0)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.4.31)(sharp@0.35.5(@types/node@26.6.6))(svgo@2.8.4)))(less@4.9.1(supports-color@8.1.1))(postcss@8.4.31)(resolve-url-loader@5.0.0)(sass-loader@13.2.0(sass@1.54.0)(webpack@5.112.2(clean-css@5.3.3)(csso@4.2.0)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.4.31)(sharp@0.35.5(@types/node@26.6.6))(svgo@2.8.4)))(sass@1.54.0)(styled-jsx@5.1.6(@babel/core@7.29.7(supports-color@8.1.1))(babel-plugin-macros@3.1.0)(react@19.3.1))
+        specifier: 1.5.36
+        version: 1.5.36(less-loader@12.3.3(less@4.9.1(supports-color@8.1.1))(webpack@5.112.2(clean-css@5.3.3)(csso@4.2.0)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.4.31)(sharp@0.35.5(@types/node@26.6.6))(svgo@2.8.4)))(less@4.9.1(supports-color@8.1.1))(postcss@8.4.31)(resolve-url-loader@5.0.0)(sass-loader@13.2.0(sass@1.54.0)(webpack@5.112.2(clean-css@5.3.3)(csso@4.2.0)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.4.31)(sharp@0.35.5(@types/node@26.6.6))(svgo@2.8.4)))(sass@1.54.0)(styled-jsx@5.1.6(@babel/core@7.29.7(supports-color@8.1.1))(babel-plugin-macros@3.1.0)(react@19.3.1))
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
@@ -84,8 +84,8 @@ importers:
         specifier: ^0.9.18
         version: 0.9.18(@opentelemetry/core@2.12.0(@opentelemetry/api@1.9.1))(eslint@10.13.0(jiti@2.7.0)(supports-color@8.1.1))(react@19.3.1)(supports-color@8.1.1)
       swagger-ui-dist:
-        specifier: ^5.34.0
-        version: 5.34.0
+        specifier: ^5.34.1
+        version: 5.34.1
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1123,7 +1123,7 @@ packages:
 
   '@esbuild-kit/cjs-loader@2.4.4':
     resolution: {integrity: sha512-NfsJX4PdzhwSkfJukczyUiZGc7zNNWZcEAyqeISpDnn0PTfzMJR1aR8xAIPskBejIxBJbIgCCMzbaYa9SXepIg==}
-    deprecated: 'Merged into tsx: https://tsx.is'
+    deprecated: 'Merged into tsx: https://tsx.hirok.io'
 
   '@esbuild-kit/core-utils@3.3.2':
     resolution: {integrity: sha512-sPRAnw9CdSsRmEtnsl2WXWdyquogVpB3yZ3dgwJfe8zrOzTsV7cJvmwrKVa+0ma5BoiGJ+BoqkMvawbayKUsqQ==}
@@ -4649,8 +4649,8 @@ packages:
     cpu: [arm64]
     os: [darwin]
 
-  '@utoo/pack-darwin-arm64@1.5.35':
-    resolution: {integrity: sha512-6ULRJKRl8JWpGlzG+HUseggmCKwLsP8mKvtt+YjhB2CHicS8zlJNeMKdvGKKjy5ABRTg/3oVU9pIHDiogmCK5Q==}
+  '@utoo/pack-darwin-arm64@1.5.36':
+    resolution: {integrity: sha512-Be3OZ87rYzEFxF7H8WnaFleHQV/sXTtutnUXdV4lHXwlKNKcvikoy5tTqAGEwUvt+lf22YqKf/gYZX6G+/4X4Q==}
     engines: {node: '>= 20'}
     cpu: [arm64]
     os: [darwin]
@@ -4661,8 +4661,8 @@ packages:
     cpu: [x64]
     os: [darwin]
 
-  '@utoo/pack-darwin-x64@1.5.35':
-    resolution: {integrity: sha512-mMoSedRu7n3c0Fo2RarjFdIs0tdMCg8tIP6pLOGwtxUw86XpspheC100hF9T792hRekbS+InCHqjsm6vN21KPA==}
+  '@utoo/pack-darwin-x64@1.5.36':
+    resolution: {integrity: sha512-WSCVqQajW0wasinAFHQCvXzC3XxtJE6UkJ5dxwQ/clh9OriEZz3yG2Qs1VbnPH/t/p9YCuHMb8MgT3y44zoCyA==}
     engines: {node: '>= 20'}
     cpu: [x64]
     os: [darwin]
@@ -4674,8 +4674,8 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@utoo/pack-linux-arm64-gnu@1.5.35':
-    resolution: {integrity: sha512-FS/wEmIPGEW0AQzDaekGXFsUgxgtDmmYBWosHuATdi60NcA+hYqA4Jwxe4bu7yfloFLNV/8ejHhroS+qOtm75w==}
+  '@utoo/pack-linux-arm64-gnu@1.5.36':
+    resolution: {integrity: sha512-vMrS6zd8hh7L+UnKgbBGclMcYahlzf1bKcSOgZBqLrlnYQ6KLwRNq0X0th6ClGsPMSTwX05MwBINdOYLKDqj5Q==}
     engines: {node: '>= 20'}
     cpu: [arm64]
     os: [linux]
@@ -4688,8 +4688,8 @@ packages:
     os: [linux]
     libc: [musl]
 
-  '@utoo/pack-linux-arm64-musl@1.5.35':
-    resolution: {integrity: sha512-Q49XGe7NliR3qlIfYwTlvFlnQBh50UJux8ZfLatOLZWu47Z0AcMPbvsW7gWOFn2wnUHmJyvngVmtdVcQI++o4Q==}
+  '@utoo/pack-linux-arm64-musl@1.5.36':
+    resolution: {integrity: sha512-s7J1CkmzdWD3D1DfojWTZKG8G79nh0OZxUlEs6bIIk5DoG2OkIa2eQ19HCYi/dXfcZR7yBPIYDT+DuYBmyzgtA==}
     engines: {node: '>= 20'}
     cpu: [arm64]
     os: [linux]
@@ -4702,8 +4702,8 @@ packages:
     os: [linux]
     libc: [glibc]
 
-  '@utoo/pack-linux-x64-gnu@1.5.35':
-    resolution: {integrity: sha512-a7ISUwupDZpWKZASaMAmgDVVWIj5zvLnLomUkQiSEWR5OLRpLUdMutF3kIo5cgm1j9CFM2NPxyDWBXEVYptdHg==}
+  '@utoo/pack-linux-x64-gnu@1.5.36':
+    resolution: {integrity: sha512-LKc2BTDnn/IGqE7tTllfx7QGhLiSr+FMMmnLdM6qa1HBdfgmuE/v8qr6+Y9A1+dcfdkWf3EeLlN/NJykb/k05w==}
     engines: {node: '>= 20'}
     cpu: [x64]
     os: [linux]
@@ -4716,8 +4716,8 @@ packages:
     os: [linux]
     libc: [musl]
 
-  '@utoo/pack-linux-x64-musl@1.5.35':
-    resolution: {integrity: sha512-plZn5G4hep5LzEW2q2X3/8ijEUZmKJgEWWQCiUvcFPfXxqUVngXwUdfVRDlhKdLnp7nsf4m3aM5uX80Rz/WmMA==}
+  '@utoo/pack-linux-x64-musl@1.5.36':
+    resolution: {integrity: sha512-9WntMbc9F1vokvuSfUcAoSlUnJXtYYulieWo1bxqaHjEyJxAwzd26DeRKKRoAV2jufbMPEmiwTMdQfoeaJnjZw==}
     engines: {node: '>= 20'}
     cpu: [x64]
     os: [linux]
@@ -4727,8 +4727,8 @@ packages:
     resolution: {integrity: sha512-fyvQaodqmdPe0exGjMDUgumk9qJ7FVJh6rf9PVKLhLQ9rPmIsfyH9huQTUm0CpykF0nz+Z4JGCoqIHiwYiw88g==}
     engines: {node: '>= 20'}
 
-  '@utoo/pack-shared@1.5.35':
-    resolution: {integrity: sha512-tqdzDVZfpWeMcqOnBSTj95XkNZo0QozcPnfyDRZrDCWI/9E6tFmixFTYOi1hwr98mxSxVDt9bDZstlqugdiSSQ==}
+  '@utoo/pack-shared@1.5.36':
+    resolution: {integrity: sha512-7ISpVi9JzTdwlejbx168j0CJ3ybgkObGWF9YZgRuschsM0C9LFR2AhZJQ5JMXkJD3H+Qjac2T/aEocJ0859g4g==}
     engines: {node: '>= 20'}
 
   '@utoo/pack-win32-x64-msvc@1.5.31':
@@ -4737,8 +4737,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@utoo/pack-win32-x64-msvc@1.5.35':
-    resolution: {integrity: sha512-ZJXuYp6aJ9OTcr+c8INO7B0QwWQ57yKqeK6m4NUY48aVeZSZH6LdZpNhi6LbUgxth2vEKGH7A4M8r9hQq0vrdw==}
+  '@utoo/pack-win32-x64-msvc@1.5.36':
+    resolution: {integrity: sha512-z40ExNM1OvC5NR9JBnsIgNEBOBIrTWXcjg2rYE+Gb5kvBungyKmYgGl6TpMIeo8EQdiINgHewhW2VmTj8nJIIQ==}
     engines: {node: '>= 20'}
     cpu: [x64]
     os: [win32]
@@ -4755,8 +4755,8 @@ packages:
       sass-loader: ^13.2.0
       styled-jsx: ^5.1.6
 
-  '@utoo/pack@1.5.35':
-    resolution: {integrity: sha512-E3pLllERA8SUsk8rvRzgU+Yaskrf+BdnKB5zHLwEblY5i0mjoUCBFepgPKjJOhrQ1Q5ggWhZ773YLaZrqQCVPw==}
+  '@utoo/pack@1.5.36':
+    resolution: {integrity: sha512-WuN0uqpnp/M5IyAzQFkBbSSCSzddlXdAfAo2UyNK906C0TjBFC5DL9VR9zFuiyMZTV3QI4PAMzjJ3u5bokyshQ==}
     engines: {node: '>= 20'}
     peerDependencies:
       less: ^4.0.0
@@ -10884,8 +10884,8 @@ packages:
   swagger-ui-dist@4.19.1:
     resolution: {integrity: sha512-n/gFn+R7G/BXWwl5UZLw6F1YgWOlf3zkwGlsPhTMhNtAAolBGKg0JS5b2RKt5NI6/hSopVaSrki2wTIMUDDy2w==}
 
-  swagger-ui-dist@5.34.0:
-    resolution: {integrity: sha512-H6tAIjr3XqE31PbkZl0OFya1ziRLDfTwh3J6OHdumPtPCLfjTnyLeagl/55kFNZcTOz9a9QI9WP0FXldwiGJag==}
+  swagger-ui-dist@5.34.1:
+    resolution: {integrity: sha512-VSr8fXfI93obYaQicLJbLUKGRxDojj/SfRJDDLCioGTUBj4BK/Nj4eE9jCeCAnJxVLi7iS+08PbiZLyrQKBkJQ==}
 
   swagger2openapi@7.0.8:
     resolution: {integrity: sha512-upi/0ZGkYgEcLeGieoz8gT74oWHA0E7JivX7aN9mAf+Tc7BQoRBvnIGHoPDw+f9TXTW4s6kGYCZJtauP6OYp7g==}
@@ -13114,22 +13114,22 @@ snapshots:
   '@emnapi/core@1.11.2':
     dependencies:
       '@emnapi/wasi-threads': 1.2.2
-      tslib: 2.8.1
+      tslib: 2.9.1
     optional: true
 
   '@emnapi/runtime@1.11.2':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
     optional: true
 
   '@emnapi/runtime@1.11.3':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
     optional: true
 
   '@emnapi/wasi-threads@1.2.2':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
     optional: true
 
   '@emotion/babel-plugin@11.13.5(supports-color@8.1.1)':
@@ -13770,7 +13770,7 @@ snapshots:
       '@jest/types': 29.6.3
       '@jridgewell/trace-mapping': 0.3.31
       babel-plugin-istanbul: 6.1.1(supports-color@8.1.1)
-      chalk: 4.0.0
+      chalk: 4.1.2
       convert-source-map: 2.0.0
       fast-json-stable-stringify: 2.1.0
       graceful-fs: 4.2.11
@@ -13790,7 +13790,7 @@ snapshots:
       '@types/istanbul-reports': 3.0.4
       '@types/node': 26.6.6
       '@types/yargs': 16.0.11
-      chalk: 4.0.0
+      chalk: 4.1.2
 
   '@jest/types@29.6.3':
     dependencies:
@@ -13799,7 +13799,7 @@ snapshots:
       '@types/istanbul-reports': 3.0.4
       '@types/node': 26.6.6
       '@types/yargs': 17.0.35
-      chalk: 4.0.0
+      chalk: 4.1.2
 
   '@jetbrains/websandbox@1.4.3': {}
 
@@ -15587,7 +15587,7 @@ snapshots:
 
   '@swc/helpers@0.5.23':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
 
   '@tailwindcss/node@4.3.3':
     dependencies:
@@ -15708,7 +15708,7 @@ snapshots:
 
   '@tybys/wasm-util@0.10.4':
     dependencies:
-      tslib: 2.8.1
+      tslib: 2.9.1
     optional: true
 
   '@types/babel__core@7.20.5':
@@ -16884,37 +16884,37 @@ snapshots:
   '@utoo/pack-darwin-arm64@1.5.31':
     optional: true
 
-  '@utoo/pack-darwin-arm64@1.5.35':
+  '@utoo/pack-darwin-arm64@1.5.36':
     optional: true
 
   '@utoo/pack-darwin-x64@1.5.31':
     optional: true
 
-  '@utoo/pack-darwin-x64@1.5.35':
+  '@utoo/pack-darwin-x64@1.5.36':
     optional: true
 
   '@utoo/pack-linux-arm64-gnu@1.5.31':
     optional: true
 
-  '@utoo/pack-linux-arm64-gnu@1.5.35':
+  '@utoo/pack-linux-arm64-gnu@1.5.36':
     optional: true
 
   '@utoo/pack-linux-arm64-musl@1.5.31':
     optional: true
 
-  '@utoo/pack-linux-arm64-musl@1.5.35':
+  '@utoo/pack-linux-arm64-musl@1.5.36':
     optional: true
 
   '@utoo/pack-linux-x64-gnu@1.5.31':
     optional: true
 
-  '@utoo/pack-linux-x64-gnu@1.5.35':
+  '@utoo/pack-linux-x64-gnu@1.5.36':
     optional: true
 
   '@utoo/pack-linux-x64-musl@1.5.31':
     optional: true
 
-  '@utoo/pack-linux-x64-musl@1.5.35':
+  '@utoo/pack-linux-x64-musl@1.5.36':
     optional: true
 
   '@utoo/pack-shared@1.5.31':
@@ -16922,7 +16922,7 @@ snapshots:
       '@babel/code-frame': 7.22.5
       picocolors: 1.1.1
 
-  '@utoo/pack-shared@1.5.35':
+  '@utoo/pack-shared@1.5.36':
     dependencies:
       '@babel/code-frame': 7.22.5
       picocolors: 1.1.1
@@ -16930,7 +16930,7 @@ snapshots:
   '@utoo/pack-win32-x64-msvc@1.5.31':
     optional: true
 
-  '@utoo/pack-win32-x64-msvc@1.5.35':
+  '@utoo/pack-win32-x64-msvc@1.5.36':
     optional: true
 
   '@utoo/pack@1.5.31(less-loader@11.1.0(less@4.1.3)(webpack@5.112.2(clean-css@5.3.3)(csso@4.2.0)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.4.31)(sharp@0.35.5(@types/node@26.6.6))(svgo@2.8.4)))(less@4.1.3)(postcss@8.5.32)(resolve-url-loader@5.0.0)(sass-loader@13.2.0(sass@1.54.0)(webpack@5.112.2(clean-css@5.3.3)(csso@4.2.0)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.4.31)(sharp@0.35.5(@types/node@26.6.6))(svgo@2.8.4)))(sass@1.54.0)(styled-jsx@5.1.6(@babel/core@7.29.7(supports-color@8.1.1))(babel-plugin-macros@3.1.0)(react@19.3.1))':
@@ -16969,14 +16969,14 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@utoo/pack@1.5.35(less-loader@12.3.3(less@4.9.1(supports-color@8.1.1))(webpack@5.112.2(clean-css@5.3.3)(csso@4.2.0)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.4.31)(sharp@0.35.5(@types/node@26.6.6))(svgo@2.8.4)))(less@4.9.1(supports-color@8.1.1))(postcss@8.4.31)(resolve-url-loader@5.0.0)(sass-loader@13.2.0(sass@1.54.0)(webpack@5.112.2(clean-css@5.3.3)(csso@4.2.0)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.4.31)(sharp@0.35.5(@types/node@26.6.6))(svgo@2.8.4)))(sass@1.54.0)(styled-jsx@5.1.6(@babel/core@7.29.7(supports-color@8.1.1))(babel-plugin-macros@3.1.0)(react@19.3.1))':
+  '@utoo/pack@1.5.36(less-loader@12.3.3(less@4.9.1(supports-color@8.1.1))(webpack@5.112.2(clean-css@5.3.3)(csso@4.2.0)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.4.31)(sharp@0.35.5(@types/node@26.6.6))(svgo@2.8.4)))(less@4.9.1(supports-color@8.1.1))(postcss@8.4.31)(resolve-url-loader@5.0.0)(sass-loader@13.2.0(sass@1.54.0)(webpack@5.112.2(clean-css@5.3.3)(csso@4.2.0)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(lightningcss@1.33.0)(postcss@8.4.31)(sharp@0.35.5(@types/node@26.6.6))(svgo@2.8.4)))(sass@1.54.0)(styled-jsx@5.1.6(@babel/core@7.29.7(supports-color@8.1.1))(babel-plugin-macros@3.1.0)(react@19.3.1))':
     dependencies:
       '@babel/code-frame': 7.22.5
       '@hono/node-server': 1.19.17(hono@4.13.14)
       '@hono/node-ws': 1.3.1(@hono/node-server@1.19.17(hono@4.13.14))(hono@4.13.14)
       '@jridgewell/trace-mapping': 0.3.31
-      '@swc/helpers': 0.5.15
-      '@utoo/pack-shared': 1.5.35
+      '@swc/helpers': 0.5.23
+      '@utoo/pack-shared': 1.5.36
       browserslist: 4.29.5
       domparser-rs: 0.0.7
       find-up: 4.1.0
@@ -16994,13 +16994,13 @@ snapshots:
       styled-jsx: 5.1.6(@babel/core@7.29.7(supports-color@8.1.1))(babel-plugin-macros@3.1.0)(react@19.3.1)
       ws: 8.22.0
     optionalDependencies:
-      '@utoo/pack-darwin-arm64': 1.5.35
-      '@utoo/pack-darwin-x64': 1.5.35
-      '@utoo/pack-linux-arm64-gnu': 1.5.35
-      '@utoo/pack-linux-arm64-musl': 1.5.35
-      '@utoo/pack-linux-x64-gnu': 1.5.35
-      '@utoo/pack-linux-x64-musl': 1.5.35
-      '@utoo/pack-win32-x64-msvc': 1.5.35
+      '@utoo/pack-darwin-arm64': 1.5.36
+      '@utoo/pack-darwin-x64': 1.5.36
+      '@utoo/pack-linux-arm64-gnu': 1.5.36
+      '@utoo/pack-linux-arm64-musl': 1.5.36
+      '@utoo/pack-linux-x64-gnu': 1.5.36
+      '@utoo/pack-linux-x64-musl': 1.5.36
+      '@utoo/pack-win32-x64-msvc': 1.5.36
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -17675,7 +17675,7 @@ snapshots:
       '@types/babel__core': 7.20.5
       babel-plugin-istanbul: 6.1.1(supports-color@8.1.1)
       babel-preset-jest: 29.6.3(@babel/core@7.29.7(supports-color@8.1.1))
-      chalk: 4.0.0
+      chalk: 4.1.2
       graceful-fs: 4.2.11
       slash: 3.0.0
     transitivePeerDependencies:
@@ -18216,7 +18216,7 @@ snapshots:
   cosmiconfig@7.1.0:
     dependencies:
       '@types/parse-json': 4.0.2
-      import-fresh: 3.2.1
+      import-fresh: 3.3.1
       parse-json: 5.2.0
       path-type: 4.0.0
       yaml: 1.10.3
@@ -20698,7 +20698,7 @@ snapshots:
     dependencies:
       '@jest/types': 29.6.3
       '@types/node': 26.6.6
-      chalk: 4.0.0
+      chalk: 4.1.2
       ci-info: 3.9.0
       graceful-fs: 4.2.11
       picomatch: 2.3.2
@@ -24849,7 +24849,7 @@ snapshots:
 
   swagger-ui-dist@4.19.1: {}
 
-  swagger-ui-dist@5.34.0:
+  swagger-ui-dist@5.34.1:
     dependencies:
       '@scarf/scarf': 1.4.0
 
