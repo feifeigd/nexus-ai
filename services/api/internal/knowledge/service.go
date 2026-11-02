@@ -104,7 +104,7 @@ func (s *Service) Search(ctx context.Context, query string, limit int) ([]data.K
 	if len(embeddings[0].Slice()) != entschema.EmbeddingDimensions {
 		return nil, fmt.Errorf("embedding must contain %d dimensions, got %d", entschema.EmbeddingDimensions, len(embeddings[0].Slice()))
 	}
-	matches, err := s.store.SearchSimilar(ctx, embeddings[0], limit)
+	matches, err := s.store.SearchSimilar(ctx, embeddings[0], searchRecallLimit(limit))
 	if err != nil {
 		return nil, fmt.Errorf("search knowledge: %w", err)
 	}
@@ -114,7 +114,7 @@ func (s *Service) Search(ctx context.Context, query string, limit int) ([]data.K
 			filtered = append(filtered, match)
 		}
 	}
-	return filtered, nil
+	return rerank(query, filtered, limit), nil
 }
 
 func splitText(content string, size, overlap int) []string {

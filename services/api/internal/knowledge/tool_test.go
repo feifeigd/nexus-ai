@@ -51,7 +51,7 @@ func TestServiceSearchEmbedsQueryAndReturnsMatches(t *testing.T) {
 	if !reflect.DeepEqual(embeddedTexts, []string{"蓝雀告警"}) {
 		t.Fatalf("unexpected embedded query: %v", embeddedTexts)
 	}
-	if store.limit != DefaultSearchLimit || store.embedding.Slice()[0] != 1 {
+	if store.limit != searchRecallLimit(DefaultSearchLimit) || store.embedding.Slice()[0] != 1 {
 		t.Fatalf("unexpected vector search input: limit=%d embedding=%v", store.limit, store.embedding)
 	}
 	if !reflect.DeepEqual(matches, store.matches) {
@@ -101,7 +101,7 @@ func TestSearchKnowledgeToolReturnsStructuredMatches(t *testing.T) {
 	if err := json.Unmarshal([]byte(content), &result); err != nil {
 		t.Fatalf("decode tool result: %v", err)
 	}
-	if store.limit != 3 || len(result.Matches) != 1 || result.Matches[0].DocumentID != "document-1" ||
+	if store.limit != searchRecallLimit(3) || len(result.Matches) != 1 || result.Matches[0].DocumentID != "document-1" ||
 		result.Matches[0].Content != "先检查 API 服务状态。" {
 		t.Fatalf("unexpected structured tool result: %s", content)
 	}
@@ -127,7 +127,7 @@ func TestSearchFiltersByDistanceThreshold(t *testing.T) {
 				{ChunkID: "above", Distance: 0.5000001},
 				{ChunkID: "far", Distance: 1.2},
 			},
-			want: []string{"at-threshold", "below"},
+			want: []string{"below", "at-threshold"},
 		},
 		{
 			name: "empty result when every chunk exceeds the threshold",
