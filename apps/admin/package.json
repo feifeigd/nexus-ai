@@ -41,11 +41,11 @@
     "@umijs/max": "^4.7.27",
     "@umijs/max-plugin-openapi": "^2.0.3",
     "@umijs/openapi": "1.14.1",
-    "@utoo/pack": "1.5.35",
+    "@utoo/pack": "1.5.36",
     "cross-env": "^10.1.0",
     "mockjs": "^1.1.0",
     "react-doctor": "^0.9.18",
-    "swagger-ui-dist": "^5.34.0",
+    "swagger-ui-dist": "^5.34.1",
     "typescript": "^7.0.2",
     "vitest": "5.0.5"
   },
