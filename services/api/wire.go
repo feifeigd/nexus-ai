@@ -30,6 +30,8 @@ func wireContext(*config.Config) (*svc.ServiceContext, func(), error) {
 		approval.NewEntStore,
 		wire.Bind(new(approval.Store), new(*approval.EntStore)),
 		newRunner,
+		newKnowledgeStore,
+		wire.Bind(new(svc.KnowledgeDocumentStore), new(*data.KnowledgeStore)),
 		newKnowledgeService,
 		svc.NewServiceContext,
 	))

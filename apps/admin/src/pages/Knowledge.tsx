@@ -3,6 +3,7 @@ import {
   CloudUploadOutlined,
   DatabaseOutlined,
   FileTextOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import {
@@ -16,13 +17,57 @@ import {
   Input,
   Row,
   Space,
+  Table,
   Typography,
 } from 'antd';
 import type React from 'react';
-import { useCallback, useState } from 'react';
-import { ingestDocument } from '@/services/nexus/knowledge';
+import { useCallback, useEffect, useState } from 'react';
+import { ingestDocument, listKnowledgeDocuments } from '@/services/nexus/knowledge';
 
 const NEXUS_API_OPTIONS = { baseURL: '/api/nexus', skipErrorHandler: true };
+
+export type KnowledgeDocument = NonNullable<
+  API.ListKnowledgeDocumentsResponse['documents']
+>[number];
+
+interface KnowledgeDocumentTableProps {
+  documents: KnowledgeDocument[];
+  loading?: boolean;
+}
+
+export const KnowledgeDocumentTable: React.FC<KnowledgeDocumentTableProps> = ({
+  documents,
+  loading,
+}) => (
+  <Table<KnowledgeDocument>
+    rowKey="documentId"
+    dataSource={documents}
+    loading={loading}
+    pagination={false}
+    scroll={{ x: 900 }}
+    locale={{ emptyText: '暂无已导入文档' }}
+    columns={[
+      {
+        title: '文档标题',
+        dataIndex: 'title',
+        render: (value: string) => <Typography.Text strong>{value}</Typography.Text>,
+      },
+      {
+        title: '文档 ID',
+        dataIndex: 'documentId',
+        width: 320,
+        render: (value: string) => <Typography.Text code copyable>{value}</Typography.Text>,
+      },
+      {
+        title: '导入时间',
+        dataIndex: 'createdAt',
+        width: 210,
+        render: (value: string) =>
+          new Date(value).toLocaleString('zh-CN', { hour12: false }),
+      },
+    ]}
+  />
+);
 
 function errorMessage(error: unknown) {
   const status = (
@@ -90,6 +135,30 @@ export const KnowledgeContent: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [documentId, setDocumentId] = useState<string>();
   const [error, setError] = useState<string>();
+  const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
+  const [documentsLoading, setDocumentsLoading] = useState(true);
+  const [documentsError, setDocumentsError] = useState<string>();
+
+  const loadDocuments = useCallback(async () => {
+    setDocumentsLoading(true);
+    setDocumentsError(undefined);
+    try {
+      const response = await listKnowledgeDocuments(NEXUS_API_OPTIONS);
+      setDocuments(response.documents ?? []);
+    } catch (requestError) {
+      setDocumentsError(
+        requestError instanceof Error
+          ? requestError.message
+          : '文档列表加载失败，请稍后重试。',
+      );
+    } finally {
+      setDocumentsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadDocuments();
+  }, [loadDocuments]);
 
   const submit = useCallback(
     async (values: API.IngestDocumentInput) => {
@@ -103,6 +172,7 @@ export const KnowledgeContent: React.FC = () => {
         }
         setDocumentId(response.documentId);
         form.resetFields();
+        void loadDocuments();
         await message.success('文档已成功导入知识库。');
       } catch (requestError) {
         setError(errorMessage(requestError));
@@ -110,7 +180,7 @@ export const KnowledgeContent: React.FC = () => {
         setSubmitting(false);
       }
     },
-    [form, message],
+    [form, loadDocuments, message],
   );
 
   return (
@@ -127,6 +197,17 @@ export const KnowledgeContent: React.FC = () => {
         error={error}
         onClose={() => setError(undefined)}
       />
+      {documentsError ? (
+        <Alert
+          title="文档列表加载失败"
+          description={documentsError}
+          type="error"
+          showIcon
+          closable
+          onClose={() => setDocumentsError(undefined)}
+          style={{ marginBottom: 16 }}
+        />
+      ) : null}
       <Row gutter={[24, 24]}>
         <Col xs={24} xl={14}>
           <Card
@@ -235,7 +316,7 @@ export const KnowledgeContent: React.FC = () => {
                   </Typography.Paragraph>
                 ) : (
                   <Typography.Paragraph type="secondary" style={{ marginBottom: 0, marginTop: 8 }}>
-                    尚未导入文档。这里仅显示本次会话结果，不是完整文档列表。
+                    尚未在本次会话导入文档，完整记录见下方列表。
                   </Typography.Paragraph>
                 )}
               </div>
@@ -243,6 +324,21 @@ export const KnowledgeContent: React.FC = () => {
           </Card>
         </Col>
       </Row>
+      <Card
+        title={`已导入文档（${documents.length}）`}
+        extra={
+          <Button
+            icon={<ReloadOutlined />}
+            loading={documentsLoading}
+            onClick={() => void loadDocuments()}
+          >
+            刷新
+          </Button>
+        }
+        style={{ marginTop: 24 }}
+      >
+        <KnowledgeDocumentTable documents={documents} loading={documentsLoading} />
+      </Card>
     </>
   );
 };

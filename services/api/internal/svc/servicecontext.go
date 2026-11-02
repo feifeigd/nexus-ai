@@ -9,10 +9,15 @@ import (
 	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/approval"
 	"nexusai/services/api/internal/config"
+	"nexusai/services/api/internal/data"
 )
 
 type KnowledgeService interface {
 	IngestDocument(ctx context.Context, title, content string) (string, error)
+}
+
+type KnowledgeDocumentStore interface {
+	ListDocuments(ctx context.Context) ([]data.KnowledgeDocument, error)
 }
 
 type ServiceContext struct {
@@ -20,13 +25,15 @@ type ServiceContext struct {
 	Runner    agent.Runner
 	Approvals approval.Store
 	Knowledge KnowledgeService
+	Documents KnowledgeDocumentStore
 }
 
-func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval.Store, knowledge KnowledgeService) *ServiceContext {
+func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval.Store, knowledge KnowledgeService, documents KnowledgeDocumentStore) *ServiceContext {
 	return &ServiceContext{
 		Config:    c,
 		Runner:    runner,
 		Approvals: approvals,
 		Knowledge: knowledge,
+		Documents: documents,
 	}
 }

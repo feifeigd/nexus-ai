@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -11,6 +12,7 @@ import (
 
 	"nexusai/services/api/internal/data/ent"
 	"nexusai/services/api/internal/data/ent/chunk"
+	entdocument "nexusai/services/api/internal/data/ent/document"
 	entschema "nexusai/services/api/internal/data/ent/schema"
 )
 
@@ -29,6 +31,13 @@ type KnowledgeMatch struct {
 	Distance   float64
 }
 
+type KnowledgeDocument struct {
+	DocumentID string
+	Title      string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
 type KnowledgeStore struct {
 	client *ent.Client
 	driver string
@@ -36,6 +45,28 @@ type KnowledgeStore struct {
 
 func NewKnowledgeStore(client *ent.Client, driver string) *KnowledgeStore {
 	return &KnowledgeStore{client: client, driver: driver}
+}
+
+func (s *KnowledgeStore) ListDocuments(ctx context.Context) ([]KnowledgeDocument, error) {
+	if s == nil || s.client == nil {
+		return nil, fmt.Errorf("knowledge store client is required")
+	}
+	rows, err := s.client.Document.Query().
+		Order(ent.Desc(entdocument.FieldCreatedAt), ent.Asc(entdocument.FieldID)).
+		All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list knowledge documents: %w", err)
+	}
+	documents := make([]KnowledgeDocument, 0, len(rows))
+	for _, row := range rows {
+		documents = append(documents, KnowledgeDocument{
+			DocumentID: row.ID,
+			Title:      row.Title,
+			CreatedAt:  row.CreatedAt,
+			UpdatedAt:  row.UpdatedAt,
+		})
+	}
+	return documents, nil
 }
 
 // SearchSimilar returns chunks ordered by pgvector cosine distance. SQLite can

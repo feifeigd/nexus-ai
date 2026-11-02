@@ -33,7 +33,11 @@ func newRunner(c agent.Config, approvals *approval.EntStore, knowledgeService sv
 	return runner, nil
 }
 
-func newKnowledgeService(c agent.Config, client *dataent.Client, driver string) (svc.KnowledgeService, error) {
+func newKnowledgeStore(client *dataent.Client, driver string) *data.KnowledgeStore {
+	return data.NewKnowledgeStore(client, driver)
+}
+
+func newKnowledgeService(c agent.Config, store *data.KnowledgeStore) (svc.KnowledgeService, error) {
 	if c.Embedding.Model == "" {
 		return nil, nil
 	}
@@ -41,7 +45,7 @@ func newKnowledgeService(c agent.Config, client *dataent.Client, driver string) 
 	if err != nil {
 		return nil, fmt.Errorf("configure knowledge embedder: %w", err)
 	}
-	service, err := knowledge.NewService(embedder, data.NewKnowledgeStore(client, driver), 0, 0)
+	service, err := knowledge.NewService(embedder, store, 0, 0)
 	if err != nil {
 		return nil, fmt.Errorf("configure knowledge service: %w", err)
 	}

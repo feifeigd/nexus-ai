@@ -26,7 +26,7 @@ func TestWireContextBuildsSQLiteServices(t *testing.T) {
 		t.Fatalf("wire sqlite context: %v", err)
 	}
 	defer cleanup()
-	if ctx.Config != &c || ctx.Approvals == nil || ctx.Knowledge != nil {
+	if ctx.Config != &c || ctx.Approvals == nil || ctx.Knowledge != nil || ctx.Documents == nil {
 		t.Fatalf("unexpected wired context: %+v", ctx)
 	}
 	if _, ok := ctx.Runner.(agent.MockRunner); !ok {
