@@ -217,7 +217,7 @@ pgvector 的 `<=>` 具体实现为两个 L2 归一化向量的内积取补，即
 - 回答时标注 `documentId`。
 - 没有匹配结果时明确说明未找到，不得编造。
 
-上述是提示词约束。此外，go-zero 在第二次回答流结束后执行**答案级引用校验**：用正则 `document_[0-9a-f]{32}` 抽取回答中的 `documentId` 引用，凡不在本次检索结果内的都判为不可验证，在答案末尾追加告警文案并写入结构化日志。当前尚未实现标准化引用列表、引用位置定位和逐句事实一致性核验。
+上述是提示词约束。此外，go-zero 在第二次回答流结束后执行两类校验：**答案级引用校验**（用正则 `document_[0-9a-f]{32}` 抽取 `documentId` 引用，凡不在本次检索结果内的判为不可验证）和**逐句字面支撑校验**（将回答拆句，按 bigram 重叠率判断每句是否被检索分块支撑，无支撑的句子在答案末尾追加告警）。两者都只追加可见提示并写结构化日志。逐句校验是字面重叠启发式，不是语义事实核验，同义改写可能被误标；标准化引用列表、引用位置定位和语义级事实一致性核验（NLI/LLM）尚未实现。
 
 ## 7. AG-UI 事件与前端展示
 
@@ -279,7 +279,7 @@ pgvector 的 `<=>` 具体实现为两个 L2 归一化向量的内积取补，即
 - 真实认证、数据权限和租户级知识隔离。
 - PDF、Word 等文件解析及异步导入任务；当前入口接收标题和纯文本正文。
 - 关键词与向量混合检索（如 BM25 融合）与交叉编码器重排序；当前重排序为纯规则的关键词覆盖率加权。
-- 标准化的答案引用列表、引用位置校验和事实一致性校验。
+- 标准化的答案引用列表、引用位置校验和语义级事实一致性校验（当前逐句校验仅为字面重叠启发式）。
 - 多轮自主检索规划；当前只读工具完成后只进行一次 follow-up 回答。
 - 检索评测、召回率监控及知识库命中可观测性面板。
 
@@ -290,6 +290,7 @@ pgvector 的 `<=>` 具体实现为两个 L2 归一化向量的内积取补，即
 | 文档分块、入库和查询嵌入 | `services/api/internal/knowledge/service.go` |
 | `search_knowledge` 工具定义与结果封装 | `services/api/internal/knowledge/tool.go` |
 | 检索重排序与关键词覆盖率 | `services/api/internal/knowledge/rerank.go` |
+| 答案逐句字面支撑校验 | `services/api/internal/knowledge/factcheck.go` |
 | 向量持久化与 pgvector 查询 | `services/api/internal/data/knowledge_store.go` |
 | 文档与分块事务写入 | `services/api/internal/data/knowledge_ingest.go` |
 | 文档及分块 Schema | `services/api/internal/data/ent/schema/document.go`、`chunk.go` |
