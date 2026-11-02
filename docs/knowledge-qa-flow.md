@@ -154,10 +154,10 @@ POST {NEXUS_OPENAI_BASE_URL}/chat/completions
 1. 工具必须已注册，参数必须是完整、合法的 JSON。
 2. 查询文本不能为空，最长 1000 个 Unicode 字符。
 3. 查询向量与文档分块使用同一嵌入配置和 1536 维约束。
-4. 使用 pgvector 的 `<=>` 运算符计算余弦距离。
-5. 按距离从小到大排序，距离越小表示语义越相似。
+4. 使用 pgvector 的 `<=>` 运算符计算余弦距离，按距离从小到大排序（距离越小越相似）。
+5. 将召回候选数放大为请求 limit 的 `SearchRecallFactor`（当前为 4）倍、上限为存储层最大值 50，为重排序提供候选池。
 6. 过滤掉余弦距离超过 `SearchDistanceThreshold`（当前为 0.5）的低相关分块。
-7. 返回前 N 个分块，默认 5 个，最多 10 个。
+7. 按「余弦距离 + 关键词覆盖率」的混合分数重排序，返回前 N 个分块，默认 5 个，最多 10 个。
 
 工具结果为 JSON，每个匹配项包含：
 
@@ -171,7 +171,7 @@ POST {NEXUS_OPENAI_BASE_URL}/chat/completions
 }
 ```
 
-当前实现按余弦距离排序并过滤超过阈值的低相关分块，**尚未引入重排序或关键词混合检索**。因此，“Top N 结果”不必然代表内容足够相关，最终回答仍需要结合结果质量评估。
+当前实现按余弦距离召回候选、过滤超过阈值的低相关分块，再按关键词覆盖率加权重排序（见 5.2）。重排序是纯规则、轻量实现，不引入交叉编码器；因此“Top N 结果”不必然代表内容足够相关，最终回答仍需要结合结果质量评估。
 
 ### 5.1 余弦距离与检索阈值
 
@@ -190,6 +190,16 @@ pgvector 的 `<=>` 具体实现为两个 L2 归一化向量的内积取补，即
 | 180° | −1 | 2 | 方向完全相反 |
 
 检索阈值来自常量 `SearchDistanceThreshold = 0.5`（`services/api/internal/knowledge/service.go`），等价于要求余弦相似度 ≥ 0.5、向量夹角 ≤ 60°，用于过滤明显不相关的低质量分块。阈值是代码常量而非配置项，取值尚未经过在线检索质量评测。真实文本嵌入模型产出的向量夹角通常落在锐角范围，实际余弦距离多在 `[0, 1]`，很少接近理论上限 2。
+
+### 5.2 重排序
+
+向量召回只按余弦距离排序，对字面关键词不敏感。go-zero 在阈值过滤后执行规则重排序（`services/api/internal/knowledge/rerank.go`）：
+
+- 将召回候选放大 `SearchRecallFactor`（当前为 4）倍，给重排序提供候选池，上限为存储层最大值 50。
+- 计算每个分块的**关键词覆盖率**：查询去掉空白、标点和符号后的去重字符，命中该分块正文的比例（0～1）。
+- 混合分数为 `score = distance − KeywordRelevanceWeight × coverage`，`KeywordRelevanceWeight` 当前为 0.15；分数越低越靠前，同分依次按 distance、ordinal 打破平局，最后截断返回前 limit 条。
+
+这是纯规则、无外部依赖的轻量重排序，用于把「字面关键词命中」的分块往上提；它不能替代更强的交叉编码器重排序或逐句事实核验。
 
 ## 6. 第二次模型请求：生成最终答案
 
@@ -268,7 +278,7 @@ pgvector 的 `<=>` 具体实现为两个 L2 归一化向量的内积取补，即
 
 - 真实认证、数据权限和租户级知识隔离。
 - PDF、Word 等文件解析及异步导入任务；当前入口接收标题和纯文本正文。
-- 检索重排序、关键词与向量混合检索。
+- 关键词与向量混合检索（如 BM25 融合）与交叉编码器重排序；当前重排序为纯规则的关键词覆盖率加权。
 - 标准化的答案引用列表、引用位置校验和事实一致性校验。
 - 多轮自主检索规划；当前只读工具完成后只进行一次 follow-up 回答。
 - 检索评测、召回率监控及知识库命中可观测性面板。
@@ -279,6 +289,7 @@ pgvector 的 `<=>` 具体实现为两个 L2 归一化向量的内积取补，即
 | --- | --- |
 | 文档分块、入库和查询嵌入 | `services/api/internal/knowledge/service.go` |
 | `search_knowledge` 工具定义与结果封装 | `services/api/internal/knowledge/tool.go` |
+| 检索重排序与关键词覆盖率 | `services/api/internal/knowledge/rerank.go` |
 | 向量持久化与 pgvector 查询 | `services/api/internal/data/knowledge_store.go` |
 | 文档与分块事务写入 | `services/api/internal/data/knowledge_ingest.go` |
 | 文档及分块 Schema | `services/api/internal/data/ent/schema/document.go`、`chunk.go` |
