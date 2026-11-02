@@ -2,7 +2,7 @@
 
 NexusAI 是一个建设中的企业级 AI 应用开发框架，并将内置多租户“企业知识库与智能工单”SaaS 参考应用。项目定位是 AI 应用框架 / AI PaaS，而不是 MaaS。
 
-当前仓库已打通用户端、管理后台、CopilotKit Runtime、go-zero 与 AG-UI SSE 流式聊天链路，并提供 Mock 和 OpenAI 兼容模型两种 Agent 运行模式。工具审批默认使用配置中的 SQLite 共享内存数据源，也可配置 PostgreSQL 持久化审批记录和已创建工单；知识库、真实认证、租户隔离、生产级审批和审计仍在后续建设中。
+当前仓库已打通用户端、管理后台、CopilotKit Runtime、go-zero 与 AG-UI SSE 流式聊天链路，并提供 Mock 和 OpenAI 兼容模型两种 Agent 运行模式。工具审批默认使用配置中的 SQLite 共享内存数据源，也可配置 PostgreSQL 持久化审批记录和已创建工单；已具备纯文本文档知识库与向量检索，真实认证、租户隔离、生产级审批和审计仍在后续建设中。
 
 ## 技术栈
 
@@ -30,6 +30,8 @@ NexusAI 是一个建设中的企业级 AI 应用开发框架，并将内置多�
 - 审批与工单默认使用 `NewData` 创建的 SQLite 共享内存数据源；配置 `NEXUS_POSTGRES_DSN` 后切换到 PostgreSQL，启动时自动创建所需表，批准流程在事务中创建工单并更新审批。
 - Docker Compose 提供 PostgreSQL、pgvector 和 Redis 本地基础设施。
 - 管理后台支持从真实 OpenAPI JSON 生成 TypeScript API 代码。
+- 知识库支持纯文本文档导入、Unicode 安全分块、1536 维向量生成与事务写入，以及文档列表、详情和删除。
+- Agent 注册只读 `search_knowledge` 工具：go-zero 生成查询向量并按余弦距离检索 Top N 分块，Admin 用专用卡片展示命中文档、分块序号、正文与距离，与模型最终回答分离。
 
 > 工具审批默认使用 SQLite 共享内存参考实现，服务重启后记录清空；PostgreSQL 持久化需要显式配置。真实认证、租户隔离和审计尚未接入，不能将当前接口直接视为生产安全边界。
 

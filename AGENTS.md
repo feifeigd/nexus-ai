@@ -22,7 +22,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 依赖升级约束
 
-- 当前 `@copilotkit/runtime@1.81.0` 将 `@ag-ui/client`、`@ag-ui/core`、`@ag-ui/encoder` 固定为 `1.0.2`；`@copilotkit/core@1.81.0` 将 `@ag-ui/client` 固定为 `1.0.2`；`@copilotkit/react-core@1.81.0` 将 `@ag-ui/client`、`@ag-ui/core` 固定为 `1.0.2`。
+- 当前 `@copilotkit/runtime@1.83.0` 将 `@ag-ui/client`、`@ag-ui/core`、`@ag-ui/encoder` 固定为 `1.0.2`；`@copilotkit/core@1.83.0` 将 `@ag-ui/client` 固定为 `1.0.2`；`@copilotkit/react-core@1.83.0` 将 `@ag-ui/client`、`@ag-ui/core` 固定为 `1.0.2`。
 - 上述 CopilotKit 包仍固定 AG-UI `1.0.2` 时，禁止单独升级 AG-UI 依赖，也不要通过 pnpm overrides 等方式强行绕过版本约束。只有这些相关 CopilotKit 包全部升级、且其依赖声明共同兼容目标 AG-UI 版本后，才可同步升级 AG-UI。
 - AG-UI 或 CopilotKit 升级前必须核对实际包依赖声明；升级后必须确认锁文件不保留互不兼容的 AG-UI 重复版本，并执行 Web 测试、Lint 和生产构建，未实际执行的验证不得写成通过。
 - OpenAI 兼容协议当前继续采用 go-zero 内手写 Chat Completions 客户端，不在第 14 步混入 SDK 替换。手写范围只维护当前文本与函数调用子集，不继续扩展 Responses API、多模态或通用重试等完整 SDK 能力；OpenAI 协议类型与 SSE 解析必须留在 `OpenAIRunner` 内部。后续迁移官方 `openai-go` 时应作为独立小增量，保持 `Runner` 接口、AG-UI 事件和业务行为不变，并复用假服务测试覆盖文本流、工具参数分片、HTTP 错误、异常 EOF、非法 JSON、中途错误和取消。
@@ -50,7 +50,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 当前分支：`main`。
 
-截至 2026-11-02，第 1 至 23 步均已完成、合并到 `main` 并推送到 `origin/main`。第 22 步合并提交为 `a44ad27`，第 23 步合并提交为 `4a39302`（含 `c6c4710` 可折叠检索结果卡片）；本地与远端 `main` 已同步。`feat/22-knowledge-base` 分支仍保留。存在未跟踪的 `services/api/__debug_bin.exe*` 调试文件，不要提交。
+截至 2026-11-02，第 1 至 23 步均已完成、合并到 `main` 并推送到 `origin/main`。第 22 步合并提交为 `a44ad27`，第 23 步合并提交为 `4a39302`（含 `c6c4710` 可折叠检索结果卡片）；本地与远端 `main` 已同步。此后依赖升级到 CopilotKit `1.83.0`（仍锁 `@ag-ui/*` 为 `1.0.2`）、biome `2.6.4`、utoo `1.5.35`，dependabot 新增 `@ag-ui/*` ignore 规则，CI 在 Go 测试前新增 `pnpm generate:wire`；相关特性分支已随合并清理。存在未跟踪的 `services/api/__debug_bin.exe*` 调试文件，不要提交。
 
 ### 当前已具备能力
 
@@ -83,8 +83,9 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - Admin 全量测试共 10 个测试文件、47 项用例通过，其中知识库页面 6 项用例通过。
 - 知识删除测试使用独立 SQLite 内存数据库，已验证文档与两个分块级联删除、重复删除返回 404，以及 Handler 不泄露内部数据库错误。
 - 第 23 步检索结果卡片增量已执行并通过 Admin 测试（11 个测试文件、59 项用例，含 `KnowledgeSearchToolResult` 与 `AiChat` 用例）、Biome（138 个文件无问题）与 TypeScript 检查。
-- 第 23 步未执行 Admin 生产构建和真实浏览器检索验收，不能标记为这些验证已通过。
-- 第 22 步未执行 Admin 生产构建和真实浏览器删除验收，不能标记为这些验证已通过。
+- 依赖升级验证已执行并通过：runtime/web/admin 的 test、lint、build 全部通过（web 5 项、admin 59 项测试），锁文件无互不兼容的 AG-UI 重复版本（client/core/encoder/proto 均 1.0.2）。
+- 第 23 步未执行真实浏览器检索验收，不能标记为已通过。
+- 第 22 步未执行真实浏览器删除验收，不能标记为已通过。
 - 当前没有配置真实 PostgreSQL DSN 执行自动化集成测试，不能声称 PostgreSQL + pgvector 实库验证通过。
 - 未执行完整的真实供应商 Web 与 Admin 浏览器回归，单次手工模型回答不能替代检索事件、引用内容和多页面闭环验收。
 - 真实后台认证、租户隔离、生产级授权与审计仍未接入；知识检索目前缺少距离阈值、重排序和答案级引用校验。
