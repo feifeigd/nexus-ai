@@ -91,11 +91,13 @@ sequenceDiagram
 
 正常文本运行包含 `RUN_STARTED`、`TEXT_MESSAGE_START`、若干 `TEXT_MESSAGE_CONTENT`、`TEXT_MESSAGE_END` 和 `RUN_FINISHED`。运行失败时，go-zero 在响应尚未开始时返回错误；流已经开始后则发送 `RUN_ERROR`。客户端断开连接会取消后续模型请求。
 
+知识问答使用两段式模型调用：第一次请求由模型决定是否调用 `search_knowledge`，go-zero 生成查询向量并通过 pgvector 返回最相关分块，第二次请求携带工具结果生成最终答案。知识检索是只读工具，不进入人工审批；文档导入、列表、详情和删除使用普通 REST。完整流程见[知识库问答流程](./knowledge-qa-flow.md)。
+
 OpenAI 兼容模型提议 `create_ticket` 时，go-zero 转发 `TOOL_CALL_START`、`TOOL_CALL_ARGS` 和 `TOOL_CALL_END` 事件，并只在完整模型流结束后校验参数、写入待审批记录。Admin `/approvals` 页面通过同源 `/api/nexus` 代理读取记录并提交人工决策；`POST /approvals/:id/approve` 批准后才在当前存储中创建工单，`POST /approvals/:id/reject` 拒绝则不执行，重复决策返回 409。Admin `/tickets` 页面通过 `GET /tickets` 读取工单，并通过 `PATCH /tickets/:id/status` 按 `open → in_progress → resolved` 顺序处理；go-zero 拒绝非法状态、跳级和回退，当前不提供删除或重新打开操作。默认存储为 SQLite 共享内存；配置 `NEXUS_POSTGRES_DSN` 后使用 PostgreSQL，并通过事务保证批准和状态更新的一致性，PostgreSQL 额外使用行锁避免并发重复决策。不完整流、未知工具和无效参数均不会生成审批记录。
 
 ## 3. 目标架构（规划）
 
-目标仍是 **go-zero 模块化单体**，不是提前拆分微服务。下图中的知识库、工单、身份权限、审批审计、A2UI 和移动端均为后续建设内容。
+目标仍是 **go-zero 模块化单体**，不是提前拆分微服务。知识库、工单和人工审批已有当前实现；下图重点表达身份权限、生产级审批审计、A2UI 和移动端等后续建设方向，不代表这些模块全部尚未开始。
 
 ```mermaid
 flowchart TB
@@ -191,17 +193,17 @@ flowchart TB
 
 ### 4.5 数据与密钥
 
-- PostgreSQL 保存业务数据，pgvector 提供知识检索，Redis 提供缓存。
+- PostgreSQL 保存业务数据，pgvector 提供知识检索；Redis 规划用于缓存，但尚未接入业务链路。
 - 模型密钥只注入 go-zero 运行环境，不下发到浏览器或写入仓库。
 - 多租户数据访问必须由后端统一约束，不能仅依赖前端传入的租户标识。
 
 ## 5. 当前缺口
 
-以下能力不能依据现有聊天页面推断为已完成：
+以下能力不能依据现有聊天和知识库页面推断为已完成：
 
-- 真实后台认证、授权和租户隔离。
+- 真实后台认证、授权和租户隔离，包括知识文档与检索结果的租户级隔离。
 - 生产级审批授权与审计。
-- 知识库 ingestion、检索和引用。
-- 默认内存模式下的审批与工单记录会在重启后清空；PostgreSQL 持久化需要显式配置 DSN。
-- pgvector 知识检索、Redis 缓存与业务链路的实际集成。
+- PDF、Word 等文件解析、异步导入、检索重排序和标准化答案引用校验；当前知识入口接收纯文本，检索按余弦距离返回 Top N。
+- 默认 SQLite 共享内存模式下的审批、工单和知识文档会在重启后清空；PostgreSQL 持久化需要显式配置 DSN，真实向量检索也必须使用 PostgreSQL + pgvector。
+- Redis 缓存与业务链路的实际集成。
 - Admin 生产环境同源反向代理与完整部署拓扑。
