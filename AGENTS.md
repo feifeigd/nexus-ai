@@ -7,6 +7,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 ## 已确定的技术边界
 
 - go-zero 是唯一企业业务与 Agent 后端，第一阶段采用模块化单体，不提前拆微服务。
+- Ent 是唯一数据访问框架：`data.NewData` 统一拥有数据库连接，Store 复用其 Ent Client，方言差异封装在数据层；Ent 实体不得直接作为前端 API 契约，权限、租户隔离、审批、审计和 Agent 编排仍由 go-zero 负责，不引入第二套 ORM 或并行数据访问体系。
 - Next.js 用于用户端 Web；Ant Design Pro 用于独立管理后台。
 - CopilotKit 负责用户端和管理后台的 AI 前端交互；Web 使用 Next.js 内嵌 Copilot Runtime，Admin 使用 `apps/agent-runtime` 独立轻量 TypeScript 协议适配服务，两者都不重复实现企业业务。
 - 管理后台必须提供 AI 聊天助手，支持通过聊天查询数据、辅助填写和触发后台操作；模型只能提议工具调用，go-zero 负责权限、租户隔离、参数校验、人工审批和审计。
@@ -49,7 +50,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 当前分支：`main`。
 
-截至 2026-11-02，第 1 至 22 步均已完成、合并到 `main` 并推送到 `origin/main`。第 22 步合并提交为 `a44ad27`，本地与远端 `main` 已同步；`feat/22-knowledge-base` 分支仍保留。除两个未跟踪的 `services/api/__debug_bin.exe*` 调试文件外，没有未提交的已跟踪文件变更，这些调试文件不要提交。
+截至 2026-11-02，第 1 至 23 步均已完成、合并到 `main` 并推送到 `origin/main`。第 22 步合并提交为 `a44ad27`，第 23 步合并提交为 `4a39302`（含 `c6c4710` 可折叠检索结果卡片）；本地与远端 `main` 已同步。`feat/22-knowledge-base` 分支仍保留。存在未跟踪的 `services/api/__debug_bin.exe*` 调试文件，不要提交。
 
 ### 当前已具备能力
 
@@ -59,6 +60,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - Admin 提供 AI 聊天、工具审批和工单页面；工单状态按 `open → in_progress → resolved` 顺序流转，不支持删除、跳级或重新打开。
 - 知识库支持纯文本文档导入、Unicode 安全分块、1536 维向量生成、文档与分块事务写入，以及文档列表、详情和删除；删除文档时通过外键级联删除分块。
 - Agent 已注册只读 `search_knowledge` 工具：第一次模型请求决定检索，go-zero 生成查询向量并通过 pgvector 按余弦距离返回 Top N 分块，第二次模型请求依据工具结果生成流式回答；该工具不需要人工审批。
+- Admin 为 `search_knowledge` 提供专用检索结果卡片，展示命中文档 ID、分块序号、正文与余弦距离，并与模型最终回答分离；解析、空结果与异常结果均有前端测试覆盖。
 - 对话与嵌入模型可分别配置 OpenAI 兼容提供商、地址、密钥和模型；密钥只注入 go-zero，不下发到 Runtime 或浏览器。
 - `.api` 契约可生成真实 OpenAPI JSON，并通过 `@umijs/max-plugin-openapi` 生成 Admin TypeScript Service；生成文件按 `.gitignore` 规则不纳入 Git，不手动修改。
 - 数据访问已迁移到 Ent，Approval、Ticket、Document 与 Chunk Schema 位于 `services/api/internal/data/ent/schema`；Ent 生成代码同样不纳入 Git。
@@ -80,6 +82,8 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 第 22 步删除文档增量已执行并通过 `go test ./...`、`go vet ./...`、gofmt、Admin Biome 与 TypeScript 检查、`pnpm check:contracts` 和 `git diff HEAD --check`。
 - Admin 全量测试共 10 个测试文件、47 项用例通过，其中知识库页面 6 项用例通过。
 - 知识删除测试使用独立 SQLite 内存数据库，已验证文档与两个分块级联删除、重复删除返回 404，以及 Handler 不泄露内部数据库错误。
+- 第 23 步检索结果卡片增量已执行并通过 Admin 测试（11 个测试文件、59 项用例，含 `KnowledgeSearchToolResult` 与 `AiChat` 用例）、Biome（138 个文件无问题）与 TypeScript 检查。
+- 第 23 步未执行 Admin 生产构建和真实浏览器检索验收，不能标记为这些验证已通过。
 - 第 22 步未执行 Admin 生产构建和真实浏览器删除验收，不能标记为这些验证已通过。
 - 当前没有配置真实 PostgreSQL DSN 执行自动化集成测试，不能声称 PostgreSQL + pgvector 实库验证通过。
 - 未执行完整的真实供应商 Web 与 Admin 浏览器回归，单次手工模型回答不能替代检索事件、引用内容和多页面闭环验收。
@@ -96,4 +100,4 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 下一步
 
-第 23 步建议实现 `search_knowledge` 专用检索结果卡片：在 Admin 展示命中文档 ID、分块序号、正文和距离，明确区分工具结果与模型最终回答，并补充解析、空结果和异常结果测试。该增量完成并验收后，再考虑检索距离阈值、重排序和标准化引用校验。真实 PostgreSQL + pgvector 实库验证及完整真实供应商浏览器回归应在具备环境后补做。
+第 24 步建议为 `search_knowledge` 增加检索距离阈值：在 pgvector 余弦距离检索中过滤低于阈值的低相关分块，明确阈值来源（常量或配置项），并补充阈值边界与空结果测试。完成后依次考虑答案级引用校验与重排序。真实 PostgreSQL + pgvector 实库验证及完整真实供应商浏览器回归应在具备环境后补做。
