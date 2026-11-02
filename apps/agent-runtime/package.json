@@ -11,8 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@ag-ui/client": "1.0.2",
-    "@copilotkit/runtime": "1.81.0"
+    "@ag-ui/client": "1.0.3",
+    "@copilotkit/runtime": "1.83.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

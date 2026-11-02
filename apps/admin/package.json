@@ -21,7 +21,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
     "@ant-design/pro-components": "^3.1.14-2",
-    "@copilotkit/react-core": "^1.81.0",
+    "@copilotkit/react-core": "^1.83.0",
     "antd": "^6.6.7",
     "antd-style": "^4.1.0",
     "clsx": "^2.1.1",
@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@ant-design/cli": "^6.6.7",
-    "@biomejs/biome": "^2.6.3",
+    "@biomejs/biome": "^2.6.4",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
@@ -40,7 +40,7 @@
     "@umijs/max": "^4.7.27",
     "@umijs/max-plugin-openapi": "^2.0.3",
     "@umijs/openapi": "1.14.1",
-    "@utoo/pack": "1.5.31",
+    "@utoo/pack": "1.5.35",
     "cross-env": "^10.1.0",
     "mockjs": "^1.1.0",
     "react-doctor": "^0.9.18",
