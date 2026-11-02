@@ -204,7 +204,7 @@ POST {NEXUS_OPENAI_BASE_URL}/chat/completions
 8. `TEXT_MESSAGE_END`
 9. `RUN_FINISHED`
 
-Admin 使用 CopilotKit 的默认工具渲染器展示工具调用卡片，并流式显示第二次模型请求生成的答案。若模型第一次请求就直接回答，则只出现文本消息事件，不经过知识检索。
+`search_knowledge` 工具调用由 Admin 通过 `useRenderTool` 渲染为专用的「知识检索结果」折叠卡片（`KnowledgeSearchToolResult`），展示命中文档 ID、分块序号、正文与余弦距离，并与模型最终回答分离；其余工具仍使用 CopilotKit 默认渲染器。第二次模型请求生成的答案继续流式显示。若模型第一次请求就直接回答，则只出现文本消息事件，不经过知识检索。
 
 ## 8. 模型配置与职责分离
 
@@ -269,3 +269,4 @@ Admin 使用 CopilotKit 的默认工具渲染器展示工具调用卡片，并�
 | AG-UI SSE 与错误处理 | `services/api/internal/handler/ag_ui_handler.go` |
 | Admin 知识库页面 | `apps/admin/src/pages/Knowledge.tsx` |
 | Admin AI 聊天页面 | `apps/admin/src/pages/AiChat.tsx` |
+| Admin 知识检索结果卡片 | `apps/admin/src/components/KnowledgeSearchToolResult.tsx` |
