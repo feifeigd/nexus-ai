@@ -13,38 +13,47 @@ import {
   Card,
   Col,
   Divider,
+  Drawer,
   Form,
   Input,
   Row,
   Space,
+  Spin,
   Table,
   Typography,
 } from 'antd';
 import type React from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { ingestDocument, listKnowledgeDocuments } from '@/services/nexus/knowledge';
+import {
+  getKnowledgeDocument,
+  ingestDocument,
+  listKnowledgeDocuments,
+} from '@/services/nexus/knowledge';
 
 const NEXUS_API_OPTIONS = { baseURL: '/api/nexus', skipErrorHandler: true };
 
 export type KnowledgeDocument = NonNullable<
   API.ListKnowledgeDocumentsResponse['documents']
 >[number];
+export type KnowledgeDocumentDetail = API.GetKnowledgeDocumentResponse;
 
 interface KnowledgeDocumentTableProps {
   documents: KnowledgeDocument[];
   loading?: boolean;
+  onView: (documentId: string) => void;
 }
 
 export const KnowledgeDocumentTable: React.FC<KnowledgeDocumentTableProps> = ({
   documents,
   loading,
+  onView,
 }) => (
   <Table<KnowledgeDocument>
     rowKey="documentId"
     dataSource={documents}
     loading={loading}
     pagination={false}
-    scroll={{ x: 900 }}
+    scroll={{ x: 980 }}
     locale={{ emptyText: '暂无已导入文档' }}
     columns={[
       {
@@ -65,8 +74,50 @@ export const KnowledgeDocumentTable: React.FC<KnowledgeDocumentTableProps> = ({
         render: (value: string) =>
           new Date(value).toLocaleString('zh-CN', { hour12: false }),
       },
+      {
+        title: '操作',
+        key: 'actions',
+        width: 80,
+        fixed: 'right',
+        render: (_, record) => (
+          <Button type="link" size="small" onClick={() => onView(record.documentId)}>
+            查看
+          </Button>
+        ),
+      },
     ]}
   />
+);
+
+export const KnowledgeDocumentDetailView: React.FC<{
+  document: KnowledgeDocumentDetail;
+}> = ({ document }) => (
+  <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+    <div>
+      <Typography.Text type="secondary">文档 ID</Typography.Text>
+      <div>
+        <Typography.Text code copyable>
+          {document.documentId}
+        </Typography.Text>
+      </div>
+    </div>
+    <div>
+      <Typography.Text type="secondary">导入时间</Typography.Text>
+      <div>
+        {document.createdAt
+          ? new Date(document.createdAt).toLocaleString('zh-CN', { hour12: false })
+          : '-'}
+      </div>
+    </div>
+    <div>
+      <Typography.Title level={5}>正文</Typography.Title>
+      <Typography.Paragraph
+        style={{ marginBottom: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
+      >
+        {document.content}
+      </Typography.Paragraph>
+    </div>
+  </Space>
 );
 
 function errorMessage(error: unknown) {
@@ -138,6 +189,10 @@ export const KnowledgeContent: React.FC = () => {
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(true);
   const [documentsError, setDocumentsError] = useState<string>();
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detail, setDetail] = useState<KnowledgeDocumentDetail>();
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string>();
 
   const loadDocuments = useCallback(async () => {
     setDocumentsLoading(true);
@@ -159,6 +214,25 @@ export const KnowledgeContent: React.FC = () => {
   useEffect(() => {
     void loadDocuments();
   }, [loadDocuments]);
+
+  const viewDocument = useCallback(async (id: string) => {
+    setDetailOpen(true);
+    setDetail(undefined);
+    setDetailError(undefined);
+    setDetailLoading(true);
+    try {
+      const response = await getKnowledgeDocument({ id }, NEXUS_API_OPTIONS);
+      setDetail(response);
+    } catch (requestError) {
+      setDetailError(
+        requestError instanceof Error
+          ? requestError.message
+          : '文档详情加载失败，请稍后重试。',
+      );
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
 
   const submit = useCallback(
     async (values: API.IngestDocumentInput) => {
@@ -337,8 +411,32 @@ export const KnowledgeContent: React.FC = () => {
         }
         style={{ marginTop: 24 }}
       >
-        <KnowledgeDocumentTable documents={documents} loading={documentsLoading} />
+        <KnowledgeDocumentTable
+          documents={documents}
+          loading={documentsLoading}
+          onView={(id) => void viewDocument(id)}
+        />
       </Card>
+      <Drawer
+        title={detail?.title ?? '文档详情'}
+        open={detailOpen}
+        size="large"
+        style={{ maxWidth: '100vw' }}
+        onClose={() => setDetailOpen(false)}
+      >
+        {detailError ? (
+          <Alert
+            title="文档详情加载失败"
+            description={detailError}
+            type="error"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+        ) : null}
+        <Spin spinning={detailLoading}>
+          {detail ? <KnowledgeDocumentDetailView document={detail} /> : null}
+        </Spin>
+      </Drawer>
     </>
   );
 };

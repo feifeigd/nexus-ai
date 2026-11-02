@@ -42,7 +42,8 @@ func TestKnowledgeStoreListDocuments(t *testing.T) {
 		}
 	}
 
-	documents, err := NewKnowledgeStore(client, dialect.SQLite).ListDocuments(ctx)
+	store := NewKnowledgeStore(client, dialect.SQLite)
+	documents, err := store.ListDocuments(ctx)
 	if err != nil {
 		t.Fatalf("list documents: %v", err)
 	}
@@ -51,5 +52,15 @@ func TestKnowledgeStoreListDocuments(t *testing.T) {
 	}
 	if documents[0].Title != "新运维手册" || !documents[0].CreatedAt.Equal(newer) || !documents[0].UpdatedAt.Equal(newer) {
 		t.Fatalf("unexpected document metadata: %+v", documents[0])
+	}
+	detail, err := store.GetDocument(ctx, "document-new")
+	if err != nil {
+		t.Fatalf("get document detail: %v", err)
+	}
+	if detail.DocumentID != "document-new" || detail.Title != "新运维手册" || detail.Content != "正文不会通过列表元数据返回" {
+		t.Fatalf("unexpected document detail: %+v", detail)
+	}
+	if _, err := store.GetDocument(ctx, "missing"); err != ErrKnowledgeDocumentNotFound {
+		t.Fatalf("expected document not found, got %v", err)
 	}
 }

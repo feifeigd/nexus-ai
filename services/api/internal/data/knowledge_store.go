@@ -21,7 +21,10 @@ const (
 	MaxKnowledgeSearchLimit     = 50
 )
 
-var ErrVectorSearchUnsupported = errors.New("vector similarity search requires PostgreSQL with pgvector")
+var (
+	ErrVectorSearchUnsupported   = errors.New("vector similarity search requires PostgreSQL with pgvector")
+	ErrKnowledgeDocumentNotFound = errors.New("knowledge document not found")
+)
 
 type KnowledgeMatch struct {
 	ChunkID    string
@@ -36,6 +39,11 @@ type KnowledgeDocument struct {
 	Title      string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
+}
+
+type KnowledgeDocumentDetail struct {
+	KnowledgeDocument
+	Content string
 }
 
 type KnowledgeStore struct {
@@ -67,6 +75,28 @@ func (s *KnowledgeStore) ListDocuments(ctx context.Context) ([]KnowledgeDocument
 		})
 	}
 	return documents, nil
+}
+
+func (s *KnowledgeStore) GetDocument(ctx context.Context, id string) (KnowledgeDocumentDetail, error) {
+	if s == nil || s.client == nil {
+		return KnowledgeDocumentDetail{}, fmt.Errorf("knowledge store client is required")
+	}
+	row, err := s.client.Document.Get(ctx, id)
+	if ent.IsNotFound(err) {
+		return KnowledgeDocumentDetail{}, ErrKnowledgeDocumentNotFound
+	}
+	if err != nil {
+		return KnowledgeDocumentDetail{}, fmt.Errorf("get knowledge document: %w", err)
+	}
+	return KnowledgeDocumentDetail{
+		KnowledgeDocument: KnowledgeDocument{
+			DocumentID: row.ID,
+			Title:      row.Title,
+			CreatedAt:  row.CreatedAt,
+			UpdatedAt:  row.UpdatedAt,
+		},
+		Content: row.Content,
+	}, nil
 }
 
 // SearchSimilar returns chunks ordered by pgvector cosine distance. SQLite can

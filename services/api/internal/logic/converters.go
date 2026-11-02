@@ -68,6 +68,16 @@ func knowledgeDocumentResponses(documents []data.KnowledgeDocument) []types.Know
 	return responses
 }
 
+func knowledgeDocumentDetailResponse(item data.KnowledgeDocumentDetail) types.KnowledgeDocumentDetail {
+	return types.KnowledgeDocumentDetail{
+		DocumentID: item.DocumentID,
+		Title:      item.Title,
+		Content:    item.Content,
+		CreatedAt:  formatTime(item.CreatedAt),
+		UpdatedAt:  formatTime(item.UpdatedAt),
+	}
+}
+
 func formatTime(value time.Time) string {
 	return value.UTC().Format(time.RFC3339Nano)
 }

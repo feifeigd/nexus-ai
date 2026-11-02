@@ -21,9 +21,24 @@ type ListKnowledgeDocumentsResponse {
 	Documents []KnowledgeDocument `json:"documents"`
 }
 
+type GetKnowledgeDocumentInput {
+	ID string `path:"id"`
+}
+
+type KnowledgeDocumentDetail {
+	DocumentID string `json:"documentId"`
+	Title      string `json:"title"`
+	Content    string `json:"content"`
+	CreatedAt  string `json:"createdAt"`
+	UpdatedAt  string `json:"updatedAt"`
+}
+
 service nexus-api {
 	@handler listKnowledgeDocuments
 	get /knowledge/documents returns (ListKnowledgeDocumentsResponse)
+
+	@handler getKnowledgeDocument
+	get /knowledge/documents/:id (GetKnowledgeDocumentInput) returns (KnowledgeDocumentDetail)
 
 	@handler ingestDocument
 	post /knowledge/documents (IngestDocumentInput) returns (IngestDocumentResponse)
