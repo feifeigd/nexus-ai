@@ -81,8 +81,8 @@ importers:
         specifier: ^0.9.18
         version: 0.9.18(@opentelemetry/core@2.12.0(@opentelemetry/api@1.9.1))(eslint@10.13.0(jiti@2.7.0)(supports-color@8.1.1))(react@19.3.1)(supports-color@8.1.1)
       swagger-ui-dist:
-        specifier: ^4.19.1
-        version: 4.19.1
+        specifier: ^5.34.0
+        version: 5.34.0
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
@@ -1112,7 +1112,7 @@ packages:
 
   '@esbuild-kit/cjs-loader@2.4.4':
     resolution: {integrity: sha512-NfsJX4PdzhwSkfJukczyUiZGc7zNNWZcEAyqeISpDnn0PTfzMJR1aR8xAIPskBejIxBJbIgCCMzbaYa9SXepIg==}
-    deprecated: 'Merged into tsx: https://tsx.is'
+    deprecated: 'Merged into tsx: https://tsx.hirok.io'
 
   '@esbuild-kit/core-utils@3.3.2':
     resolution: {integrity: sha512-sPRAnw9CdSsRmEtnsl2WXWdyquogVpB3yZ3dgwJfe8zrOzTsV7cJvmwrKVa+0ma5BoiGJ+BoqkMvawbayKUsqQ==}
@@ -10817,6 +10817,9 @@ packages:
   swagger-ui-dist@4.19.1:
     resolution: {integrity: sha512-n/gFn+R7G/BXWwl5UZLw6F1YgWOlf3zkwGlsPhTMhNtAAolBGKg0JS5b2RKt5NI6/hSopVaSrki2wTIMUDDy2w==}
 
+  swagger-ui-dist@5.34.0:
+    resolution: {integrity: sha512-H6tAIjr3XqE31PbkZl0OFya1ziRLDfTwh3J6OHdumPtPCLfjTnyLeagl/55kFNZcTOz9a9QI9WP0FXldwiGJag==}
+
   swagger2openapi@7.0.8:
     resolution: {integrity: sha512-upi/0ZGkYgEcLeGieoz8gT74oWHA0E7JivX7aN9mAf+Tc7BQoRBvnIGHoPDw+f9TXTW4s6kGYCZJtauP6OYp7g==}
     hasBin: true
@@ -18114,7 +18117,7 @@ snapshots:
   cosmiconfig@7.1.0:
     dependencies:
       '@types/parse-json': 4.0.2
-      import-fresh: 3.2.1
+      import-fresh: 3.3.1
       parse-json: 5.2.0
       path-type: 4.0.0
       yaml: 1.10.3
@@ -24750,6 +24753,10 @@ snapshots:
       stable: 0.1.8
 
   swagger-ui-dist@4.19.1: {}
+
+  swagger-ui-dist@5.34.0:
+    dependencies:
+      '@scarf/scarf': 1.4.0
 
   swagger2openapi@7.0.8(encoding@0.1.14):
     dependencies:
