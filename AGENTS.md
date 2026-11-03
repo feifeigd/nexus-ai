@@ -104,7 +104,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 真实供应商 AG-UI 端到端回归（2026-11-03）：经 go-zero `/ag-ui` 流式端点用真实模型实测，RUN_STARTED → search_knowledge 工具调用 → pgvector 检索 → 两段式流式回答 → 语义核验 → RUN_FINISHED 完整跑通。查询「蓝雀缓存雪崩如何应对？」命中《故障排查》《雪崩与击穿应对》《服务架构》等正确文档，余弦距离 0.12～0.26；回答准确覆盖随机过期时间、熔断限流、TTL、LRU 淘汰、主从异步并带引用。观测到语义核验误报：《配置与运维》检索结果已含「告警应覆盖内存接近上限、命中率骤降和主从同步延迟」、《服务架构》已含「主从复制默认异步」，LLM 判定仍把答案对应句标为无支撑（precision 问题，未量化）。另注意 Windows Git Bash 下 `curl -d` 内联中文会乱码（模型误读为「冰雪天气」），改用 node 标准 UTF-8 重发正常，浏览器不受影响。仍未做真浏览器 UI 验收（检索卡片渲染、多页面闭环），不能标记为已通过。
 - 语义核验误报修复（2026-11-03）：`answerSupportNote` 改为「字面 bigram 先行 + LLM 语义兜底」——字面重叠 ≥0.3 的句子直接判支撑（跳过 LLM），只有字面重叠不足的句子才交 LLM 判定同义改写或编造，消除「原文照抄/高度重叠句被 LLM 误判无支撑」的误报。新增 `TestAnswerSupportNoteSkipsJudgeForLiteralMatches` 并更新 2 个受影响测试，`go test ./...`、`go vet ./...`、gofmt、`git diff HEAD --check` 全部通过。真实模型复测确认原误报句（「告警应覆盖内存接近上限…」「主从复制默认异步…」）不再告警；但发现新问题：模型用 markdown 组织回答时，标题/连接语等组织性句子被纳入核验并标无支撑，降低告警信噪比，待单独过滤。
 - 语义核验组织语言过滤（2026-11-03）：新增 `isOrganizationalSentence` 过滤 markdown 标题（`#` 开头）与冒号结尾的引导/连接语，避免模型组织性语言被纳入核验产生噪音。新增 `TestAnswerSupportNoteSkipsOrganizationalSentences`，`go test ./...`、`go vet ./...`、gofmt、`git diff HEAD --check` 全部通过。真实模型复测确认标题/连接语不再告警；但结语/免责声明/提醒类元语言（如「以上内容来自知识库检索结果」「如需…建议…」）仍被标记，需句子级分类才能稳定过滤，暂记为已知局限。
-- 结语过滤 prompt 方案尝试失败（2026-11-03）：曾改 `supportJudgeSystemPrompt` 引导 LLM 把「组织性/结语/免责/建议」句判为 supported，门控测试 `TestRealModelKnowledgePipeline` 实测 `note=""`——不仅结语不再告警，编造句「数据库主从复制采用半同步复制模式」也被判 supported，引入漏报（丢失抓幻觉的核心价值），已回退。结论：LLM 二分类无法可靠区分「组织语言」与「编造知识」，结语过滤需显式三分类（supported/unsupported/非知识陈述）或独立句子分类步骤，且需真实模型充分验证，暂缓。
+- 结语过滤 LLM 方案尝试失败（2026-11-03，二分类与三分类均失败）：① 二分类 prompt 引导 LLM 把「组织性/结语/免责/建议」句判为 supported，门控测试实测 `note=""`——编造句「数据库主从复制采用半同步复制模式」也被判 supported，引入漏报；② 显式三分类（supported/unsupported/not-a-claim）同样实测 `note=""`——编造句仍未被标记。两次均已回退。结论：LLM 无法可靠区分「组织语言」与「编造知识」，无论二分类还是三分类；结语/提醒类元语言过滤需非 LLM 的确定性方案（或独立句子分类模型），暂缓。
 - 真浏览器 UI 验收（2026-11-03，Playwright + Chromium 自动化）：Admin AI 助手检索事件卡片（「知识检索结果 5 个分块」）与引用回答、知识库 5 篇文档列表、审批记录与批准（Popconfirm 确认）、工单显示、多页面闭环（AI 创建工单 → 审批批准 → 工单）全部实测通过。Web 首页加载与内嵌 Runtime info 正常，但 Web 端 CopilotChat 发送按钮 disabled（Enter 换行、发送按钮不可点），未能实测 Web 流式回答，待查（疑似 CopilotKit v2 useSingleEndpoint 模式下的 UI 状态或 web 内嵌 Runtime 配置）。另 Web page.tsx 的「Mock Agent / MOCK · STREAMING」文案已过时，与真实模型不符。
 
 ### 环境注意事项
@@ -118,4 +118,4 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 下一步
 
-下一步建议：① 排查 Web 端 CopilotChat 发送按钮 disabled 并补测 Web 流式回答（Admin 全闭环已实测通过）；② 过滤语义核验中的结语/提醒类元语言（markdown 标题与连接语已过滤，结语/免责/建议等仍需句子级分类）；③ 评估交叉编码器重排序（引入外部 reranker 模型需权衡成本与延迟）；④ 更新 Web page.tsx 过时的 Mock 文案。量化质量/延迟/成本基准、真实后台认证/租户隔离/审计应在具备环境后补做。
+下一步建议：① 排查 Web 端 CopilotChat 发送按钮 disabled 并补测 Web 流式回答（Admin 全闭环已实测通过）；② 过滤语义核验中的结语/提醒类元语言（markdown 标题与连接语已过滤，结语/免责/建议等 LLM 二分类/三分类均不可靠，需非 LLM 确定性方案）；③ 评估交叉编码器重排序（引入外部 reranker 模型需权衡成本与延迟）；④ 更新 Web page.tsx 过时的 Mock 文案。量化质量/延迟/成本基准、真实后台认证/租户隔离/审计应在具备环境后补做。
