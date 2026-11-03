@@ -47,18 +47,37 @@ func answerSupportNote(ctx context.Context, judge SupportJudge, answer string, m
 
 	supported := make([]bool, len(sentences))
 	if judge != nil {
-		chunks := make([]string, len(matches))
-		for i, match := range matches {
-			chunks[i] = match.Content
+		// 字面 bigram 先行：字面重叠足够的句子直接判支撑，避免语义判定器对
+		// “原文照抄/高度重叠”句子的误报；只有字面重叠不足的句子才交给 LLM
+		// 语义判定（用于识别同义改写或编造）。
+		var pending []int
+		for i, stripped := range cleaned {
+			if supportedByAnyChunk(stripped, matches) {
+				supported[i] = true
+			} else {
+				pending = append(pending, i)
+			}
 		}
-		verdicts, err := judge.Judge(ctx, cleaned, chunks)
-		if err != nil {
-			return "", err
+		if len(pending) > 0 {
+			chunks := make([]string, len(matches))
+			for i, match := range matches {
+				chunks[i] = match.Content
+			}
+			pendingSentences := make([]string, len(pending))
+			for i, idx := range pending {
+				pendingSentences[i] = cleaned[idx]
+			}
+			verdicts, err := judge.Judge(ctx, pendingSentences, chunks)
+			if err != nil {
+				return "", err
+			}
+			if len(verdicts) != len(pending) {
+				return "", fmt.Errorf("support judge returned %d verdicts for %d sentences", len(verdicts), len(pending))
+			}
+			for i, idx := range pending {
+				supported[idx] = verdicts[i]
+			}
 		}
-		if len(verdicts) != len(sentences) {
-			return "", fmt.Errorf("support judge returned %d verdicts for %d sentences", len(verdicts), len(sentences))
-		}
-		supported = verdicts
 	} else {
 		for i, stripped := range cleaned {
 			supported[i] = supportedByAnyChunk(stripped, matches)

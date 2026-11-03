@@ -144,11 +144,11 @@ func TestAnswerSupportNoteFlagsJudgeUnsupported(t *testing.T) {
 	judge := supportJudgeFunc(func(_ context.Context, sentences []string, _ []string) ([]bool, error) {
 		return []bool{false}, nil
 	})
-	note, err := answerSupportNote(context.Background(), judge, "蓝雀告警需要先检查 API 服务状态。", matches)
+	note, err := answerSupportNote(context.Background(), judge, "数据库迁移需要停机维护窗口。", matches)
 	if err != nil {
 		t.Fatalf("answer support note: %v", err)
 	}
-	if !strings.Contains(note, "蓝雀告警") {
+	if !strings.Contains(note, "数据库迁移") {
 		t.Fatalf("expected the unsupported sentence to be reported, got %q", note)
 	}
 }
@@ -158,8 +158,27 @@ func TestAnswerSupportNotePropagatesJudgeError(t *testing.T) {
 	judge := supportJudgeFunc(func(context.Context, []string, []string) ([]bool, error) {
 		return nil, errors.New("judge unavailable")
 	})
-	if _, err := answerSupportNote(context.Background(), judge, "蓝雀告警需要先检查 API 服务状态。", matches); err == nil {
+	if _, err := answerSupportNote(context.Background(), judge, "数据库迁移需要停机维护窗口。", matches); err == nil {
 		t.Fatal("expected judge error to propagate")
+	}
+}
+
+func TestAnswerSupportNoteSkipsJudgeForLiteralMatches(t *testing.T) {
+	matches := []searchKnowledgeMatch{{Content: "蓝雀告警需要先检查 API 服务状态"}}
+	called := false
+	judge := supportJudgeFunc(func(_ context.Context, sentences []string, _ []string) ([]bool, error) {
+		called = true
+		return []bool{false}, nil // 即使语义判定误判无支撑，字面重叠足够时也不应被标记
+	})
+	note, err := answerSupportNote(context.Background(), judge, "蓝雀告警需要先检查 API 服务状态。", matches)
+	if err != nil {
+		t.Fatalf("answer support note: %v", err)
+	}
+	if note != "" {
+		t.Fatalf("expected literal match to be supported without judge, got %q", note)
+	}
+	if called {
+		t.Fatalf("expected judge not to be called for literal matches")
 	}
 }
 

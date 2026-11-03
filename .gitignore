@@ -33,3 +33,4 @@ Thumbs.db
 !.vscode/tasks.json
 
 wire_gen.go
+__debug_bin.*
