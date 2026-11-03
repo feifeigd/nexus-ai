@@ -10,8 +10,8 @@ export default function ChatPanel() {
       className="h-full"
       labels={{
         chatInputPlaceholder: "输入消息，按 Enter 发送…",
-        chatDisclaimerText: "当前为 Mock 流式回复，不是真实模型输出。",
-        welcomeMessageText: "向 NexusAI Mock Agent 发送一条消息。",
+        chatDisclaimerText: "回复由服务端 go-zero 配置的 Agent 模式生成。",
+        welcomeMessageText: "向 NexusAI Agent 发送一条消息。",
         modalHeaderTitle: "NexusAI",
       }}
     />

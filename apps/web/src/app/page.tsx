@@ -36,7 +36,8 @@ export default function Home() {
               <ApiHealth />
             </Suspense>
             <p className="mt-8 text-sm leading-6 text-slate-500">
-              当前使用 Mock Agent，仅验证协议与界面，不调用真实模型。
+              当前 Agent 运行模式由 go-zero 服务端配置（Mock 或 OpenAI
+              兼容模型）。
             </p>
           </section>
 
@@ -48,7 +49,7 @@ export default function Home() {
               <h2 id="agent-chat-title" className="font-semibold">
                 NexusAI Agent
               </h2>
-              <p className="mt-1 text-xs text-slate-500">MOCK · STREAMING</p>
+              <p className="mt-1 text-xs text-slate-500">AG-UI · STREAMING</p>
             </div>
             <div className="h-[560px]">
               <ChatPanel />
