@@ -217,7 +217,7 @@ pgvector 的 `<=>` 具体实现为两个 L2 归一化向量的内积取补，即
 - 回答时标注 `documentId`。
 - 没有匹配结果时明确说明未找到，不得编造。
 
-上述是提示词约束。此外，go-zero 在第二次回答流结束后执行两类校验：**答案级引用校验**（用正则 `document_[0-9a-f]{32}` 抽取 `documentId` 引用，凡不在本次检索结果内的判为不可验证）和**逐句字面支撑校验**（将回答拆句，按 bigram 重叠率判断每句是否被检索分块支撑，无支撑的句子在答案末尾追加告警）。两者都只追加可见提示并写结构化日志。逐句校验是字面重叠启发式，不是语义事实核验，同义改写可能被误标；标准化引用列表、引用位置定位和语义级事实一致性核验（NLI/LLM）尚未实现。
+上述是提示词约束。此外，go-zero 在第二次回答流结束后执行两类校验：**答案级引用校验**（用正则 `document_[0-9a-f]{32}` 抽取 `documentId` 引用，凡不在本次检索结果内的判为不可验证）和**逐句来源支撑校验**（将回答拆句，判断每句是否被检索分块支撑，无支撑的句子在答案末尾追加告警）。两者都只追加可见提示并写结构化日志。逐句支撑校验默认使用字面 bigram 重叠启发式；开启 `NEXUS_KNOWLEDGE_SEMANTIC_CHECK` 后改用 NLI/LLM 语义判定（`OpenAISupportJudge` 单次非流式批量判定），以降低同义改写被误标的风险，但会为每次知识回答增加一次额外模型调用，带来成本与延迟。标准化引用列表、引用位置定位尚未实现。
 
 ## 7. AG-UI 事件与前端展示
 
@@ -248,6 +248,7 @@ pgvector 的 `<=>` 具体实现为两个 L2 归一化向量的内积取补，即
 | `NEXUS_OPENAI_EMBEDDING_BASE_URL` | 嵌入服务基础地址，不包含 `/embeddings` |
 | `NEXUS_OPENAI_EMBEDDING_API_KEY` | 嵌入服务密钥 |
 | `NEXUS_OPENAI_EMBEDDING_MODEL` | 嵌入模型名称；留空则禁用知识导入与检索 |
+| `NEXUS_KNOWLEDGE_SEMANTIC_CHECK` | 开启知识回答的语义级事实核验（NLI/LLM 判定），默认关闭；开启后为每次知识回答增加一次额外模型调用 |
 | `NEXUS_POSTGRES_DSN` | PostgreSQL 数据源；真实向量检索必须配置 |
 
 未设置嵌入专用地址时，嵌入配置复用对话服务地址；只有在这种情况下，空嵌入密钥才可复用对话密钥。显式使用不同嵌入提供商时，应单独配置嵌入密钥。
@@ -279,7 +280,7 @@ pgvector 的 `<=>` 具体实现为两个 L2 归一化向量的内积取补，即
 - 真实认证、数据权限和租户级知识隔离。
 - PDF、Word 等文件解析及异步导入任务；当前入口接收标题和纯文本正文。
 - 关键词与向量混合检索（如 BM25 融合）与交叉编码器重排序；当前重排序为纯规则的关键词覆盖率加权。
-- 标准化的答案引用列表、引用位置校验和语义级事实一致性校验（当前逐句校验仅为字面重叠启发式）。
+- 标准化的答案引用列表与引用位置校验；语义级事实核验已实现但默认关闭（`NEXUS_KNOWLEDGE_SEMANTIC_CHECK` 开启后改用 NLI/LLM 判定），且尚未对真实供应商验证判定质量。
 - 多轮自主检索规划；当前只读工具完成后只进行一次 follow-up 回答。
 - 检索评测、召回率监控及知识库命中可观测性面板。
 
@@ -290,7 +291,8 @@ pgvector 的 `<=>` 具体实现为两个 L2 归一化向量的内积取补，即
 | 文档分块、入库和查询嵌入 | `services/api/internal/knowledge/service.go` |
 | `search_knowledge` 工具定义与结果封装 | `services/api/internal/knowledge/tool.go` |
 | 检索重排序与关键词覆盖率 | `services/api/internal/knowledge/rerank.go` |
-| 答案逐句字面支撑校验 | `services/api/internal/knowledge/factcheck.go` |
+| 答案逐句来源支撑校验（语义判定 + 字面启发式） | `services/api/internal/knowledge/factcheck.go` |
+| 语义级支撑判定器（NLI/LLM） | `services/api/internal/agent/support_judge.go` |
 | PostgreSQL + pgvector 实库集成测试 | `services/api/internal/knowledge/postgres_integration_test.go`、`services/api/internal/testpg/` |
 | 向量持久化与 pgvector 查询 | `services/api/internal/data/knowledge_store.go` |
 | 文档与分块事务写入 | `services/api/internal/data/knowledge_ingest.go` |
