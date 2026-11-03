@@ -252,7 +252,7 @@ CI 还会执行契约漂移检查、`pnpm --filter admin exec max setup` 和 `pn
 3. 建设多租户企业知识库与智能工单。
 4. 后续使用 Expo + React Native 扩展安卓端。
 
-第一阶段保持 go-zero 模块化单体，不提前拆微服务，不引入 NestJS、Python Agent 服务或 Kubernetes。
+第一阶段保持 go-zero 模块化单体，不提前拆微服务，不引入 NestJS、Python Agent 服务或 Kubernetes。后期规划：RESTful 业务继续用 go-zero，Agent 进程引入 go-micro，运行环境基于 Istio（服务网格）；也可能引入无服务架构（Serverless），使用 MicroVM（微虚拟机）与沙箱。
 
 ## 协作约定
 

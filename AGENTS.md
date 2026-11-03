@@ -17,6 +17,8 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - PostgreSQL、pgvector、Redis 用于数据、向量检索和缓存；Docker Compose 用于本地环境。
 - 后续使用 Expo + React Native 扩展安卓端。
 - 当前不引入 NestJS、Python Agent 服务、Kubernetes 或复杂微服务体系。
+- 后期规划：RESTful 业务继续用 go-zero，Agent 进程引入 go-micro（Go 微服务框架），运行环境基于 Istio（服务网格）。此为后期微服务化方向，当前阶段 Agent 仍在 go-zero 内、不拆微服务、不引入 Kubernetes；go-zero 与 go-micro 并存、各有分工，落地时机届时再定。
+- 后期规划：可能引入无服务架构（Serverless），使用 MicroVM（微虚拟机）与沙箱承载隔离运行环境。此为后期方向，落地时机与具体方案届时再定。
 - Eino 当前暂不引入：现阶段的模型接入与流式协议转换不需要额外 Agent 编排抽象。后续进入企业知识库、RAG、复杂工具调用或多步骤 Agent 工作流时重新评估；若引入，应作为 go-zero 内 Agent `Runner` 的一种编排实现，不替代 go-zero，也不承接权限、租户隔离、人工审批或审计。
 - 工具权限、租户隔离、参数校验、人工审批和审计必须以 go-zero 后端为权威，不能依赖模型输出或前端状态。
 
@@ -26,6 +28,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 上述 CopilotKit 包仍固定 AG-UI `1.0.2` 时，禁止单独升级 AG-UI 依赖，也不要通过 pnpm overrides 等方式强行绕过版本约束。只有这些相关 CopilotKit 包全部升级、且其依赖声明共同兼容目标 AG-UI 版本后，才可同步升级 AG-UI。
 - AG-UI 或 CopilotKit 升级前必须核对实际包依赖声明；升级后必须确认锁文件不保留互不兼容的 AG-UI 重复版本，并执行 Web 测试、Lint 和生产构建，未实际执行的验证不得写成通过。
 - OpenAI 兼容协议当前继续采用 go-zero 内手写 Chat Completions 客户端，不在第 14 步混入 SDK 替换。手写范围只维护当前文本与函数调用子集，不继续扩展 Responses API、多模态或通用重试等完整 SDK 能力；OpenAI 协议类型与 SSE 解析必须留在 `OpenAIRunner` 内部。后续迁移官方 `openai-go` 时应作为独立小增量，保持 `Runner` 接口、AG-UI 事件和业务行为不变，并复用假服务测试覆盖文本流、工具参数分片、HTTP 错误、异常 EOF、非法 JSON、中途错误和取消。
+- 已知问题（待修复，2026-11-03）：Web 端 CopilotChat 发送按钮 disabled，根因是 agent discovery（`GET /api/copilotkit/info`）在 Next.js App Router SSR 下未自动触发。有问题的版本组合：Next.js `16.4.3` + `@copilotkit/react-core@1.83.0` + `@copilotkit/runtime@1.83.0` + `@ag-ui/client@1.0.2`。Admin（Umi SPA 纯客户端）同版本正常，仅 Web（SSR）异常；后端链路正常（agent run 端点 curl 实测可流式返回），仅前端 UI 发送按钮。后续修复方向：查 CopilotKit 对 App Router SSR 的支持/issue（`@ag-ui/client` 重复版本、`useLayoutEffect` 时序、`onError` 错误码等）。
 
 ## 日志规范
 
@@ -102,6 +105,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 语义核验误报修复（2026-11-03）：`answerSupportNote` 改为「字面 bigram 先行 + LLM 语义兜底」——字面重叠 ≥0.3 的句子直接判支撑（跳过 LLM），只有字面重叠不足的句子才交 LLM 判定同义改写或编造，消除「原文照抄/高度重叠句被 LLM 误判无支撑」的误报。新增 `TestAnswerSupportNoteSkipsJudgeForLiteralMatches` 并更新 2 个受影响测试，`go test ./...`、`go vet ./...`、gofmt、`git diff HEAD --check` 全部通过。真实模型复测确认原误报句（「告警应覆盖内存接近上限…」「主从复制默认异步…」）不再告警；但发现新问题：模型用 markdown 组织回答时，标题/连接语等组织性句子被纳入核验并标无支撑，降低告警信噪比，待单独过滤。
 - 语义核验组织语言过滤（2026-11-03）：新增 `isOrganizationalSentence` 过滤 markdown 标题（`#` 开头）与冒号结尾的引导/连接语，避免模型组织性语言被纳入核验产生噪音。新增 `TestAnswerSupportNoteSkipsOrganizationalSentences`，`go test ./...`、`go vet ./...`、gofmt、`git diff HEAD --check` 全部通过。真实模型复测确认标题/连接语不再告警；但结语/免责声明/提醒类元语言（如「以上内容来自知识库检索结果」「如需…建议…」）仍被标记，需句子级分类才能稳定过滤，暂记为已知局限。
 - 结语过滤 prompt 方案尝试失败（2026-11-03）：曾改 `supportJudgeSystemPrompt` 引导 LLM 把「组织性/结语/免责/建议」句判为 supported，门控测试 `TestRealModelKnowledgePipeline` 实测 `note=""`——不仅结语不再告警，编造句「数据库主从复制采用半同步复制模式」也被判 supported，引入漏报（丢失抓幻觉的核心价值），已回退。结论：LLM 二分类无法可靠区分「组织语言」与「编造知识」，结语过滤需显式三分类（supported/unsupported/非知识陈述）或独立句子分类步骤，且需真实模型充分验证，暂缓。
+- 真浏览器 UI 验收（2026-11-03，Playwright + Chromium 自动化）：Admin AI 助手检索事件卡片（「知识检索结果 5 个分块」）与引用回答、知识库 5 篇文档列表、审批记录与批准（Popconfirm 确认）、工单显示、多页面闭环（AI 创建工单 → 审批批准 → 工单）全部实测通过。Web 首页加载与内嵌 Runtime info 正常，但 Web 端 CopilotChat 发送按钮 disabled（Enter 换行、发送按钮不可点），未能实测 Web 流式回答，待查（疑似 CopilotKit v2 useSingleEndpoint 模式下的 UI 状态或 web 内嵌 Runtime 配置）。另 Web page.tsx 的「Mock Agent / MOCK · STREAMING」文案已过时，与真实模型不符。
 
 ### 环境注意事项
 
@@ -114,4 +118,4 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 下一步
 
-下一步建议：① 补做真浏览器 UI 验收（Web/Admin 的检索事件卡片渲染、引用内容与多页面闭环）——后端 AG-UI 链路已实测跑通，但检索卡片等前端渲染仍未在浏览器验收；② 过滤语义核验中的结语/提醒类元语言（markdown 标题与连接语已过滤，结语/免责/建议等仍需句子级分类）；③ 评估交叉编码器重排序（引入外部 reranker 模型需权衡成本与延迟）。量化质量/延迟/成本基准、真实后台认证/租户隔离/审计应在具备环境后补做。
+下一步建议：① 排查 Web 端 CopilotChat 发送按钮 disabled 并补测 Web 流式回答（Admin 全闭环已实测通过）；② 过滤语义核验中的结语/提醒类元语言（markdown 标题与连接语已过滤，结语/免责/建议等仍需句子级分类）；③ 评估交叉编码器重排序（引入外部 reranker 模型需权衡成本与延迟）；④ 更新 Web page.tsx 过时的 Mock 文案。量化质量/延迟/成本基准、真实后台认证/租户隔离/审计应在具备环境后补做。
