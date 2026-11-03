@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import "@copilotkit/react-core/v2/styles.css";
 import "./globals.css";
 import { Providers } from "./providers";
 
