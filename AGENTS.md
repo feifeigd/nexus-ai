@@ -106,6 +106,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 语义核验组织语言过滤（2026-11-03）：新增 `isOrganizationalSentence` 过滤 markdown 标题（`#` 开头）与冒号结尾的引导/连接语，避免模型组织性语言被纳入核验产生噪音。新增 `TestAnswerSupportNoteSkipsOrganizationalSentences`，`go test ./...`、`go vet ./...`、gofmt、`git diff HEAD --check` 全部通过。真实模型复测确认标题/连接语不再告警；但结语/免责声明/提醒类元语言（如「以上内容来自知识库检索结果」「如需…建议…」）仍被标记，需句子级分类才能稳定过滤，暂记为已知局限。
 - 结语过滤 LLM 方案尝试失败（2026-11-03，二分类与三分类均失败）：① 二分类 prompt 引导 LLM 把「组织性/结语/免责/建议」句判为 supported，门控测试实测 `note=""`——编造句「数据库主从复制采用半同步复制模式」也被判 supported，引入漏报；② 显式三分类（supported/unsupported/not-a-claim）同样实测 `note=""`——编造句仍未被标记。两次均已回退。结论：LLM 无法可靠区分「组织语言」与「编造知识」，无论二分类还是三分类；结语/提醒类元语言过滤需非 LLM 的确定性方案（或独立句子分类模型），暂缓。
 - 真浏览器 UI 验收（2026-11-03，Playwright + Chromium 自动化）：Admin AI 助手检索事件卡片（「知识检索结果 5 个分块」）与引用回答、知识库 5 篇文档列表、审批记录与批准（Popconfirm 确认）、工单显示、多页面闭环（AI 创建工单 → 审批批准 → 工单）全部实测通过。Web 首页加载与内嵌 Runtime info 正常，但 Web 端 CopilotChat 发送按钮 disabled（Enter 换行、发送按钮不可点），未能实测 Web 流式回答，待查（疑似 CopilotKit v2 useSingleEndpoint 模式下的 UI 状态或 web 内嵌 Runtime 配置）。另 Web page.tsx 的「Mock Agent / MOCK · STREAMING」文案已过时，与真实模型不符。
+- 交叉编码器重排序评估（2026-11-04）：评估结论为当前不引入，详见 `docs/reranker-evaluation.md`。现有 pgvector 余弦召回 + BM25 关键词融合已零成本命中正确文档（距离 0.12～0.26），交叉编码器（reranker）的 15～25% 排序精度提升不足以覆盖其 100～500ms 延迟与每次查询的 API 成本；且 reranker 只能精排候选池、不能救回漏召回。重新评估条件：知识库规模显著上升 + 有量化数据证明排序精度成为瓶颈。若引入：保留召回 + 规则重排，加交叉编码器对 Top N 精排，优先用 API reranker（复用 DashScope）或本地 bge-reranker。
 
 ### 环境注意事项
 
@@ -118,4 +119,4 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 下一步
 
-下一步建议：① 排查 Web 端 CopilotChat 发送按钮 disabled 并补测 Web 流式回答（Admin 全闭环已实测通过）；② 过滤语义核验中的结语/提醒类元语言（markdown 标题与连接语已过滤，结语/免责/建议等 LLM 二分类/三分类均不可靠，需非 LLM 确定性方案）；③ 评估交叉编码器重排序（引入外部 reranker 模型需权衡成本与延迟）；④ 更新 Web page.tsx 过时的 Mock 文案。量化质量/延迟/成本基准、真实后台认证/租户隔离/审计应在具备环境后补做。
+下一步建议：① 排查 Web 端 CopilotChat 发送按钮 disabled 并补测 Web 流式回答（Admin 全闭环已实测通过）；② 过滤语义核验中的结语/提醒类元语言（markdown 标题与连接语已过滤，结语/免责/建议等 LLM 二分类/三分类均不可靠，需非 LLM 确定性方案）；③ 交叉编码器重排序已评估、暂不引入（见 `docs/reranker-evaluation.md`）；④ 更新 Web page.tsx 过时的 Mock 文案。量化质量/延迟/成本基准、真实后台认证/租户隔离/审计应在具备环境后补做。
