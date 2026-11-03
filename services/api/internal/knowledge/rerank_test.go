@@ -2,6 +2,7 @@ package knowledge
 
 import (
 	"context"
+	"math"
 	"testing"
 
 	"github.com/pgvector/pgvector-go"
@@ -9,26 +10,63 @@ import (
 	"nexusai/services/api/internal/data"
 )
 
-func TestKeywordCoverage(t *testing.T) {
-	for _, test := range []struct {
-		name    string
-		query   string
-		content string
-		want    float64
-	}{
-		{name: "empty query", query: "", content: "蓝雀告警", want: 0},
-		{name: "punctuation only query", query: "，。？！", content: "蓝雀告警", want: 0},
-		{name: "full coverage", query: "蓝雀告警", content: "蓝雀告警需要检查 API", want: 1},
-		{name: "partial coverage", query: "蓝雀告警", content: "蓝雀", want: 0.5},
-		{name: "no overlap", query: "蓝雀告警", content: "完全无关", want: 0},
-		{name: "duplicate query runes counted once", query: "蓝蓝蓝", content: "蓝", want: 1},
-		{name: "ignores punctuation and whitespace", query: "蓝雀，告警 ？", content: "蓝雀告警", want: 1},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			if got := keywordCoverage(test.query, test.content); got != test.want {
-				t.Fatalf("keywordCoverage(%q, %q) = %v, want %v", test.query, test.content, got, test.want)
+func TestBM25ScoresRewardsTermFrequency(t *testing.T) {
+	// 两个分块长度相同，含查询词元次数更多的分块应得分更高。
+	frequent := data.KnowledgeMatch{ChunkID: "frequent", Content: "蓝雀蓝雀", Distance: 0.40}
+	single := data.KnowledgeMatch{ChunkID: "single", Content: "蓝雀无关", Distance: 0.30}
+	scores := bm25Scores("蓝雀", []data.KnowledgeMatch{frequent, single})
+	if scores[0] <= scores[1] {
+		t.Fatalf("expected higher term frequency to score higher, got %v", scores)
+	}
+}
+
+func TestBM25ScoresRewardsRareTerms(t *testing.T) {
+	// 查询同时含常见词元「蓝雀」与罕见词元「告警」；含罕见词元的分块应高于只含常见词元的分块。
+	commonOnly := data.KnowledgeMatch{ChunkID: "common", Content: "蓝雀"}
+	rareHit := data.KnowledgeMatch{ChunkID: "rare", Content: "告警"}
+	common1 := data.KnowledgeMatch{ChunkID: "common1", Content: "蓝雀"}
+	common2 := data.KnowledgeMatch{ChunkID: "common2", Content: "蓝雀"}
+	scores := bm25Scores("蓝雀告警", []data.KnowledgeMatch{commonOnly, rareHit, common1, common2})
+	if scores[1] <= scores[0] {
+		t.Fatalf("expected rare-term hit to outrank common-term-only hit, got %v", scores)
+	}
+}
+
+func TestBM25ScoresNormalizesTopScoreToOne(t *testing.T) {
+	matches := []data.KnowledgeMatch{
+		{ChunkID: "a", Content: "蓝雀"},
+		{ChunkID: "rare", Content: "告警"},
+		{ChunkID: "b", Content: "蓝雀"},
+	}
+	scores := bm25Scores("蓝雀告警", matches)
+	if len(scores) != len(matches) {
+		t.Fatalf("expected %d scores, got %d", len(matches), len(scores))
+	}
+	if math.Abs(scores[1]-1.0) > 1e-9 {
+		t.Fatalf("expected top score to normalize to 1.0, got %v", scores)
+	}
+	for _, score := range scores {
+		if score < 0 || score > 1 {
+			t.Fatalf("expected scores in [0,1], got %v", scores)
+		}
+	}
+}
+
+func TestBM25ScoresEmptyQueryOrPool(t *testing.T) {
+	if got := bm25Scores("蓝雀", nil); got != nil {
+		t.Fatalf("expected nil for empty pool, got %v", got)
+	}
+	matches := []data.KnowledgeMatch{{ChunkID: "a", Content: "蓝雀"}, {ChunkID: "b", Content: "蓝雀"}}
+	for _, query := range []string{"", "。", "蓝"} {
+		got := bm25Scores(query, matches)
+		if len(got) != len(matches) {
+			t.Fatalf("expected %d scores for query %q, got %d", len(matches), query, len(got))
+		}
+		for _, score := range got {
+			if score != 0 {
+				t.Fatalf("expected zero scores for query %q, got %v", query, got)
 			}
-		})
+		}
 	}
 }
 
@@ -85,7 +123,7 @@ func TestRerankEmptyOrInvalidInput(t *testing.T) {
 	}
 }
 
-func TestSearchReranksByKeywordCoverage(t *testing.T) {
+func TestSearchReranksByBM25KeywordScore(t *testing.T) {
 	store := &knowledgeSearchStore{matches: []data.KnowledgeMatch{
 		{ChunkID: "semantic", Content: "完全无关的内容段落", Distance: 0.30, Ordinal: 0},
 		{ChunkID: "keyword", Content: "蓝雀告警需要先检查 API 服务。", Distance: 0.40, Ordinal: 1},
