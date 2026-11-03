@@ -21,7 +21,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
     "@ant-design/pro-components": "^3.1.14-2",
-    "@copilotkit/react-core": "^1.83.0",
+    "@copilotkit/react-core": "1.82.0",
     "antd": "^6.6.7",
     "antd-style": "^4.1.0",
     "clsx": "^2.1.1",
