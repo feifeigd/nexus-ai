@@ -87,6 +87,19 @@ func answerSupportNote(ctx context.Context, judge SupportJudge, answer string, m
 	return note, nil
 }
 
+// supportedByAnyChunk 是语义判定器未配置时的字面 bigram 启发式兜底：判断某句
+// 是否被至少一个检索分块「字面」支撑。
+//
+// 三个要素：
+//   - bigram（二元组）：句子去掉空白、标点、符号后，每相邻两个字组成一对，
+//     例如「蓝雀告警」→「蓝雀」「雀告」「告警」；跨中英文的相邻字不成对，
+//     所以「API服务」得到「AP」「PI」「服务」，不会出现「I服」。
+//   - 字面：只比对字符序列是否相同，不关心语义。某句的 bigram 有多少比例出现在
+//     某个分块的 bigram 集合里，就是它与该分块的重叠率（bigramOverlap）。
+//   - 启发式：重叠率达到 sentenceSupportThreshold（当前 0.3）即认定「有支撑」，
+//     否则在答案末尾追加人工核实告警。这是经验规则而非严谨判定：原文照抄重叠率
+//     高、判为支撑；同义改写会改变字符对、重叠率骤降，可能被误标为无支撑。
+//     这正是引入语义判定器（SupportJudge / OpenAISupportJudge）的原因。
 func supportedByAnyChunk(sentence string, matches []searchKnowledgeMatch) bool {
 	sentenceBigrams := significantBigrams(sentence)
 	if len(sentenceBigrams) == 0 {
@@ -100,6 +113,7 @@ func supportedByAnyChunk(sentence string, matches []searchKnowledgeMatch) bool {
 	return false
 }
 
+// 计算重叠率
 func bigramOverlap(sentence map[[2]rune]struct{}, content string) float64 {
 	contentBigrams := significantBigrams(content)
 	if len(contentBigrams) == 0 {
@@ -127,6 +141,7 @@ func splitSentences(s string) []string {
 	})
 }
 
+// 启发式二元组
 // significantBigrams returns the set of two-rune bigrams formed by consecutive
 // significant runes, never bridging an ASCII letter/digit with a non-ASCII
 // rune (so "API服务" yields "AP", "PI", "服务" but not "I服").
@@ -138,6 +153,8 @@ func significantBigrams(s string) map[[2]rune]struct{} {
 		}
 		runes = append(runes, r)
 	}
+	// 相邻两个字组成一个二元组；跨中英文的相邻字不成对（避免 "I服"），
+	// 因此 "API服务" 得到 "AP"、"PI"、"服务"。
 	bigrams := make(map[[2]rune]struct{})
 	for i := 0; i+1 < len(runes); i++ {
 		left, right := runes[i], runes[i+1]
