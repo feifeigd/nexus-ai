@@ -13,13 +13,19 @@ import (
 
 	"nexusai/services/api/internal/data/ent/chunk"
 	entschema "nexusai/services/api/internal/data/ent/schema"
+	"nexusai/services/api/internal/testpg"
 )
 
 func TestKnowledgeStorePostgres(t *testing.T) {
-	dsn := strings.TrimSpace(os.Getenv("NEXUS_TEST_POSTGRES_DSN"))
-	if dsn == "" {
+	baseDSN := strings.TrimSpace(os.Getenv("NEXUS_TEST_POSTGRES_DSN"))
+	if baseDSN == "" {
 		t.Skip("set NEXUS_TEST_POSTGRES_DSN to a disposable PostgreSQL database or schema")
 	}
+	dsn, dropDB, err := testpg.NewDatabase(baseDSN)
+	if err != nil {
+		t.Fatalf("create disposable postgres database: %v", err)
+	}
+	defer dropDB()
 	client, closeData, err := NewData(&Data{Database: Database{
 		Driver:      dialect.Postgres,
 		Source:      dsn,

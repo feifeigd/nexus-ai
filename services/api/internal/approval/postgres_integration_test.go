@@ -11,16 +11,22 @@ import (
 
 	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/data"
+	"nexusai/services/api/internal/testpg"
 
 	"entgo.io/ent/dialect"
 	_ "github.com/lib/pq"
 )
 
 func TestEntStorePersistsApprovalAndTicketAcrossReopen(t *testing.T) {
-	dsn := os.Getenv("NEXUS_TEST_POSTGRES_DSN")
-	if dsn == "" {
+	baseDSN := os.Getenv("NEXUS_TEST_POSTGRES_DSN")
+	if baseDSN == "" {
 		t.Skip("NEXUS_TEST_POSTGRES_DSN is not configured")
 	}
+	dsn, dropDB, err := testpg.NewDatabase(baseDSN)
+	if err != nil {
+		t.Fatalf("create disposable postgres database: %v", err)
+	}
+	defer dropDB()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
