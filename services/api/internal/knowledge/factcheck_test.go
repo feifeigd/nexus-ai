@@ -2,9 +2,16 @@ package knowledge
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 )
+
+type supportJudgeFunc func(ctx context.Context, sentences []string, chunks []string) ([]bool, error)
+
+func (f supportJudgeFunc) Judge(ctx context.Context, sentences []string, chunks []string) ([]bool, error) {
+	return f(ctx, sentences, chunks)
+}
 
 func TestSplitSentences(t *testing.T) {
 	got := splitSentences("第一句。第二句！第三句？\n第四句；第五句;第六句")
@@ -36,14 +43,21 @@ func TestSignificantBigramsBridgeNoScripts(t *testing.T) {
 
 func TestAnswerSupportNoteSupported(t *testing.T) {
 	matches := []searchKnowledgeMatch{{Content: "蓝雀告警需要先检查 API 服务状态"}}
-	if note := answerSupportNote("蓝雀告警需要先检查 API 服务状态。", matches); note != "" {
+	note, err := answerSupportNote(context.Background(), nil, "蓝雀告警需要先检查 API 服务状态。", matches)
+	if err != nil {
+		t.Fatalf("answer support note: %v", err)
+	}
+	if note != "" {
 		t.Fatalf("expected supported answer to produce no note, got %q", note)
 	}
 }
 
 func TestAnswerSupportNoteFlagsUnsupported(t *testing.T) {
 	matches := []searchKnowledgeMatch{{Content: "蓝雀告警需要先检查 API 服务状态"}}
-	note := answerSupportNote("数据库迁移需要停机维护窗口。", matches)
+	note, err := answerSupportNote(context.Background(), nil, "数据库迁移需要停机维护窗口。", matches)
+	if err != nil {
+		t.Fatalf("answer support note: %v", err)
+	}
 	if !strings.Contains(note, "数据库迁移") {
 		t.Fatalf("expected note to list the unsupported sentence, got %q", note)
 	}
@@ -51,7 +65,11 @@ func TestAnswerSupportNoteFlagsUnsupported(t *testing.T) {
 
 func TestAnswerSupportNoteSkipsShortSentences(t *testing.T) {
 	matches := []searchKnowledgeMatch{{Content: "蓝雀告警需要先检查 API 服务状态"}}
-	if note := answerSupportNote("好的。综上所述。", matches); note != "" {
+	note, err := answerSupportNote(context.Background(), nil, "好的。综上所述。", matches)
+	if err != nil {
+		t.Fatalf("answer support note: %v", err)
+	}
+	if note != "" {
 		t.Fatalf("expected short sentences to be skipped, got %q", note)
 	}
 }
@@ -59,7 +77,11 @@ func TestAnswerSupportNoteSkipsShortSentences(t *testing.T) {
 func TestAnswerSupportNoteSkipsCitationOnlySentences(t *testing.T) {
 	valid := "document_" + strings.Repeat("a", 32)
 	matches := []searchKnowledgeMatch{{DocumentID: valid, Content: "蓝雀告警需要先检查 API 服务状态"}}
-	if note := answerSupportNote("根据 "+valid+" 处理。", matches); note != "" {
+	note, err := answerSupportNote(context.Background(), nil, "根据 "+valid+" 处理。", matches)
+	if err != nil {
+		t.Fatalf("answer support note: %v", err)
+	}
+	if note != "" {
 		t.Fatalf("expected citation-only sentence to be skipped, got %q", note)
 	}
 }
@@ -67,7 +89,10 @@ func TestAnswerSupportNoteSkipsCitationOnlySentences(t *testing.T) {
 func TestAnswerSupportNoteStripsDocumentIDAndChecksContent(t *testing.T) {
 	valid := "document_" + strings.Repeat("a", 32)
 	matches := []searchKnowledgeMatch{{DocumentID: valid, Content: "蓝雀告警需要先检查 API 服务状态"}}
-	note := answerSupportNote("根据 "+valid+"，数据库迁移需要停机维护窗口。", matches)
+	note, err := answerSupportNote(context.Background(), nil, "根据 "+valid+"，数据库迁移需要停机维护窗口。", matches)
+	if err != nil {
+		t.Fatalf("answer support note: %v", err)
+	}
 	if !strings.Contains(note, "数据库迁移") {
 		t.Fatalf("expected content after the document ID to be checked, got %q", note)
 	}
@@ -76,7 +101,10 @@ func TestAnswerSupportNoteStripsDocumentIDAndChecksContent(t *testing.T) {
 func TestAnswerSupportNoteTruncatesLongList(t *testing.T) {
 	matches := []searchKnowledgeMatch{{Content: "蓝雀告警需要先检查 API 服务状态"}}
 	answer := "数据库迁移需要停机维护窗口。容器编排使用声明式配置。缓存策略采用淘汰算法。消息队列保证可靠投递。"
-	note := answerSupportNote(answer, matches)
+	note, err := answerSupportNote(context.Background(), nil, answer, matches)
+	if err != nil {
+		t.Fatalf("answer support note: %v", err)
+	}
 	for _, want := range []string{"数据库迁移", "容器编排", "缓存策略", "……"} {
 		if !strings.Contains(note, want) {
 			t.Fatalf("expected note to contain %q, got %q", want, note)
@@ -88,8 +116,50 @@ func TestAnswerSupportNoteTruncatesLongList(t *testing.T) {
 }
 
 func TestAnswerSupportNoteEmptyMatches(t *testing.T) {
-	if note := answerSupportNote("数据库迁移需要停机维护窗口。", nil); note != "" {
+	note, err := answerSupportNote(context.Background(), nil, "数据库迁移需要停机维护窗口。", nil)
+	if err != nil {
+		t.Fatalf("answer support note: %v", err)
+	}
+	if note != "" {
 		t.Fatalf("expected empty matches to skip support checking, got %q", note)
+	}
+}
+
+func TestAnswerSupportNoteUsesJudgeVerdicts(t *testing.T) {
+	matches := []searchKnowledgeMatch{{Content: "蓝雀告警需要先检查 API 服务状态"}}
+	judge := supportJudgeFunc(func(_ context.Context, sentences []string, _ []string) ([]bool, error) {
+		return []bool{true}, nil // 语义改写后仍判定有支撑
+	})
+	note, err := answerSupportNote(context.Background(), judge, "数据库迁移需要停机维护窗口。", matches)
+	if err != nil {
+		t.Fatalf("answer support note: %v", err)
+	}
+	if note != "" {
+		t.Fatalf("expected the judge to clear the lexical mismatch, got %q", note)
+	}
+}
+
+func TestAnswerSupportNoteFlagsJudgeUnsupported(t *testing.T) {
+	matches := []searchKnowledgeMatch{{Content: "蓝雀告警需要先检查 API 服务状态"}}
+	judge := supportJudgeFunc(func(_ context.Context, sentences []string, _ []string) ([]bool, error) {
+		return []bool{false}, nil
+	})
+	note, err := answerSupportNote(context.Background(), judge, "蓝雀告警需要先检查 API 服务状态。", matches)
+	if err != nil {
+		t.Fatalf("answer support note: %v", err)
+	}
+	if !strings.Contains(note, "蓝雀告警") {
+		t.Fatalf("expected the unsupported sentence to be reported, got %q", note)
+	}
+}
+
+func TestAnswerSupportNotePropagatesJudgeError(t *testing.T) {
+	matches := []searchKnowledgeMatch{{Content: "蓝雀告警需要先检查 API 服务状态"}}
+	judge := supportJudgeFunc(func(context.Context, []string, []string) ([]bool, error) {
+		return nil, errors.New("judge unavailable")
+	})
+	if _, err := answerSupportNote(context.Background(), judge, "蓝雀告警需要先检查 API 服务状态。", matches); err == nil {
+		t.Fatal("expected judge error to propagate")
 	}
 }
 
@@ -98,7 +168,7 @@ func TestValidateSearchAnswerCombinesCitationAndSupport(t *testing.T) {
 	fabricated := "document_" + strings.Repeat("f", 32)
 	toolResult := `{"matches":[{"documentId":"` + valid + `","content":"蓝雀告警需要先检查 API 服务状态"}]}`
 	answer := "根据 " + fabricated + "，数据库迁移需要停机维护窗口。"
-	note, err := validateSearchAnswer(context.Background(), answer, toolResult)
+	note, err := validateSearchAnswer(context.Background(), nil, answer, toolResult)
 	if err != nil {
 		t.Fatalf("validate answer: %v", err)
 	}

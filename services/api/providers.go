@@ -49,5 +49,12 @@ func newKnowledgeService(c agent.Config, store *data.KnowledgeStore) (svc.Knowle
 	if err != nil {
 		return nil, fmt.Errorf("configure knowledge service: %w", err)
 	}
+	if c.SemanticFactCheck {
+		judge, err := agent.NewOpenAISupportJudge(c.OpenAI, nil)
+		if err != nil {
+			return nil, fmt.Errorf("configure knowledge support judge: %w", err)
+		}
+		service.SetSupportJudge(judge)
+	}
 	return service, nil
 }

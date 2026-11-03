@@ -32,9 +32,16 @@ type Store interface {
 	SearchSimilar(ctx context.Context, embedding pgvector.Vector, limit int) ([]data.KnowledgeMatch, error)
 }
 
+// SupportJudge 判断每个候选句子是否被至少一个知识分块支撑。它用语义判定
+// （NLI/LLM）补充或替代字面 bigram 重叠启发式；未设置时回退到字面启发式。
+type SupportJudge interface {
+	Judge(ctx context.Context, sentences []string, chunks []string) ([]bool, error)
+}
+
 type Service struct {
 	embedder     Embedder
 	store        Store
+	judge        SupportJudge
 	chunkSize    int
 	chunkOverlap int
 }
@@ -56,6 +63,11 @@ func NewService(embedder Embedder, store Store, chunkSize, chunkOverlap int) (*S
 		return nil, fmt.Errorf("chunk size must be positive and overlap must be smaller than chunk size")
 	}
 	return &Service{embedder: embedder, store: store, chunkSize: chunkSize, chunkOverlap: chunkOverlap}, nil
+}
+
+// SetSupportJudge 为答案事实核验启用语义判定器；未设置时沿用字面重叠启发式。
+func (s *Service) SetSupportJudge(judge SupportJudge) {
+	s.judge = judge
 }
 
 func (s *Service) IngestDocument(ctx context.Context, title, content string) (string, error) {

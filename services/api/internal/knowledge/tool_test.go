@@ -210,7 +210,7 @@ func TestValidateSearchAnswer(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			note, err := validateSearchAnswer(context.Background(), test.answer, test.toolResult)
+			note, err := validateSearchAnswer(context.Background(), nil, test.answer, test.toolResult)
 			if test.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got note %q", note)

@@ -217,6 +217,7 @@ func setWireTestEnv(t *testing.T) {
 	t.Setenv("NEXUS_OPENAI_EMBEDDING_BASE_URL", "")
 	t.Setenv("NEXUS_OPENAI_EMBEDDING_API_KEY", "")
 	t.Setenv("NEXUS_OPENAI_EMBEDDING_MODEL", "")
+	t.Setenv("NEXUS_KNOWLEDGE_SEMANTIC_CHECK", "")
 }
 
 func wireTestConfig(name string) config.Config {

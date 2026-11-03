@@ -57,11 +57,13 @@ type searchKnowledgeMatch struct {
 
 func (s *Service) Tool() agent.Tool {
 	return agent.Tool{
-		Name:           searchKnowledgeToolName,
-		Description:    "检索企业知识库中最相关的文档分块。回答知识问题时使用；只能依据返回内容作答并标注 documentId，没有匹配结果时明确说明未找到。",
-		Parameters:     searchKnowledgeParameters,
-		Execute:        s.executeSearch,
-		ValidateAnswer: validateSearchAnswer,
+		Name:        searchKnowledgeToolName,
+		Description: "检索企业知识库中最相关的文档分块。回答知识问题时使用；只能依据返回内容作答并标注 documentId，没有匹配结果时明确说明未找到。",
+		Parameters:  searchKnowledgeParameters,
+		Execute:     s.executeSearch,
+		ValidateAnswer: func(ctx context.Context, answer, toolResult string) (string, error) {
+			return validateSearchAnswer(ctx, s.judge, answer, toolResult)
+		},
 	}
 }
 
@@ -93,9 +95,10 @@ func (s *Service) executeSearch(ctx context.Context, proposal agent.ToolProposal
 
 // validateSearchAnswer checks the follow-up answer produced after this
 // retrieval: it validates cited document IDs and sentence-level source
-// support. It returns a non-empty note describing detected problems, or an
-// empty string when the answer is clean.
-func validateSearchAnswer(_ context.Context, answer, toolResult string) (string, error) {
+// support. Support uses the semantic judge when configured, else the lexical
+// bigram heuristic. It returns a non-empty note describing detected problems,
+// or an empty string when the answer is clean.
+func validateSearchAnswer(ctx context.Context, judge SupportJudge, answer, toolResult string) (string, error) {
 	var result searchKnowledgeResult
 	if err := json.Unmarshal([]byte(toolResult), &result); err != nil {
 		return "", fmt.Errorf("decode search_knowledge result for answer validation: %w", err)
@@ -104,7 +107,11 @@ func validateSearchAnswer(_ context.Context, answer, toolResult string) (string,
 	if note := citationValidationNote(answer, result.Matches); note != "" {
 		notes = append(notes, note)
 	}
-	if note := answerSupportNote(answer, result.Matches); note != "" {
+	note, err := answerSupportNote(ctx, judge, answer, result.Matches)
+	if err != nil {
+		return "", err
+	}
+	if note != "" {
 		notes = append(notes, note)
 	}
 	return strings.Join(notes, "\n"), nil

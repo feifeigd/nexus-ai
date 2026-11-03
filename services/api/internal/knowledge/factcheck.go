@@ -1,6 +1,8 @@
 package knowledge
 
 import (
+	"context"
+	"fmt"
 	"strings"
 	"unicode"
 )
@@ -21,41 +23,68 @@ const (
 )
 
 // answerSupportNote splits the answer into sentences and checks each against
-// the retrieved chunks for lexical support, returning a note listing sentences
-// whose wording has low overlap with the sources. It returns "" when every
-// judged sentence is sufficiently supported.
-//
-// This is a lexical heuristic, not semantic fact verification: a sentence that
-// paraphrases the source with different wording may still be flagged, so the
-// note asks for manual review rather than asserting fabrication.
-func answerSupportNote(answer string, matches []searchKnowledgeMatch) string {
+// the retrieved chunks for source support, returning a note listing sentences
+// that are not sufficiently supported. When judge is set it defers to the
+// semantic (NLI/LLM) verdicts; otherwise it falls back to the lexical bigram
+// overlap heuristic. It returns "" when every judged sentence is supported.
+func answerSupportNote(ctx context.Context, judge SupportJudge, answer string, matches []searchKnowledgeMatch) (string, error) {
 	if len(matches) == 0 {
-		return "" // nothing to compare against
+		return "", nil // nothing to compare against
 	}
-	unsupported := make([]string, 0, maxUnsupportedSentences)
+	sentences := make([]string, 0)
+	cleaned := make([]string, 0)
 	for _, sentence := range splitSentences(answer) {
-		cleaned := searchKnowledgeDocumentIDPattern.ReplaceAllString(sentence, "")
-		if len(significantRunes(cleaned)) < minSentenceRunes {
+		stripped := searchKnowledgeDocumentIDPattern.ReplaceAllString(sentence, "")
+		if len(significantRunes(stripped)) < minSentenceRunes {
 			continue
 		}
-		if supportedByAnyChunk(cleaned, matches) {
+		sentences = append(sentences, sentence)
+		cleaned = append(cleaned, stripped)
+	}
+	if len(sentences) == 0 {
+		return "", nil
+	}
+
+	supported := make([]bool, len(sentences))
+	if judge != nil {
+		chunks := make([]string, len(matches))
+		for i, match := range matches {
+			chunks[i] = match.Content
+		}
+		verdicts, err := judge.Judge(ctx, cleaned, chunks)
+		if err != nil {
+			return "", err
+		}
+		if len(verdicts) != len(sentences) {
+			return "", fmt.Errorf("support judge returned %d verdicts for %d sentences", len(verdicts), len(sentences))
+		}
+		supported = verdicts
+	} else {
+		for i, stripped := range cleaned {
+			supported[i] = supportedByAnyChunk(stripped, matches)
+		}
+	}
+
+	unsupported := make([]string, 0, maxUnsupportedSentences)
+	for i, ok := range supported {
+		if ok {
 			continue
 		}
-		unsupported = append(unsupported, strings.TrimSpace(sentence))
+		unsupported = append(unsupported, strings.TrimSpace(sentences[i]))
 	}
 	if len(unsupported) == 0 {
-		return ""
+		return "", nil
 	}
 	// 截断了
 	truncated := len(unsupported) > maxUnsupportedSentences
 	if truncated {
 		unsupported = unsupported[:maxUnsupportedSentences]
 	}
-	note := "以下回答与本次检索结果的字面重叠较低，建议人工核实：" + strings.Join(unsupported, "；")
+	note := "以下回答未能被本次检索结果充分支撑，建议人工核实：" + strings.Join(unsupported, "；")
 	if truncated {
 		note += "；……"
 	}
-	return note
+	return note, nil
 }
 
 func supportedByAnyChunk(sentence string, matches []searchKnowledgeMatch) bool {
