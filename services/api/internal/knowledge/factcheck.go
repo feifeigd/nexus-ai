@@ -38,6 +38,9 @@ func answerSupportNote(ctx context.Context, judge SupportJudge, answer string, m
 		if len(significantRunes(stripped)) < minSentenceRunes {
 			continue
 		}
+		if isOrganizationalSentence(stripped) {
+			continue
+		}
 		sentences = append(sentences, sentence)
 		cleaned = append(cleaned, stripped)
 	}
@@ -158,6 +161,22 @@ func splitSentences(s string) []string {
 		}
 		return false
 	})
+}
+
+// isOrganizationalSentence reports whether a sentence is organizational
+// language — a markdown heading or a colon-ended lead-in such as
+// “它可以分两种情况处理：” — rather than a knowledge claim worth fact-checking.
+// Such sentences are not source-backed by design, so flagging them only adds
+// noise to the answer-validation note.
+func isOrganizationalSentence(s string) bool {
+	trimmed := strings.TrimSpace(s)
+	if strings.HasPrefix(trimmed, "#") {
+		return true // markdown 标题
+	}
+	if strings.HasSuffix(trimmed, "：") || strings.HasSuffix(trimmed, ":") {
+		return true // 引导/连接语
+	}
+	return false
 }
 
 // 启发式二元组

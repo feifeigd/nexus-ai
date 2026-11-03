@@ -182,6 +182,22 @@ func TestAnswerSupportNoteSkipsJudgeForLiteralMatches(t *testing.T) {
 	}
 }
 
+func TestAnswerSupportNoteSkipsOrganizationalSentences(t *testing.T) {
+	matches := []searchKnowledgeMatch{{Content: "缓存雪崩指大量缓存键在同一时刻过期。"}}
+	judge := supportJudgeFunc(func(_ context.Context, sentences []string, _ []string) ([]bool, error) {
+		out := make([]bool, len(sentences)) // 全部判无支撑：若组织性句子未过滤会暴露出来
+		return out, nil
+	})
+	answer := "缓存雪崩指大量缓存键在同一时刻过期。它可以分两种情况处理：\n### 三、配套监控与告警"
+	note, err := answerSupportNote(context.Background(), judge, answer, matches)
+	if err != nil {
+		t.Fatalf("answer support note: %v", err)
+	}
+	if note != "" {
+		t.Fatalf("expected organizational sentences to be skipped, got %q", note)
+	}
+}
+
 func TestValidateSearchAnswerCombinesCitationAndSupport(t *testing.T) {
 	valid := "document_" + strings.Repeat("a", 32)
 	fabricated := "document_" + strings.Repeat("f", 32)
