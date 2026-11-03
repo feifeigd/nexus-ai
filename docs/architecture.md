@@ -194,6 +194,7 @@ flowchart TB
 ### 4.5 数据与密钥
 
 - PostgreSQL 保存业务数据，pgvector 提供知识检索；Redis 规划用于缓存，但尚未接入业务链路。
+- PostgreSQL + pgvector 的真实检索链路（余弦召回、阈值过滤、重排序与答案校验）由 `NEXUS_TEST_POSTGRES_DSN` 门控的集成测试覆盖，`internal/testpg` 为每个用例创建独立临时数据库，无 DSN 时自动跳过。
 - 模型密钥只注入 go-zero 运行环境，不下发到浏览器或写入仓库。
 - 多租户数据访问必须由后端统一约束，不能仅依赖前端传入的租户标识。
 

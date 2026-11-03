@@ -291,6 +291,7 @@ pgvector 的 `<=>` 具体实现为两个 L2 归一化向量的内积取补，即
 | `search_knowledge` 工具定义与结果封装 | `services/api/internal/knowledge/tool.go` |
 | 检索重排序与关键词覆盖率 | `services/api/internal/knowledge/rerank.go` |
 | 答案逐句字面支撑校验 | `services/api/internal/knowledge/factcheck.go` |
+| PostgreSQL + pgvector 实库集成测试 | `services/api/internal/knowledge/postgres_integration_test.go`、`services/api/internal/testpg/` |
 | 向量持久化与 pgvector 查询 | `services/api/internal/data/knowledge_store.go` |
 | 文档与分块事务写入 | `services/api/internal/data/knowledge_ingest.go` |
 | 文档及分块 Schema | `services/api/internal/data/ent/schema/document.go`、`chunk.go` |

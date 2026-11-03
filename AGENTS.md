@@ -50,7 +50,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 当前分支：`main`。
 
-截至 2026-11-03，第 1 至 27 步均已完成、合并到 `main` 并推送到 `origin/main`。第 22 步合并提交为 `a44ad27`，第 23 步合并提交为 `4a39302`（含 `c6c4710` 可折叠检索结果卡片），第 24 步为 `f002171`（检索距离阈值），第 25 步为 `22d9a69`（答案级引用校验），第 26 步为 `0c5568f`（检索重排序），第 27 步为 `bc307ef`（答案级事实核验），另有 `a8efcef` 强制 LF 换行配置；本地与远端 `main` 已同步。此后依赖升级到 CopilotKit `1.83.0`（仍锁 `@ag-ui/*` 为 `1.0.2`），dependabot 新增 `@ag-ui/*` ignore 规则，CI 在 Go 测试前新增 `pnpm generate:wire`；相关特性分支已随合并清理。存在未跟踪的 `services/api/__debug_bin.exe*` 调试文件，不要提交。
+截至 2026-11-03，第 1 至 28 步均已完成、合并到 `main` 并推送到 `origin/main`。第 22 步合并提交为 `a44ad27`，第 23 步合并提交为 `4a39302`（含 `c6c4710` 可折叠检索结果卡片），第 24 步为 `f002171`（检索距离阈值），第 25 步为 `22d9a69`（答案级引用校验），第 26 步为 `0c5568f`（检索重排序），第 27 步为 `bc307ef`（答案级事实核验），第 28 步为 `806c5e2`（PostgreSQL + pgvector 实库集成测试），另有 `a8efcef` 强制 LF 换行配置；本地与远端 `main` 已同步。此后依赖升级到 CopilotKit `1.83.0`（仍锁 `@ag-ui/*` 为 `1.0.2`），dependabot 新增 `@ag-ui/*` ignore 规则，CI 在 Go 测试前新增 `pnpm generate:wire`；相关特性分支已随合并清理。存在未跟踪的 `services/api/__debug_bin.exe*` 调试文件，不要提交。
 
 ### 当前已具备能力
 
@@ -71,6 +71,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 - `data.NewData` 是进程唯一的数据库连接所有者，统一负责驱动校验、连接池、Ping、迁移、日志和关闭；Store 必须复用其 Ent Client，不得单独打开或关闭数据库。
 - 默认 `services/api/etc/nexus-api.yaml` 使用 SQLite 共享内存 DSN，服务重启后数据清空；设置 `NEXUS_POSTGRES_DSN` 后统一切换到 PostgreSQL。
+- 真实 PostgreSQL + pgvector 集成测试由 `NEXUS_TEST_POSTGRES_DSN` 门控（未设置则跳过）；每个用例通过 `internal/testpg` 创建独立临时数据库，避免共享库下的检索串扰。
 - 已移除 `MemoryStore`，内存开发和测试也通过 SQLite DSN，不再维护另一套内存业务实现。
 - SQLite 使用纯 Go `modernc.org/sqlite`，配置中的 Ent dialect 为 `sqlite3`；PostgreSQL 使用版本化 SQL 迁移，SQLite AutoMigrate 使用 Ent `Schema.Create`。
 - PostgreSQL 审批与状态更新使用事务和 `FOR UPDATE`；SQLite 跳过 `FOR UPDATE`，方言差异只保留在 EntStore 的锁定查询方法中。
@@ -88,9 +89,10 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 第 25 步答案级引用校验增量已执行并通过 `go test ./...`、`go vet ./...`、gofmt 与 `git diff HEAD --check`；新增 `TestValidateSearchAnswer`（6 项）、`TestOpenAIRunnerAppendsAnswerValidationNote` 与 `TestOpenAIRunnerRejectsAnswerValidationWithoutExecute`。校验通过 `Tool.ValidateAnswer` 钩子实现，知识域逻辑留在 `knowledge` 包，`agent` 包不反向依赖。未执行真实模型浏览器验收，不能标记为已通过。
 - 第 26 步检索重排序增量已执行并通过 `go test ./...`、`go vet ./...`、gofmt 与 `git diff HEAD --check`；新增 `rerank.go` 规则重排序（`SearchRecallFactor=4` 放大召回 + 关键词覆盖率加权）与 7 项测试（含 `TestRerankPromotesKeywordMatch`、`TestSearchReranksByKeywordCoverage`）。重排序为纯规则实现，未引入交叉编码器等外部依赖。未执行真实模型浏览器验收，不能标记为已通过。
 - 第 27 步答案级事实核验增量已执行并通过 `go test ./...`、`go vet ./...`、gofmt 与 `git diff HEAD --check`；新增 `factcheck.go` 逐句字面支撑校验（bigram 重叠启发式）与 10 项测试。校验为字面重叠启发式而非语义事实核验，未引入 NLI/LLM 判定。未执行真实模型浏览器验收，不能标记为已通过。
+- 第 28 步 PostgreSQL + pgvector 实库集成测试已执行并通过：用 Docker Compose 起 pg17+pgvector 真实库，`go test ./... -count=1` 全绿，三个 DSN 门控测试（`TestSearchPipelineAgainstPostgres`、`TestKnowledgeStorePostgres`、`TestEntStorePersistsApprovalAndTicketAcrossReopen`）真正运行并通过。新增 `internal/testpg` 为每个用例创建独立临时数据库，解决跨包共享库的检索串扰。未执行真实嵌入模型与真实供应商浏览器回归，不能标记为已通过。
 - 第 23 步未执行真实浏览器检索验收，不能标记为已通过。
 - 第 22 步未执行真实浏览器删除验收，不能标记为已通过。
-- 当前没有配置真实 PostgreSQL DSN 执行自动化集成测试，不能声称 PostgreSQL + pgvector 实库验证通过。
+- PostgreSQL + pgvector 实库的余弦检索、距离阈值过滤、重排序与答案校验已通过 Docker Compose 真实库集成测试验证；真实嵌入模型语义检索与真实供应商浏览器回归仍未执行，不能标记为已通过。
 - 未执行完整的真实供应商 Web 与 Admin 浏览器回归，单次手工模型回答不能替代检索事件、引用内容和多页面闭环验收。
 - 真实后台认证、租户隔离、生产级授权与审计仍未接入；知识检索目前缺少语义级事实核验（当前逐句校验为字面重叠启发式，缺少 NLI/LLM 判定）。
 
@@ -105,4 +107,4 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 下一步
 
-第 28 步建议补做真实 PostgreSQL + pgvector 实库验证：用 Docker Compose 起真实库，跑自动化集成测试验证 HNSW 余弦检索、距离阈值过滤、重排序与逐句校验端到端。后续可再评估交叉编码器重排序和语义级事实核验（NLI/LLM 判定）。真实供应商浏览器回归应在具备环境后补做。
+第 29 步建议评估语义级事实核验：引入 NLI/LLM 判定替代或补充当前逐句字面重叠启发式（需权衡额外模型调用成本与延迟）。后续可再评估交叉编码器重排序与关键词-向量混合检索；真实供应商浏览器回归、真实后台认证/租户隔离/审计应在具备环境后补做。
