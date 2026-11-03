@@ -50,7 +50,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 当前分支：`main`。
 
-截至 2026-11-03，第 1 至 29 步均已完成、合并到 `main` 并推送到 `origin/main`。第 22 步合并提交为 `a44ad27`，第 23 步合并提交为 `4a39302`（含 `c6c4710` 可折叠检索结果卡片），第 24 步为 `f002171`（检索距离阈值），第 25 步为 `22d9a69`（答案级引用校验），第 26 步为 `0c5568f`（检索重排序），第 27 步为 `bc307ef`（答案级事实核验），第 28 步为 `806c5e2`（PostgreSQL + pgvector 实库集成测试），第 29 步为 `feeab12`（语义级事实核验），另有 `a8efcef` 强制 LF 换行配置；本地与远端 `main` 已同步。此后依赖升级到 CopilotKit `1.83.0`（仍锁 `@ag-ui/*` 为 `1.0.2`），dependabot 新增 `@ag-ui/*` ignore 规则，CI 在 Go 测试前新增 `pnpm generate:wire`；相关特性分支已随合并清理。存在未跟踪的 `services/api/__debug_bin.exe*` 调试文件，不要提交。
+截至 2026-11-03，第 1 至 30 步均已完成、合并到 `main` 并推送到 `origin/main`。第 22 步合并提交为 `a44ad27`，第 23 步合并提交为 `4a39302`（含 `c6c4710` 可折叠检索结果卡片），第 24 步为 `f002171`（检索距离阈值），第 25 步为 `22d9a69`（答案级引用校验），第 26 步为 `0c5568f`（检索重排序），第 27 步为 `bc307ef`（答案级事实核验），第 28 步为 `806c5e2`（PostgreSQL + pgvector 实库集成测试），第 29 步为 `feeab12`（语义级事实核验），第 30 步为 `4f05e85`（BM25 关键词打分融合），另有 `a8efcef` 强制 LF 换行配置；本地与远端 `main` 已同步。此后依赖升级到 CopilotKit `1.83.0`（仍锁 `@ag-ui/*` 为 `1.0.2`），dependabot 新增 `@ag-ui/*` ignore 规则，CI 在 Go 测试前新增 `pnpm generate:wire`；相关特性分支已随合并清理。存在未跟踪的 `services/api/__debug_bin.exe*` 调试文件，不要提交。
 
 ### 当前已具备能力
 
@@ -59,7 +59,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - go-zero 提供服务端白名单 `create_ticket` 工具提议、审批列表、批准和拒绝接口；批准后才创建工单，重复决策返回冲突。
 - Admin 提供 AI 聊天、工具审批和工单页面；工单状态按 `open → in_progress → resolved` 顺序流转，不支持删除、跳级或重新打开。
 - 知识库支持纯文本文档导入、Unicode 安全分块、1536 维向量生成、文档与分块事务写入，以及文档列表、详情和删除；删除文档时通过外键级联删除分块。
-- Agent 已注册只读 `search_knowledge` 工具：第一次模型请求决定检索，go-zero 生成查询向量并通过 pgvector 按余弦距离检索、过滤超过 `0.5` 阈值的低相关分块、再按关键词覆盖率加权重排序，第二次模型请求依据工具结果生成流式回答；go-zero 还会校验回答中的 `documentId` 引用是否来自本次检索结果，并按字面重叠对回答逐句做来源支撑校验，开启 `NEXUS_KNOWLEDGE_SEMANTIC_CHECK` 时改用 NLI/LLM 语义判定（单次非流式批量请求），未开启时回退到字面 bigram 启发式，不可验证或无支撑时在答案末尾追加告警并写结构化日志。该工具不需要人工审批。
+- Agent 已注册只读 `search_knowledge` 工具：第一次模型请求决定检索，go-zero 生成查询向量并通过 pgvector 按余弦距离检索、过滤超过 `0.5` 阈值的低相关分块、再按 BM25 关键词分数（bigram 词元 + 候选池内局部 IDF）加权重排序，第二次模型请求依据工具结果生成流式回答；go-zero 还会校验回答中的 `documentId` 引用是否来自本次检索结果，并按字面重叠对回答逐句做来源支撑校验，开启 `NEXUS_KNOWLEDGE_SEMANTIC_CHECK` 时改用 NLI/LLM 语义判定（单次非流式批量请求），未开启时回退到字面 bigram 启发式，不可验证或无支撑时在答案末尾追加告警并写结构化日志。该工具不需要人工审批。
 - Admin 为 `search_knowledge` 提供专用检索结果卡片，展示命中文档 ID、分块序号、正文与余弦距离，并与模型最终回答分离；解析、空结果与异常结果均有前端测试覆盖。
 - 对话与嵌入模型可分别配置 OpenAI 兼容提供商、地址、密钥和模型；密钥只注入 go-zero，不下发到 Runtime 或浏览器。
 - `.api` 契约可生成真实 OpenAPI JSON，并通过 `@umijs/max-plugin-openapi` 生成 Admin TypeScript Service；生成文件按 `.gitignore` 规则不纳入 Git，不手动修改。
@@ -91,6 +91,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 第 27 步答案级事实核验增量已执行并通过 `go test ./...`、`go vet ./...`、gofmt 与 `git diff HEAD --check`；新增 `factcheck.go` 逐句字面支撑校验（bigram 重叠启发式）与 10 项测试。校验为字面重叠启发式而非语义事实核验，未引入 NLI/LLM 判定。未执行真实模型浏览器验收，不能标记为已通过。
 - 第 28 步 PostgreSQL + pgvector 实库集成测试已执行并通过：用 Docker Compose 起 pg17+pgvector 真实库，`go test ./... -count=1` 全绿，三个 DSN 门控测试（`TestSearchPipelineAgainstPostgres`、`TestKnowledgeStorePostgres`、`TestEntStorePersistsApprovalAndTicketAcrossReopen`）真正运行并通过。新增 `internal/testpg` 为每个用例创建独立临时数据库，解决跨包共享库的检索串扰。未执行真实嵌入模型与真实供应商浏览器回归，不能标记为已通过。
 - 第 29 步语义级事实核验增量已执行并通过 `go test ./...`、`go vet ./...` 与 gofmt；新增 `support_judge.go`（`OpenAISupportJudge` 单次非流式批量判定）与 5 项测试，`factcheck_test.go` 新增 3 项 judge 覆盖测试。语义判定由 `knowledge.SupportJudge` 接口定义、`agent` 实现、`providers` 在 `NEXUS_KNOWLEDGE_SEMANTIC_CHECK` 开启时接线，默认关闭以控制额外模型调用成本与延迟；未开启时回退到字面 bigram 启发式。判定只经假服务（httptest）验证，未对真实供应商验证语义判定质量，不能标记为已通过。
+- 第 30 步 BM25 关键词打分融合增量已执行并通过 `go test ./...`、`go vet ./...` 与 gofmt；用 BM25（bigram 词元、候选池内局部 IDF、长度归一化，`k1=1.2`、`b=0.75`）替换第 26 步的关键词覆盖率，归一化到 `[0,1]` 后与余弦距离融合，新增 4 项 BM25 测试（词频、IDF 罕见词、归一化、空查询/空池）并重命名集成测试。概念说明见 `docs/bm25.md`。未重跑真实 pgvector 集成测试（DSN 门控），不能标记为已通过。
 - 第 23 步未执行真实浏览器检索验收，不能标记为已通过。
 - 第 22 步未执行真实浏览器删除验收，不能标记为已通过。
 - PostgreSQL + pgvector 实库的余弦检索、距离阈值过滤、重排序与答案校验已通过 Docker Compose 真实库集成测试验证；真实嵌入模型语义检索与真实供应商浏览器回归仍未执行，不能标记为已通过。
@@ -108,4 +109,4 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 下一步
 
-第 30 步建议评估交叉编码器重排序或关键词-向量混合检索（如 BM25 融合），并对第 29 步语义级事实核验补做真实供应商回归（判定质量、额外延迟与成本）。真实供应商浏览器回归、真实后台认证/租户隔离/审计应在具备环境后补做。
+第 31 步建议评估交叉编码器重排序（引入外部交叉编码器模型需权衡成本与延迟），并对第 30 步 BM25 融合与第 29 步语义级事实核验补做真实供应商回归（判定质量、额外延迟与成本）。真实供应商浏览器回归、真实后台认证/租户隔离/审计应在具备环境后补做。
