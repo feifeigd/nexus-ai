@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"nexusai/services/api/internal/agent"
+	"nexusai/services/api/internal/data"
 	"nexusai/services/api/internal/types"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -15,7 +16,7 @@ import (
 
 const maxAGUIRequestSize = 1 << 20
 
-func AGUIHandler(runner agent.Runner) http.HandlerFunc {
+func AGUIHandler(runner agent.Runner, tokenUsage *data.TokenUsageStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var input types.AGUIRunInput
 		body := http.MaxBytesReader(w, r.Body, maxAGUIRequestSize)
@@ -58,6 +59,7 @@ func AGUIHandler(runner agent.Runner) http.HandlerFunc {
 			if !started {
 				http.Error(w, "agent returned an empty run", http.StatusBadGateway)
 			}
+			recordTokenUsage(r, runner, input, tokenUsage)
 			return
 		}
 		if r.Context().Err() != nil {
@@ -91,4 +93,35 @@ func writeAGUIEvent(w io.Writer, event types.AGUIEvent) error {
 	}
 	_, err = fmt.Fprintf(w, "data: %s\n\n", payload)
 	return err
+}
+
+// recordTokenUsage 在对话成功后，若 runner 报告了 token 消耗，则按 thread/run 持久化。
+// 记录失败只记日志，不影响对话响应。
+func recordTokenUsage(r *http.Request, runner agent.Runner, input types.AGUIRunInput, tokenUsage *data.TokenUsageStore) {
+	if tokenUsage == nil {
+		return
+	}
+	reporter, ok := runner.(interface{ Usage() agent.Usage })
+	if !ok {
+		return
+	}
+	usage := reporter.Usage()
+	if usage.TotalTokens <= 0 {
+		return
+	}
+	record := data.TokenUsageRecord{
+		ThreadID:         input.ThreadID,
+		RunID:            input.RunID,
+		PromptTokens:     usage.PromptTokens,
+		CompletionTokens: usage.CompletionTokens,
+		TotalTokens:      usage.TotalTokens,
+	}
+	if err := tokenUsage.Create(r.Context(), record); err != nil {
+		logx.WithContext(r.Context()).Errorw(
+			"record token usage",
+			logx.Field("threadId", input.ThreadID),
+			logx.Field("runId", input.RunID),
+			logx.Field("error", err),
+		)
+	}
 }

@@ -33,7 +33,7 @@ func TestIngestDocumentHandler(t *testing.T) {
 			title, content = gotTitle, gotContent
 			return "document-1", nil
 		})
-		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, service, nil)
+		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, service, nil, nil)
 		request := httptest.NewRequest(http.MethodPost, "/knowledge/documents", strings.NewReader(`{"title":"运维手册","content":"故障排查"}`))
 		request.Header.Set("Content-Type", "application/json")
 		response := httptest.NewRecorder()
@@ -53,7 +53,7 @@ func TestIngestDocumentHandler(t *testing.T) {
 		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, knowledgeServiceFunc(func(context.Context, string, string) (string, error) {
 			t.Fatal("invalid input must not reach the knowledge service")
 			return "", nil
-		}), nil)
+		}), nil, nil)
 		request := httptest.NewRequest(http.MethodPost, "/knowledge/documents", strings.NewReader(`{"title":"","content":"故障排查"}`))
 		request.Header.Set("Content-Type", "application/json")
 		response := httptest.NewRecorder()
@@ -64,7 +64,7 @@ func TestIngestDocumentHandler(t *testing.T) {
 	})
 
 	t.Run("not configured", func(t *testing.T) {
-		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, nil)
+		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, nil, nil)
 		request := httptest.NewRequest(http.MethodPost, "/knowledge/documents", strings.NewReader(`{"title":"运维手册","content":"故障排查"}`))
 		request.Header.Set("Content-Type", "application/json")
 		response := httptest.NewRecorder()
@@ -78,7 +78,7 @@ func TestIngestDocumentHandler(t *testing.T) {
 		service := knowledgeServiceFunc(func(context.Context, string, string) (string, error) {
 			return "", errors.New("sensitive provider detail")
 		})
-		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, service, nil)
+		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, service, nil, nil)
 		request := httptest.NewRequest(http.MethodPost, "/knowledge/documents", strings.NewReader(`{"title":"运维手册","content":"故障排查"}`))
 		request.Header.Set("Content-Type", "application/json")
 		response := httptest.NewRecorder()
@@ -135,7 +135,7 @@ func TestIngestDocumentHandlerPersistsEmbeddedDocument(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create knowledge service: %v", err)
 	}
-	ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, service, nil)
+	ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, service, nil, nil)
 	request := httptest.NewRequest(http.MethodPost, "/knowledge/documents", strings.NewReader(`{"title":"运维手册","content":"故障排查"}`))
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()

@@ -13,5 +13,6 @@ import (
 	"approval.api"
 	"ticket.api"
 	"knowledge.api"
+	"usage.api"
 )
 

@@ -10,5 +10,5 @@ import (
 )
 
 func agUIHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
-	return AGUIHandler(svcCtx.Runner)
+	return AGUIHandler(svcCtx.Runner, svcCtx.TokenUsage)
 }

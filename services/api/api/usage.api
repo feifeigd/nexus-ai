@@ -1,0 +1,21 @@
+// API DSL reference: https://go-zero.dev/reference/api-dsl/
+syntax = "v1"
+
+type TokenUsageItem {
+	ThreadID         string `json:"threadId"`
+	RunID            string `json:"runId"`
+	PromptTokens     int    `json:"promptTokens"`
+	CompletionTokens int    `json:"completionTokens"`
+	TotalTokens      int    `json:"totalTokens"`
+	JudgeTokens      int    `json:"judgeTokens"`
+	CreatedAt        string `json:"createdAt"`
+}
+
+type ListTokenUsageResponse {
+	Items []TokenUsageItem `json:"items"`
+}
+
+service nexus-api {
+	@handler listTokenUsage
+	get /usage returns (ListTokenUsageResponse)
+}

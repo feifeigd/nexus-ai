@@ -23,19 +23,21 @@ type KnowledgeDocumentStore interface {
 }
 
 type ServiceContext struct {
-	Config    *config.Config
-	Runner    agent.Runner
-	Approvals approval.Store
-	Knowledge KnowledgeService
-	Documents KnowledgeDocumentStore
+	Config     *config.Config
+	Runner     agent.Runner
+	Approvals  approval.Store
+	Knowledge  KnowledgeService
+	Documents  KnowledgeDocumentStore
+	TokenUsage *data.TokenUsageStore
 }
 
-func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval.Store, knowledge KnowledgeService, documents KnowledgeDocumentStore) *ServiceContext {
+func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval.Store, knowledge KnowledgeService, documents KnowledgeDocumentStore, tokenUsage *data.TokenUsageStore) *ServiceContext {
 	return &ServiceContext{
-		Config:    c,
-		Runner:    runner,
-		Approvals: approvals,
-		Knowledge: knowledge,
-		Documents: documents,
+		Config:     c,
+		Runner:     runner,
+		Approvals:  approvals,
+		Knowledge:  knowledge,
+		Documents:  documents,
+		TokenUsage: tokenUsage,
 	}
 }
