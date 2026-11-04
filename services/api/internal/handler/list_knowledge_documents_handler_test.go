@@ -41,7 +41,7 @@ func TestListKnowledgeDocumentsHandler(t *testing.T) {
 				UpdatedAt:  createdAt.Add(time.Minute),
 			}}, nil
 		})
-		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, store, nil)
+		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, store, nil, nil)
 		request := httptest.NewRequest(http.MethodGet, "/knowledge/documents", nil)
 		response := httptest.NewRecorder()
 		listKnowledgeDocumentsHandler(ctx).ServeHTTP(response, request)
@@ -70,7 +70,7 @@ func TestListKnowledgeDocumentsHandler(t *testing.T) {
 		store := knowledgeDocumentStoreFunc(func(context.Context) ([]data.KnowledgeDocument, error) {
 			return nil, errors.New("sensitive database detail")
 		})
-		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, store, nil)
+		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, store, nil, nil)
 		request := httptest.NewRequest(http.MethodGet, "/knowledge/documents", nil)
 		response := httptest.NewRecorder()
 		listKnowledgeDocumentsHandler(ctx).ServeHTTP(response, request)

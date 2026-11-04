@@ -4,11 +4,13 @@ go 1.26.0
 
 require (
 	entgo.io/ent v0.14.6
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/google/wire v0.7.0
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.12.3
 	github.com/pgvector/pgvector-go v0.4.1
 	github.com/zeromicro/go-zero v1.10.3
+	golang.org/x/crypto v0.58.0
 	modernc.org/sqlite v1.61.1
 )
 
@@ -25,7 +27,6 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/inflect v0.19.0 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grafana/pyroscope-go v1.3.0 // indirect

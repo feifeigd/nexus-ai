@@ -1,0 +1,18 @@
+// API DSL reference: https://go-zero.dev/reference/api-dsl/
+syntax = "v1"
+
+type LoginInput {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type LoginResponse {
+	Token    string `json:"token"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+}
+
+service nexus-api {
+	@handler login
+	post /auth/login (LoginInput) returns (LoginResponse)
+}

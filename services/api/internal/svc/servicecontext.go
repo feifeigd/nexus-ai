@@ -29,9 +29,10 @@ type ServiceContext struct {
 	Knowledge  KnowledgeService
 	Documents  KnowledgeDocumentStore
 	TokenUsage *data.TokenUsageStore
+	Users      *data.UserStore
 }
 
-func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval.Store, knowledge KnowledgeService, documents KnowledgeDocumentStore, tokenUsage *data.TokenUsageStore) *ServiceContext {
+func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval.Store, knowledge KnowledgeService, documents KnowledgeDocumentStore, tokenUsage *data.TokenUsageStore, users *data.UserStore) *ServiceContext {
 	return &ServiceContext{
 		Config:     c,
 		Runner:     runner,
@@ -39,5 +40,6 @@ func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval
 		Knowledge:  knowledge,
 		Documents:  documents,
 		TokenUsage: tokenUsage,
+		Users:      users,
 	}
 }

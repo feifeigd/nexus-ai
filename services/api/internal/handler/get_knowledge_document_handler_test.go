@@ -46,7 +46,7 @@ func TestGetKnowledgeDocumentHandler(t *testing.T) {
 				Content: "第一章：故障排查。\n第二章：恢复验证。",
 			}, nil
 		})
-		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, store, nil)
+		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, store, nil, nil)
 		request := withPathID(httptest.NewRequest(http.MethodGet, "/knowledge/documents/document-1", nil), "document-1")
 		response := httptest.NewRecorder()
 		getKnowledgeDocumentHandler(ctx).ServeHTTP(response, request)
@@ -72,7 +72,7 @@ func TestGetKnowledgeDocumentHandler(t *testing.T) {
 		store := knowledgeDocumentDetailStoreFunc(func(context.Context, string) (data.KnowledgeDocumentDetail, error) {
 			return data.KnowledgeDocumentDetail{}, data.ErrKnowledgeDocumentNotFound
 		})
-		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, store, nil)
+		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, store, nil, nil)
 		request := withPathID(httptest.NewRequest(http.MethodGet, "/knowledge/documents/missing", nil), "missing")
 		response := httptest.NewRecorder()
 		getKnowledgeDocumentHandler(ctx).ServeHTTP(response, request)
@@ -85,7 +85,7 @@ func TestGetKnowledgeDocumentHandler(t *testing.T) {
 		store := knowledgeDocumentDetailStoreFunc(func(context.Context, string) (data.KnowledgeDocumentDetail, error) {
 			return data.KnowledgeDocumentDetail{}, errors.New("sensitive database detail")
 		})
-		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, store, nil)
+		ctx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, store, nil, nil)
 		request := withPathID(httptest.NewRequest(http.MethodGet, "/knowledge/documents/document-1", nil), "document-1")
 		response := httptest.NewRecorder()
 		getKnowledgeDocumentHandler(ctx).ServeHTTP(response, request)
