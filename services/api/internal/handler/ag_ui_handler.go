@@ -128,7 +128,11 @@ func recordTokenUsage(r *http.Request, runner agent.Runner, input types.AGUIRunI
 }
 
 // tenantIDFromContext 从 request context 取 JWT 中间件注入的 tenant_id claim。
+// 兼容旧 token（无 tenant_id）：每用户一个租户，回退到用户 id（uid）。
 func tenantIDFromContext(r *http.Request) string {
 	tenantID, _ := r.Context().Value("tenant_id").(string)
+	if tenantID == "" {
+		tenantID, _ = r.Context().Value("uid").(string)
+	}
 	return tenantID
 }
