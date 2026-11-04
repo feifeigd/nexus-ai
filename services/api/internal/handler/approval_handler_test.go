@@ -7,9 +7,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/approval"
+	"nexusai/services/api/internal/auth"
 	"nexusai/services/api/internal/types"
 )
 
@@ -112,8 +114,17 @@ func TestApprovalAndTicketRoutesReadGoZeroPathID(t *testing.T) {
 	}
 	proposal := mustList(t, store)[0]
 	baseURL := startTestServer(t, store)
+	token, err := auth.SignToken("test-secret-123", "user-test", "tester", "staff", time.Now(), time.Hour)
+	if err != nil {
+		t.Fatalf("sign test token: %v", err)
+	}
 
-	response, err := http.Post(baseURL+"/approvals/"+proposal.ID+"/approve", "", nil)
+	approveRequest, err := http.NewRequest(http.MethodPost, baseURL+"/approvals/"+proposal.ID+"/approve", nil)
+	if err != nil {
+		t.Fatalf("create approve route request: %v", err)
+	}
+	approveRequest.Header.Set("Authorization", "Bearer "+token)
+	response, err := http.DefaultClient.Do(approveRequest)
 	if err != nil {
 		t.Fatalf("approve through real route: %v", err)
 	}
@@ -137,6 +148,7 @@ func TestApprovalAndTicketRoutesReadGoZeroPathID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create ticket route request: %v", err)
 	}
+	ticketRequest.Header.Set("Authorization", "Bearer "+token)
 	ticketResponse, err := http.DefaultClient.Do(ticketRequest)
 	if err != nil {
 		t.Fatalf("update ticket through real route: %v", err)
