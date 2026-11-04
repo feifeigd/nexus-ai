@@ -53,7 +53,7 @@ func (l *LoginLogic) Login(req *types.LoginInput) (resp *types.LoginResponse, er
 	if secret == "" {
 		return nil, errors.New("认证密钥未配置，请设置 NEXUS_AUTH_SECRET")
 	}
-	token, err := auth.SignToken(secret, user.ID, user.Username, user.Role, time.Now(), authTTL(l.svcCtx.Config.Auth))
+	token, err := auth.SignToken(secret, user.ID, user.Username, user.Role, user.TenantID, time.Now(), authTTL(l.svcCtx.Config.Auth))
 	if err != nil {
 		return nil, err
 	}

@@ -12,15 +12,17 @@ type Claims struct {
 	UserID   string `json:"uid"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
+	TenantID string `json:"tenant_id"`
 	jwt.RegisteredClaims
 }
 
 // SignToken 签发一个带过期时间的 JWT。
-func SignToken(secret string, userID, username, role string, now time.Time, ttl time.Duration) (string, error) {
+func SignToken(secret string, userID, username, role, tenantID string, now time.Time, ttl time.Duration) (string, error) {
 	claims := Claims{
 		UserID:   userID,
 		Username: username,
 		Role:     role,
+		TenantID: tenantID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userID,
 			IssuedAt:  jwt.NewNumericDate(now),

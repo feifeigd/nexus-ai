@@ -33,7 +33,7 @@ func seedAdminUser(ctx context.Context, svcCtx *svc.ServiceContext) error {
 	if err != nil {
 		return err
 	}
-	if _, err := svcCtx.Users.Create(ctx, username, hash, "staff"); err != nil {
+	if _, err := svcCtx.Users.Create(ctx, username, hash, "staff", ""); err != nil {
 		return err
 	}
 	logx.Infow("seeded admin staff user", logx.Field("username", username))

@@ -51,7 +51,7 @@ func (l *RegisterLogic) Register(req *types.RegisterInput) (resp *types.LoginRes
 	if err != nil {
 		return nil, err
 	}
-	user, err := l.svcCtx.Users.Create(l.ctx, username, hash, "user")
+	user, err := l.svcCtx.Users.Create(l.ctx, username, hash, "user", "")
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (l *RegisterLogic) Register(req *types.RegisterInput) (resp *types.LoginRes
 	if secret == "" {
 		return nil, errors.New("认证密钥未配置，请设置 NEXUS_AUTH_SECRET")
 	}
-	token, err := auth.SignToken(secret, user.ID, user.Username, user.Role, time.Now(), authTTL(l.svcCtx.Config.Auth))
+	token, err := auth.SignToken(secret, user.ID, user.Username, user.Role, user.TenantID, time.Now(), authTTL(l.svcCtx.Config.Auth))
 	if err != nil {
 		return nil, err
 	}

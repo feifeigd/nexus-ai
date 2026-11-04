@@ -17,6 +17,7 @@ type UserRecord struct {
 	Username     string
 	PasswordHash string
 	Role         string
+	TenantID     string
 	CreatedAt    time.Time
 }
 
@@ -33,7 +34,7 @@ func NewUserStore(client *ent.Client) *UserStore {
 }
 
 // Create 创建用户，密码为已哈希的 passwordHash。username 已存在时返回数据库唯一约束错误。
-func (s *UserStore) Create(ctx context.Context, username, passwordHash, role string) (UserRecord, error) {
+func (s *UserStore) Create(ctx context.Context, username, passwordHash, role, tenantID string) (UserRecord, error) {
 	if s == nil || s.client == nil {
 		return UserRecord{}, fmt.Errorf("user store client is required")
 	}
@@ -41,15 +42,19 @@ func (s *UserStore) Create(ctx context.Context, username, passwordHash, role str
 	if err != nil {
 		return UserRecord{}, err
 	}
+	if tenantID == "" {
+		tenantID = id // 每用户一个租户：默认用用户自己的 id
+	}
 	if _, err := s.client.User.Create().
 		SetID(id).
 		SetUsername(username).
 		SetPasswordHash(passwordHash).
 		SetRole(role).
+		SetTenantID(tenantID).
 		Save(ctx); err != nil {
 		return UserRecord{}, fmt.Errorf("create user: %w", err)
 	}
-	return UserRecord{ID: id, Username: username, PasswordHash: passwordHash, Role: role}, nil
+	return UserRecord{ID: id, Username: username, PasswordHash: passwordHash, Role: role, TenantID: tenantID}, nil
 }
 
 // GetByUsername 按用户名查。不存在时返回 ErrUserNotFound。
@@ -88,6 +93,7 @@ func toUserRecord(row *ent.User) UserRecord {
 		Username:     row.Username,
 		PasswordHash: row.PasswordHash,
 		Role:         row.Role,
+		TenantID:     row.TenantID,
 		CreatedAt:    row.CreatedAt,
 	}
 }
