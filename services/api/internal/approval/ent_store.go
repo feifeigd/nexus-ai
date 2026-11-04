@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"nexusai/services/api/internal/agent"
+	"nexusai/services/api/internal/auth"
 	dataent "nexusai/services/api/internal/data/ent"
 	entapproval "nexusai/services/api/internal/data/ent/approval"
 	entticket "nexusai/services/api/internal/data/ent/ticket"
@@ -50,6 +51,7 @@ func (s *EntStore) propose(ctx context.Context, proposal agent.ToolProposal) err
 			"description": approval.Arguments.Description,
 		}).
 		SetStatus(string(approval.Status)).
+		SetTenantID(auth.TenantIDFromContext(ctx)).
 		SetCreatedAt(approval.CreatedAt).
 		Exec(ctx)
 	if err != nil {
@@ -58,8 +60,12 @@ func (s *EntStore) propose(ctx context.Context, proposal agent.ToolProposal) err
 	return nil
 }
 
-func (s *EntStore) List(ctx context.Context) ([]Approval, error) {
-	rows, err := s.client.Approval.Query().
+func (s *EntStore) List(ctx context.Context, tenantID string) ([]Approval, error) {
+	query := s.client.Approval.Query()
+	if tenantID != "" {
+		query = query.Where(entapproval.TenantIDEQ(tenantID))
+	}
+	rows, err := query.
 		Order(dataent.Desc(entapproval.FieldCreatedAt), dataent.Asc(entapproval.FieldID)).
 		All(ctx)
 	if err != nil {
@@ -76,8 +82,12 @@ func (s *EntStore) List(ctx context.Context) ([]Approval, error) {
 	return approvals, nil
 }
 
-func (s *EntStore) ListTickets(ctx context.Context) ([]Ticket, error) {
-	rows, err := s.client.Ticket.Query().
+func (s *EntStore) ListTickets(ctx context.Context, tenantID string) ([]Ticket, error) {
+	query := s.client.Ticket.Query()
+	if tenantID != "" {
+		query = query.Where(entticket.TenantIDEQ(tenantID))
+	}
+	rows, err := query.
 		Order(dataent.Desc(entticket.FieldCreatedAt), dataent.Asc(entticket.FieldID)).
 		All(ctx)
 	if err != nil {
@@ -90,14 +100,14 @@ func (s *EntStore) ListTickets(ctx context.Context) ([]Ticket, error) {
 	return tickets, nil
 }
 
-func (s *EntStore) UpdateTicketStatus(ctx context.Context, id string, status TicketStatus) (Ticket, error) {
+func (s *EntStore) UpdateTicketStatus(ctx context.Context, id string, status TicketStatus, tenantID string) (Ticket, error) {
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return Ticket{}, fmt.Errorf("begin ticket status transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	ticket, err := s.lockedTicketByID(ctx, tx.Client(), id)
+	ticket, err := s.lockedTicketByID(ctx, tx.Client(), id, tenantID)
 	if err != nil {
 		return Ticket{}, err
 	}
@@ -116,7 +126,7 @@ func (s *EntStore) UpdateTicketStatus(ctx context.Context, id string, status Tic
 	return ticket, nil
 }
 
-func (s *EntStore) Approve(ctx context.Context, id string) (Approval, error) {
+func (s *EntStore) Approve(ctx context.Context, id, tenantID string) (Approval, error) {
 	ticketID, err := newID("ticket")
 	if err != nil {
 		return Approval{}, err
@@ -127,7 +137,7 @@ func (s *EntStore) Approve(ctx context.Context, id string) (Approval, error) {
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	approval, err := s.lockedApprovalByID(ctx, tx.Client(), id)
+	approval, err := s.lockedApprovalByID(ctx, tx.Client(), id, tenantID)
 	if err != nil {
 		return Approval{}, err
 	}
@@ -141,6 +151,7 @@ func (s *EntStore) Approve(ctx context.Context, id string) (Approval, error) {
 		SetTitle(approval.Arguments.Title).
 		SetDescription(approval.Arguments.Description).
 		SetStatus(string(TicketStatusOpen)).
+		SetTenantID(approval.TenantID).
 		SetCreatedAt(now).
 		Exec(ctx); err != nil {
 		return Approval{}, fmt.Errorf("create approved ticket: %w", err)
@@ -161,14 +172,14 @@ func (s *EntStore) Approve(ctx context.Context, id string) (Approval, error) {
 	return approval, nil
 }
 
-func (s *EntStore) Reject(ctx context.Context, id string) (Approval, error) {
+func (s *EntStore) Reject(ctx context.Context, id, tenantID string) (Approval, error) {
 	tx, err := s.client.Tx(ctx)
 	if err != nil {
 		return Approval{}, fmt.Errorf("begin rejection transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	approval, err := s.lockedApprovalByID(ctx, tx.Client(), id)
+	approval, err := s.lockedApprovalByID(ctx, tx.Client(), id, tenantID)
 	if err != nil {
 		return Approval{}, err
 	}
@@ -190,8 +201,11 @@ func (s *EntStore) Reject(ctx context.Context, id string) (Approval, error) {
 	return approval, nil
 }
 
-func (s *EntStore) lockedApprovalByID(ctx context.Context, client *dataent.Client, id string) (Approval, error) {
+func (s *EntStore) lockedApprovalByID(ctx context.Context, client *dataent.Client, id, tenantID string) (Approval, error) {
 	query := client.Approval.Query().Where(entapproval.ID(id))
+	if tenantID != "" {
+		query = query.Where(entapproval.TenantIDEQ(tenantID))
+	}
 	if s.forUpdate {
 		query = query.ForUpdate()
 	}
@@ -205,8 +219,11 @@ func (s *EntStore) lockedApprovalByID(ctx context.Context, client *dataent.Clien
 	return approvalFromEnt(row)
 }
 
-func (s *EntStore) lockedTicketByID(ctx context.Context, client *dataent.Client, id string) (Ticket, error) {
+func (s *EntStore) lockedTicketByID(ctx context.Context, client *dataent.Client, id, tenantID string) (Ticket, error) {
 	query := client.Ticket.Query().Where(entticket.ID(id))
+	if tenantID != "" {
+		query = query.Where(entticket.TenantIDEQ(tenantID))
+	}
 	if s.forUpdate {
 		query = query.ForUpdate()
 	}
@@ -242,6 +259,7 @@ func approvalFromEnt(row *dataent.Approval) (Approval, error) {
 		ToolCallID: row.ToolCallID,
 		ToolName:   row.ToolName,
 		Status:     Status(row.Status),
+		TenantID:   row.TenantID,
 		CreatedAt:  row.CreatedAt.UTC(),
 	}
 	if err := json.Unmarshal(arguments, &approval.Arguments); err != nil {

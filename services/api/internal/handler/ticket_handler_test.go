@@ -24,11 +24,11 @@ func TestListTicketsHandlerReturnsCreatedTickets(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create proposal: %v", err)
 	}
-	proposals, err := store.List(context.Background())
+	proposals, err := store.List(context.Background(), "")
 	if err != nil || len(proposals) != 1 {
 		t.Fatalf("list proposals: %+v, %v", proposals, err)
 	}
-	approved, err := store.Approve(context.Background(), proposals[0].ID)
+	approved, err := store.Approve(context.Background(), proposals[0].ID, "")
 	if err != nil {
 		t.Fatalf("approve proposal: %v", err)
 	}
@@ -63,11 +63,11 @@ func TestUpdateTicketStatusHandlerEnforcesWorkflow(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create proposal: %v", err)
 	}
-	proposals, err := store.List(context.Background())
+	proposals, err := store.List(context.Background(), "")
 	if err != nil || len(proposals) != 1 {
 		t.Fatalf("list proposals: %+v, %v", proposals, err)
 	}
-	approved, err := store.Approve(context.Background(), proposals[0].ID)
+	approved, err := store.Approve(context.Background(), proposals[0].ID, "")
 	if err != nil {
 		t.Fatalf("approve proposal: %v", err)
 	}

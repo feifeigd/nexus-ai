@@ -27,7 +27,7 @@ func NewListApprovalsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Lis
 }
 
 func (l *ListApprovalsLogic) ListApprovals() (*types.ApprovalListResponse, error) {
-	approvals, err := l.svcCtx.Approvals.List(l.ctx)
+	approvals, err := l.svcCtx.Approvals.List(l.ctx, managementTenantID(l.ctx))
 	if err != nil {
 		return nil, err
 	}

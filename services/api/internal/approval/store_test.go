@@ -35,7 +35,7 @@ func TestApproveCreatesTicketExactlyOnce(t *testing.T) {
 	store := newTestStore(t)
 	proposal := proposeTicket(t, store, `{"title":"网络故障","description":"无法访问办公系统"}`)
 
-	approved, err := store.Approve(context.Background(), proposal.ID)
+	approved, err := store.Approve(context.Background(), proposal.ID, "")
 	if err != nil {
 		t.Fatalf("approve proposal: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestApproveCreatesTicketExactlyOnce(t *testing.T) {
 		t.Fatalf("ticket was not created from validated arguments: %+v", tickets)
 	}
 
-	if _, err := store.Approve(context.Background(), proposal.ID); !errors.Is(err, ErrAlreadyDecided) {
+	if _, err := store.Approve(context.Background(), proposal.ID, ""); !errors.Is(err, ErrAlreadyDecided) {
 		t.Fatalf("expected duplicate approval to fail, got %v", err)
 	}
 	if len(mustListTickets(t, store)) != 1 {
@@ -58,12 +58,12 @@ func TestApproveCreatesTicketExactlyOnce(t *testing.T) {
 func TestListTicketsReturnsOnlyCreatedTickets(t *testing.T) {
 	store := newTestStore(t)
 	proposal := proposeTicket(t, store, `{"title":"网络故障","description":"无法访问办公系统"}`)
-	approved, err := store.Approve(context.Background(), proposal.ID)
+	approved, err := store.Approve(context.Background(), proposal.ID, "")
 	if err != nil {
 		t.Fatalf("approve proposal: %v", err)
 	}
 
-	tickets, err := store.ListTickets(context.Background())
+	tickets, err := store.ListTickets(context.Background(), "")
 	if err != nil {
 		t.Fatalf("list tickets: %v", err)
 	}
@@ -78,26 +78,26 @@ func TestListTicketsReturnsOnlyCreatedTickets(t *testing.T) {
 func TestTicketStatusTransitionsAreEnforced(t *testing.T) {
 	store := newTestStore(t)
 	proposal := proposeTicket(t, store, `{"title":"网络故障","description":"无法访问办公系统"}`)
-	approved, err := store.Approve(context.Background(), proposal.ID)
+	approved, err := store.Approve(context.Background(), proposal.ID, "")
 	if err != nil {
 		t.Fatalf("approve proposal: %v", err)
 	}
 
-	updated, err := store.UpdateTicketStatus(context.Background(), approved.TicketID, TicketStatusInProgress)
+	updated, err := store.UpdateTicketStatus(context.Background(), approved.TicketID, TicketStatusInProgress, "")
 	if err != nil || updated.Status != TicketStatusInProgress {
 		t.Fatalf("start ticket: %+v, %v", updated, err)
 	}
-	resolved, err := store.UpdateTicketStatus(context.Background(), approved.TicketID, TicketStatusResolved)
+	resolved, err := store.UpdateTicketStatus(context.Background(), approved.TicketID, TicketStatusResolved, "")
 	if err != nil || resolved.Status != TicketStatusResolved {
 		t.Fatalf("resolve ticket: %+v, %v", resolved, err)
 	}
-	if _, err := store.UpdateTicketStatus(context.Background(), approved.TicketID, TicketStatusOpen); !errors.Is(err, ErrInvalidTicketTransition) {
+	if _, err := store.UpdateTicketStatus(context.Background(), approved.TicketID, TicketStatusOpen, ""); !errors.Is(err, ErrInvalidTicketTransition) {
 		t.Fatalf("expected resolved ticket to reject reopening, got %v", err)
 	}
-	if _, err := store.UpdateTicketStatus(context.Background(), approved.TicketID, TicketStatus("closed")); !errors.Is(err, ErrInvalidTicketStatus) {
+	if _, err := store.UpdateTicketStatus(context.Background(), approved.TicketID, TicketStatus("closed"), ""); !errors.Is(err, ErrInvalidTicketStatus) {
 		t.Fatalf("expected unknown status to be rejected, got %v", err)
 	}
-	if _, err := store.UpdateTicketStatus(context.Background(), "missing", TicketStatusInProgress); !errors.Is(err, ErrTicketNotFound) {
+	if _, err := store.UpdateTicketStatus(context.Background(), "missing", TicketStatusInProgress, ""); !errors.Is(err, ErrTicketNotFound) {
 		t.Fatalf("expected missing ticket to return not found, got %v", err)
 	}
 }
@@ -106,14 +106,14 @@ func TestRejectDoesNotExecuteAndCannotBeApproved(t *testing.T) {
 	store := newTestStore(t)
 	proposal := proposeTicket(t, store, `{"title":"网络故障","description":"无法访问办公系统"}`)
 
-	rejected, err := store.Reject(context.Background(), proposal.ID)
+	rejected, err := store.Reject(context.Background(), proposal.ID, "")
 	if err != nil {
 		t.Fatalf("reject proposal: %v", err)
 	}
 	if rejected.Status != StatusRejected || rejected.TicketID != "" || len(mustListTickets(t, store)) != 0 {
 		t.Fatalf("rejection must not create a ticket: %+v", rejected)
 	}
-	if _, err := store.Approve(context.Background(), proposal.ID); !errors.Is(err, ErrAlreadyDecided) {
+	if _, err := store.Approve(context.Background(), proposal.ID, ""); !errors.Is(err, ErrAlreadyDecided) {
 		t.Fatalf("expected rejected approval to stay final, got %v", err)
 	}
 }
@@ -186,7 +186,7 @@ func proposeTicket(t *testing.T, store Store, arguments string) Approval {
 
 func mustList(t *testing.T, store Store) []Approval {
 	t.Helper()
-	approvals, err := store.List(context.Background())
+	approvals, err := store.List(context.Background(), "")
 	if err != nil {
 		t.Fatalf("list approvals: %v", err)
 	}
@@ -195,7 +195,7 @@ func mustList(t *testing.T, store Store) []Approval {
 
 func mustListTickets(t *testing.T, store Store) []Ticket {
 	t.Helper()
-	tickets, err := store.ListTickets(context.Background())
+	tickets, err := store.ListTickets(context.Background(), "")
 	if err != nil {
 		t.Fatalf("list tickets: %v", err)
 	}

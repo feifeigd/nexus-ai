@@ -27,7 +27,7 @@ func NewApproveApprovalLogic(ctx context.Context, svcCtx *svc.ServiceContext) *A
 }
 
 func (l *ApproveApprovalLogic) ApproveApproval(req *types.ApprovalDecisionInput) (*types.Approval, error) {
-	result, err := l.svcCtx.Approvals.Approve(l.ctx, req.ID)
+	result, err := l.svcCtx.Approvals.Approve(l.ctx, req.ID, managementTenantID(l.ctx))
 	if err != nil {
 		return nil, err
 	}

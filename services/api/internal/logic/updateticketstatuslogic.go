@@ -28,7 +28,7 @@ func NewUpdateTicketStatusLogic(ctx context.Context, svcCtx *svc.ServiceContext)
 }
 
 func (l *UpdateTicketStatusLogic) UpdateTicketStatus(req *types.UpdateTicketStatusInput) (*types.Ticket, error) {
-	ticket, err := l.svcCtx.Approvals.UpdateTicketStatus(l.ctx, req.ID, approval.TicketStatus(req.Status))
+	ticket, err := l.svcCtx.Approvals.UpdateTicketStatus(l.ctx, req.ID, approval.TicketStatus(req.Status), managementTenantID(l.ctx))
 	if err != nil {
 		return nil, err
 	}

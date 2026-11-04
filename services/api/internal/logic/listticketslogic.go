@@ -27,7 +27,7 @@ func NewListTicketsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ListT
 }
 
 func (l *ListTicketsLogic) ListTickets() (*types.TicketListResponse, error) {
-	tickets, err := l.svcCtx.Approvals.ListTickets(l.ctx)
+	tickets, err := l.svcCtx.Approvals.ListTickets(l.ctx, managementTenantID(l.ctx))
 	if err != nil {
 		return nil, err
 	}

@@ -161,7 +161,7 @@ func TestApprovalAndTicketRoutesReadGoZeroPathID(t *testing.T) {
 
 func mustList(t *testing.T, store approval.Store) []approval.Approval {
 	t.Helper()
-	approvals, err := store.List(context.Background())
+	approvals, err := store.List(context.Background(), "")
 	if err != nil {
 		t.Fatalf("list approvals: %v", err)
 	}

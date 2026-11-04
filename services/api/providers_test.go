@@ -192,7 +192,7 @@ func TestWireContextPostgres(t *testing.T) {
 		t.Fatalf("wire postgres context: %v", err)
 	}
 	defer cleanup()
-	if _, err := ctx.Approvals.List(context.Background()); err != nil {
+	if _, err := ctx.Approvals.List(context.Background(), ""); err != nil {
 		t.Fatalf("query approvals through wired postgres store: %v", err)
 	}
 }

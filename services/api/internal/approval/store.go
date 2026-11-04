@@ -60,6 +60,7 @@ type Approval struct {
 	ToolName   string            `json:"toolName"`
 	Arguments  CreateTicketInput `json:"arguments"` //  LLM 输出的工具调用参数
 	Status     Status            `json:"status"`
+	TenantID   string            `json:"tenantId,omitempty"` // 提出该审批的用户所属租户（每用户一个租户）
 	TicketID   string            `json:"ticketId,omitempty"`
 	CreatedAt  time.Time         `json:"createdAt"`           // 模型工具提议通过校验、生成待审批记录的时间
 	DecidedAt  *time.Time        `json:"decidedAt,omitempty"` // 人工对这条审批做出决定的时间，人工批准或拒绝该提议的时间
@@ -86,11 +87,11 @@ func validateTicketTransition(current, next TicketStatus) error {
 
 type Store interface {
 	Tool() agent.Tool
-	List(context.Context) ([]Approval, error)
-	ListTickets(context.Context) ([]Ticket, error)
-	UpdateTicketStatus(context.Context, string, TicketStatus) (Ticket, error)
-	Approve(context.Context, string) (Approval, error)
-	Reject(context.Context, string) (Approval, error)
+	List(ctx context.Context, tenantID string) ([]Approval, error)
+	ListTickets(ctx context.Context, tenantID string) ([]Ticket, error)
+	UpdateTicketStatus(ctx context.Context, id string, status TicketStatus, tenantID string) (Ticket, error)
+	Approve(ctx context.Context, id, tenantID string) (Approval, error)
+	Reject(ctx context.Context, id, tenantID string) (Approval, error)
 }
 
 func ticketTool(propose func(context.Context, agent.ToolProposal) error) agent.Tool {

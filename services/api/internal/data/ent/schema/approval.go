@@ -26,6 +26,7 @@ func (Approval) Fields() []ent.Field {
 		field.String("tool_name").Immutable(),
 		field.JSON("arguments", map[string]any{}).Immutable(),
 		field.String("status"),
+		field.String("tenant_id").Immutable(),
 		field.String("ticket_id").Optional().Nillable(),
 		field.Time("created_at").Default(time.Now).Immutable(),
 		field.Time("decided_at").Optional().Nillable(),

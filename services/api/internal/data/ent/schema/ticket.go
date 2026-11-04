@@ -23,6 +23,7 @@ func (Ticket) Fields() []ent.Field {
 		field.String("title"),
 		field.String("description"),
 		field.String("status"),
+		field.String("tenant_id").Immutable(),
 		field.Time("created_at").Default(time.Now).Immutable(),
 	}
 }
