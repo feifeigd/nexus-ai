@@ -32,12 +32,16 @@ func (l *ListTokenUsageLogic) ListTokenUsage() (resp *types.ListTokenUsageRespon
 	if l.svcCtx.TokenUsage == nil {
 		return nil, errors.New("token usage store is not configured")
 	}
+	role, _ := l.ctx.Value("role").(string)
 	tenantID, _ := l.ctx.Value("tenant_id").(string)
 	if tenantID == "" {
 		// 兼容旧 token（无 tenant_id claim）：每用户一个租户，回退到用户 id。
 		tenantID, _ = l.ctx.Value("uid").(string)
 	}
-	if tenantID == "" {
+	// staff（管理员）看全部租户；user 只看自己租户。
+	if role == "staff" {
+		tenantID = ""
+	} else if tenantID == "" {
 		return nil, errors.New("未登录或缺少租户信息")
 	}
 	records, err := l.svcCtx.TokenUsage.List(l.ctx, tenantID, 50)

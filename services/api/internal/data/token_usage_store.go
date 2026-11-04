@@ -53,7 +53,8 @@ func (s *TokenUsageStore) Create(ctx context.Context, record TokenUsageRecord) e
 	return nil
 }
 
-// List 返回指定租户最近 limit 条消耗明细（按时间倒序）。limit <= 0 时使用默认值。
+// List 返回最近 limit 条消耗明细（按时间倒序）。tenantID 非空时只返回该租户，
+// 为空时返回全部（管理员全局视角）。limit <= 0 时使用默认值。
 func (s *TokenUsageStore) List(ctx context.Context, tenantID string, limit int) ([]TokenUsageRecord, error) {
 	if s == nil || s.client == nil {
 		return nil, fmt.Errorf("token usage store client is required")
@@ -61,8 +62,11 @@ func (s *TokenUsageStore) List(ctx context.Context, tenantID string, limit int) 
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	rows, err := s.client.TokenUsage.Query().
-		Where(enttokenusage.TenantIDEQ(tenantID)).
+	query := s.client.TokenUsage.Query()
+	if tenantID != "" {
+		query = query.Where(enttokenusage.TenantIDEQ(tenantID))
+	}
+	rows, err := query.
 		Order(ent.Desc(enttokenusage.FieldCreatedAt), ent.Desc(enttokenusage.FieldID)).
 		Limit(limit).
 		All(ctx)
