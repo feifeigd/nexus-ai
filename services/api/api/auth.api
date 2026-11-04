@@ -6,6 +6,11 @@ type LoginInput {
 	Password string `json:"password"`
 }
 
+type RegisterInput {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 type LoginResponse {
 	Token    string `json:"token"`
 	Username string `json:"username"`
@@ -15,4 +20,7 @@ type LoginResponse {
 service nexus-api {
 	@handler login
 	post /auth/login (LoginInput) returns (LoginResponse)
+
+	@handler register
+	post /auth/register (RegisterInput) returns (LoginResponse)
 }

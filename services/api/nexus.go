@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -43,6 +44,10 @@ func run() error {
 		return fmt.Errorf("wire service context: %w", err)
 	}
 	defer cleanup()
+
+	if err := seedAdminUser(context.Background(), ctx); err != nil {
+		return fmt.Errorf("seed admin user: %w", err)
+	}
 
 	server, err := rest.NewServer(c.RestConf)
 	if err != nil {
