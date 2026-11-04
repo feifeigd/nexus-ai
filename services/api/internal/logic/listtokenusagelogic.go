@@ -34,6 +34,10 @@ func (l *ListTokenUsageLogic) ListTokenUsage() (resp *types.ListTokenUsageRespon
 	}
 	tenantID, _ := l.ctx.Value("tenant_id").(string)
 	if tenantID == "" {
+		// 兼容旧 token（无 tenant_id claim）：每用户一个租户，回退到用户 id。
+		tenantID, _ = l.ctx.Value("uid").(string)
+	}
+	if tenantID == "" {
 		return nil, errors.New("未登录或缺少租户信息")
 	}
 	records, err := l.svcCtx.TokenUsage.List(l.ctx, tenantID, 50)
