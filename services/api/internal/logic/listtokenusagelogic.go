@@ -32,7 +32,11 @@ func (l *ListTokenUsageLogic) ListTokenUsage() (resp *types.ListTokenUsageRespon
 	if l.svcCtx.TokenUsage == nil {
 		return nil, errors.New("token usage store is not configured")
 	}
-	records, err := l.svcCtx.TokenUsage.List(l.ctx, 50)
+	tenantID, _ := l.ctx.Value("tenant_id").(string)
+	if tenantID == "" {
+		return nil, errors.New("未登录或缺少租户信息")
+	}
+	records, err := l.svcCtx.TokenUsage.List(l.ctx, tenantID, 50)
 	if err != nil {
 		return nil, err
 	}

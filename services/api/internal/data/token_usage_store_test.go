@@ -26,21 +26,21 @@ func TestTokenUsageStoreCreateAndList(t *testing.T) {
 	older := time.Date(2026, time.November, 1, 8, 0, 0, 0, time.UTC)
 	newer := older.Add(time.Hour)
 	if err := store.Create(ctx, TokenUsageRecord{
-		ThreadID: "thread-1", RunID: "run-1",
+		ThreadID: "thread-1", RunID: "run-1", TenantID: "tenant-1",
 		PromptTokens: 100, CompletionTokens: 50, TotalTokens: 150, JudgeTokens: 30,
 		CreatedAt: older,
 	}); err != nil {
 		t.Fatalf("create older: %v", err)
 	}
 	if err := store.Create(ctx, TokenUsageRecord{
-		ThreadID: "thread-2", RunID: "run-2",
+		ThreadID: "thread-2", RunID: "run-2", TenantID: "tenant-1",
 		PromptTokens: 200, CompletionTokens: 80, TotalTokens: 280,
 		CreatedAt: newer,
 	}); err != nil {
 		t.Fatalf("create newer: %v", err)
 	}
 
-	records, err := store.List(ctx, 10)
+	records, err := store.List(ctx, "tenant-1", 10)
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -70,11 +70,11 @@ func TestTokenUsageStoreListDefaultLimit(t *testing.T) {
 	ctx := context.Background()
 	store := NewTokenUsageStore(client)
 
-	if err := store.Create(ctx, TokenUsageRecord{ThreadID: "t", RunID: "r", TotalTokens: 10}); err != nil {
+	if err := store.Create(ctx, TokenUsageRecord{ThreadID: "t", RunID: "r", TenantID: "tenant-1", TotalTokens: 10}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	// limit 0 应回退到默认 50，仍能列出。
-	records, err := store.List(ctx, 0)
+	records, err := store.List(ctx, "tenant-1", 0)
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}

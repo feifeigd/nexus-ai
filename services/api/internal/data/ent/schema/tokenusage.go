@@ -20,6 +20,7 @@ func (TokenUsage) Fields() []ent.Field {
 	return []ent.Field{
 		field.String("thread_id").Immutable(),
 		field.String("run_id").Immutable(),
+		field.String("tenant_id").Immutable(),
 		field.Int("prompt_tokens").Immutable(),
 		field.Int("completion_tokens").Immutable(),
 		field.Int("total_tokens").Immutable(),

@@ -13,6 +13,7 @@ import (
 type TokenUsageRecord struct {
 	ThreadID         string
 	RunID            string
+	TenantID         string
 	PromptTokens     int
 	CompletionTokens int
 	TotalTokens      int
@@ -38,6 +39,7 @@ func (s *TokenUsageStore) Create(ctx context.Context, record TokenUsageRecord) e
 	builder := s.client.TokenUsage.Create().
 		SetThreadID(record.ThreadID).
 		SetRunID(record.RunID).
+		SetTenantID(record.TenantID).
 		SetPromptTokens(record.PromptTokens).
 		SetCompletionTokens(record.CompletionTokens).
 		SetTotalTokens(record.TotalTokens).
@@ -51,8 +53,8 @@ func (s *TokenUsageStore) Create(ctx context.Context, record TokenUsageRecord) e
 	return nil
 }
 
-// List 返回最近 limit 条消耗明细（按时间倒序）。limit <= 0 时使用默认值。
-func (s *TokenUsageStore) List(ctx context.Context, limit int) ([]TokenUsageRecord, error) {
+// List 返回指定租户最近 limit 条消耗明细（按时间倒序）。limit <= 0 时使用默认值。
+func (s *TokenUsageStore) List(ctx context.Context, tenantID string, limit int) ([]TokenUsageRecord, error) {
 	if s == nil || s.client == nil {
 		return nil, fmt.Errorf("token usage store client is required")
 	}
@@ -60,6 +62,7 @@ func (s *TokenUsageStore) List(ctx context.Context, limit int) ([]TokenUsageReco
 		limit = 50
 	}
 	rows, err := s.client.TokenUsage.Query().
+		Where(enttokenusage.TenantIDEQ(tenantID)).
 		Order(ent.Desc(enttokenusage.FieldCreatedAt), ent.Desc(enttokenusage.FieldID)).
 		Limit(limit).
 		All(ctx)
@@ -71,6 +74,7 @@ func (s *TokenUsageStore) List(ctx context.Context, limit int) ([]TokenUsageReco
 		records = append(records, TokenUsageRecord{
 			ThreadID:         row.ThreadID,
 			RunID:            row.RunID,
+			TenantID:         row.TenantID,
 			PromptTokens:     row.PromptTokens,
 			CompletionTokens: row.CompletionTokens,
 			TotalTokens:      row.TotalTokens,

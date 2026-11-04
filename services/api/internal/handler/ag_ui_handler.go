@@ -112,6 +112,7 @@ func recordTokenUsage(r *http.Request, runner agent.Runner, input types.AGUIRunI
 	record := data.TokenUsageRecord{
 		ThreadID:         input.ThreadID,
 		RunID:            input.RunID,
+		TenantID:         tenantIDFromContext(r),
 		PromptTokens:     usage.PromptTokens,
 		CompletionTokens: usage.CompletionTokens,
 		TotalTokens:      usage.TotalTokens,
@@ -124,4 +125,10 @@ func recordTokenUsage(r *http.Request, runner agent.Runner, input types.AGUIRunI
 			logx.Field("error", err),
 		)
 	}
+}
+
+// tenantIDFromContext 从 request context 取 JWT 中间件注入的 tenant_id claim。
+func tenantIDFromContext(r *http.Request) string {
+	tenantID, _ := r.Context().Value("tenant_id").(string)
+	return tenantID
 }
