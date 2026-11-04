@@ -29,6 +29,12 @@ export default [
     component: './Knowledge',
   },
   {
+    path: '/usage',
+    name: 'usage',
+    icon: 'barChart',
+    component: './Usage',
+  },
+  {
     path: '/approvals',
     name: 'approvals',
     icon: 'audit',

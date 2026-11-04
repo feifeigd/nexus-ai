@@ -51,6 +51,7 @@ export default {
   'menu.editor.koni': 'Koni Editor',
   'menu.chatbot': 'AI Assistant',
   'menu.knowledge': 'Knowledge Base',
+  'menu.usage': 'Usage',
   'menu.approvals': 'Tool Approvals',
   'menu.tickets': 'Tickets',
 };

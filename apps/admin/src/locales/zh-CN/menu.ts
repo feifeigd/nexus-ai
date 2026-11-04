@@ -51,6 +51,7 @@ export default {
   'menu.editor.koni': '拓扑编辑器',
   'menu.chatbot': 'AI 助手',
   'menu.knowledge': '知识库',
+  'menu.usage': '用量统计',
   'menu.approvals': '工具审批',
   'menu.tickets': '工单管理',
 };
