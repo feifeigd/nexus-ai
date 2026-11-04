@@ -18,6 +18,9 @@ type UpdateTicketStatusInput {
 	Status string `json:"status"`
 }
 
+@server(
+	jwt: Auth
+)
 service nexus-api {
 	@handler listTickets
 	get /tickets returns (TicketListResponse)

@@ -41,6 +41,9 @@ type DeleteKnowledgeDocumentResponse {
 	DocumentID string `json:"documentId"`
 }
 
+@server(
+	jwt: Auth
+)
 service nexus-api {
 	@handler listKnowledgeDocuments
 	get /knowledge/documents returns (ListKnowledgeDocumentsResponse)

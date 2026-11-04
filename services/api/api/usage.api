@@ -15,6 +15,9 @@ type ListTokenUsageResponse {
 	Items []TokenUsageItem `json:"items"`
 }
 
+@server(
+	jwt: Auth
+)
 service nexus-api {
 	@handler listTokenUsage
 	get /usage returns (ListTokenUsageResponse)

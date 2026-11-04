@@ -6,7 +6,6 @@ package logic
 import (
 	"context"
 	"errors"
-	"os"
 	"strings"
 	"time"
 
@@ -56,14 +55,11 @@ func (l *RegisterLogic) Register(req *types.RegisterInput) (resp *types.LoginRes
 	if err != nil {
 		return nil, err
 	}
-	secret := l.svcCtx.Config.Auth.Secret
-	if secret == "" {
-		secret = strings.TrimSpace(os.Getenv("NEXUS_AUTH_SECRET"))
-	}
+	secret := authSecret(l.svcCtx.Config.Auth)
 	if secret == "" {
 		return nil, errors.New("认证密钥未配置，请设置 NEXUS_AUTH_SECRET")
 	}
-	token, err := auth.SignToken(secret, user.ID, user.Username, user.Role, time.Now(), 24*time.Hour)
+	token, err := auth.SignToken(secret, user.ID, user.Username, user.Role, time.Now(), authTTL(l.svcCtx.Config.Auth))
 	if err != nil {
 		return nil, err
 	}

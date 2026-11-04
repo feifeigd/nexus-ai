@@ -14,7 +14,9 @@ type Config struct {
 	Auth  AuthConfig
 }
 
-// AuthConfig 是认证配置。Secret 是 JWT 签名密钥，可用环境变量 NEXUS_AUTH_SECRET 覆盖。
+// AuthConfig 是认证配置，字段对齐 go-zero 的 JWT 中间件命名。AccessSecret 是 JWT
+// 签名密钥，AccessExpire 是 token 有效期（秒）。可用环境变量 NEXUS_AUTH_SECRET 覆盖密钥。
 type AuthConfig struct {
-	Secret string `json:",optional"`
+	AccessSecret string `json:",optional"`
+	AccessExpire int64  `json:",optional"`
 }
