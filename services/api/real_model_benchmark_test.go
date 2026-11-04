@@ -15,6 +15,7 @@ import (
 	"nexusai/services/api/internal/data"
 	entschema "nexusai/services/api/internal/data/ent/schema"
 	"nexusai/services/api/internal/knowledge"
+	"nexusai/services/api/internal/types"
 
 	"github.com/joho/godotenv"
 	"github.com/zeromicro/go-zero/core/conf"
@@ -131,5 +132,111 @@ func TestRealModelRetrievalBenchmark(t *testing.T) {
 		t.Logf("汇总：命中率 %d/%d = %.0f%%，平均检索延迟 %s",
 			hits, valid, 100*float64(hits)/float64(valid),
 			(total / time.Duration(valid)).Round(time.Millisecond))
+	}
+}
+
+// TestRealModelE2EBenchmark 量化端到端问答的延迟与工具调用：走完整两段式流程
+// （第一次模型调用决定检索 → 工具执行 → 第二次模型调用生成回答 → 语义核验），
+// 记录端到端延迟、工具调用次数与回答片段。只用少量代表性问题以控制真实模型成本。
+func TestRealModelE2EBenchmark(t *testing.T) {
+	if strings.TrimSpace(os.Getenv("NEXUS_TEST_REAL_MODEL")) != "1" {
+		t.Skip("set NEXUS_TEST_REAL_MODEL=1 to run the real-model e2e benchmark")
+	}
+	if err := godotenv.Load(); err != nil {
+		t.Fatalf("load .env: %v", err)
+	}
+	var c config.Config
+	if err := conf.Load("etc/nexus-api.yaml", &c); err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	agentCfg := agent.ConfigFromEnv(c.Agent)
+	if agentCfg.Embedding.Model == "" {
+		t.Skip("no embedding model configured")
+	}
+	if agentCfg.OpenAI.Model == "" {
+		t.Skip("no chat model configured")
+	}
+
+	dsn := strings.TrimSpace(os.Getenv("NEXUS_POSTGRES_DSN"))
+	if dsn == "" {
+		t.Skip("set NEXUS_POSTGRES_DSN to the PostgreSQL + pgvector instance")
+	}
+	client, closeData, err := data.NewData(&data.Data{Database: data.Database{
+		Driver:      dialect.Postgres,
+		Source:      dsn,
+		AutoMigrate: true,
+	}})
+	if err != nil {
+		t.Fatalf("create postgres data source: %v", err)
+	}
+	defer closeData()
+
+	ctx := context.Background()
+	store := data.NewKnowledgeStore(client, dialect.Postgres)
+	embedder, err := agent.NewOpenAIEmbedder(agentCfg.Embedding, nil, entschema.EmbeddingDimensions)
+	if err != nil {
+		t.Fatalf("configure real embedder: %v", err)
+	}
+	service, err := knowledge.NewService(embedder, store, knowledge.DefaultChunkSize, knowledge.DefaultChunkOverlap)
+	if err != nil {
+		t.Fatalf("configure knowledge service: %v", err)
+	}
+	if agentCfg.SemanticFactCheck {
+		judge, err := agent.NewOpenAISupportJudge(agentCfg.OpenAI, nil)
+		if err != nil {
+			t.Fatalf("configure real support judge: %v", err)
+		}
+		service.SetSupportJudge(judge)
+	}
+
+	runner, err := agent.NewOpenAIRunnerWithTools(agentCfg.OpenAI, nil, []agent.Tool{service.Tool()})
+	if err != nil {
+		t.Fatalf("configure openai runner: %v", err)
+	}
+
+	queries := []string{
+		"蓝雀缓存雪崩如何应对？",
+		"蓝雀缓存 maxmemory 建议设置多少？",
+		"蓝雀缓存用什么淘汰策略？",
+		"什么是缓存击穿？",
+		"星帆平台紫灯告警第一步做什么？",
+	}
+
+	var total time.Duration
+	ran := 0
+	for i, q := range queries {
+		input := types.AGUIRunInput{
+			ThreadID: "bench-e2e-thread",
+			RunID:    fmt.Sprintf("bench-e2e-run-%d", i),
+			Messages: []types.AGUIMessage{{Role: "user", Content: q}},
+		}
+		var answer strings.Builder
+		toolCalls := 0
+		start := time.Now()
+		err := runner.Run(ctx, input, func(ev types.AGUIEvent) error {
+			switch ev.Type {
+			case "TEXT_MESSAGE_CONTENT":
+				answer.WriteString(ev.Delta)
+			case "TOOL_CALL_START":
+				toolCalls++
+			}
+			return nil
+		})
+		elapsed := time.Since(start)
+		if err != nil {
+			t.Logf("[%d] %-22s 出错：%v", i+1, q, err)
+			continue
+		}
+		total += elapsed
+		ran++
+		ans := strings.Join(strings.Fields(answer.String()), " ")
+		if len(ans) > 60 {
+			ans = ans[:60] + "…"
+		}
+		t.Logf("[%d] %-22s 端到端 %-8s 工具%d次 回答:%s", i+1, q, elapsed.Round(time.Millisecond), toolCalls, ans)
+	}
+	if ran > 0 {
+		t.Logf("汇总：平均端到端延迟 %s（语义核验 %t）",
+			(total / time.Duration(ran)).Round(time.Millisecond), agentCfg.SemanticFactCheck)
 	}
 }
