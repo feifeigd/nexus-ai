@@ -107,6 +107,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 结语过滤 LLM 方案尝试失败（2026-11-03，二分类与三分类均失败）：① 二分类 prompt 引导 LLM 把「组织性/结语/免责/建议」句判为 supported，门控测试实测 `note=""`——编造句「数据库主从复制采用半同步复制模式」也被判 supported，引入漏报；② 显式三分类（supported/unsupported/not-a-claim）同样实测 `note=""`——编造句仍未被标记。两次均已回退。结论：LLM 无法可靠区分「组织语言」与「编造知识」，无论二分类还是三分类；结语/提醒类元语言过滤需非 LLM 的确定性方案（或独立句子分类模型），暂缓。
 - 真浏览器 UI 验收（2026-11-03，Playwright + Chromium 自动化）：Admin AI 助手检索事件卡片（「知识检索结果 5 个分块」）与引用回答、知识库 5 篇文档列表、审批记录与批准（Popconfirm 确认）、工单显示、多页面闭环（AI 创建工单 → 审批批准 → 工单）全部实测通过。Web 首页加载与内嵌 Runtime info 正常，但 Web 端 CopilotChat 发送按钮 disabled（Enter 换行、发送按钮不可点），未能实测 Web 流式回答，待查（疑似 CopilotKit v2 useSingleEndpoint 模式下的 UI 状态或 web 内嵌 Runtime 配置）。另 Web page.tsx 的「Mock Agent / MOCK · STREAMING」文案已过时，与真实模型不符。
 - 交叉编码器重排序评估（2026-11-04）：评估结论为当前不引入，详见 `docs/reranker-evaluation.md`。现有 pgvector 余弦召回 + BM25 关键词融合已零成本命中正确文档（距离 0.12～0.26），交叉编码器（reranker）的 15～25% 排序精度提升不足以覆盖其 100～500ms 延迟与每次查询的 API 成本；且 reranker 只能精排候选池、不能救回漏召回。重新评估条件：知识库规模显著上升 + 有量化数据证明排序精度成为瓶颈。若引入：保留召回 + 规则重排，加交叉编码器对 Top N 精排，优先用 API reranker（复用 DashScope）或本地 bge-reranker。
+- 知识库检索量化基准（2026-11-04）：新增门控测试 `TestRealModelRetrievalBenchmark`（`NEXUS_TEST_REAL_MODEL=1`），10 题覆盖多文档，命中率 10/10=100%、平均检索延迟 470ms；排序质量有提升空间（3 题正确答案非首位：HIT@4×2、HIT@2×1），印证交叉编码器评估里「精排是排序精度问题、非召回问题」的判断。另发现现有库文档为 7 篇（比预期 5 篇多 2 篇，疑为回归测试重复入库「故障排查」）。
 
 ### 环境注意事项
 
