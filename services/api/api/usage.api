@@ -11,15 +11,18 @@ type TokenUsageItem {
 	CreatedAt        string `json:"createdAt"`
 }
 
+type ListTokenUsageRequest {
+	Scope string `form:"scope,optional"`
+}
+
 type ListTokenUsageResponse {
 	Items []TokenUsageItem `json:"items"`
 }
 
 @server(
 	jwt: Auth
-	middleware: StaffOnlyMiddleware
 )
 service nexus-api {
 	@handler listTokenUsage
-	get /usage returns (ListTokenUsageResponse)
+	get /usage (ListTokenUsageRequest) returns (ListTokenUsageResponse)
 }

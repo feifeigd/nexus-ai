@@ -28,7 +28,7 @@ func NewListTokenUsageLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Li
 	}
 }
 
-func (l *ListTokenUsageLogic) ListTokenUsage() (resp *types.ListTokenUsageResponse, err error) {
+func (l *ListTokenUsageLogic) ListTokenUsage(scope string) (resp *types.ListTokenUsageResponse, err error) {
 	if l.svcCtx.TokenUsage == nil {
 		return nil, errors.New("token usage store is not configured")
 	}
@@ -38,8 +38,8 @@ func (l *ListTokenUsageLogic) ListTokenUsage() (resp *types.ListTokenUsageRespon
 		// 兼容旧 token（无 tenant_id claim）：每用户一个租户，回退到用户 id。
 		tenantID, _ = l.ctx.Value("uid").(string)
 	}
-	// staff（管理员）看全部租户；user 只看自己租户。
-	if role == "staff" {
+	// staff（管理员）且 scope=all 时看全部租户；其余情况只看自己租户。
+	if role == "staff" && scope == "all" {
 		tenantID = ""
 	} else if tenantID == "" {
 		return nil, errors.New("未登录或缺少租户信息")

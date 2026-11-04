@@ -7,6 +7,7 @@ import {
   Card,
   Col,
   Row,
+  Segmented,
   Statistic,
   Table,
   Typography,
@@ -25,12 +26,16 @@ export const UsageContent: React.FC = () => {
   const [items, setItems] = useState<TokenUsageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
+  const [scope, setScope] = useState<'self' | 'all'>('self');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(undefined);
     try {
-      const response = await listTokenUsage(NEXUS_API_OPTIONS);
+      const response = await listTokenUsage({
+        ...NEXUS_API_OPTIONS,
+        params: scope === 'all' ? { scope: 'all' } : {},
+      });
       setItems(response.items ?? []);
     } catch (requestError) {
       setError(
@@ -41,7 +46,7 @@ export const UsageContent: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
     void load();
@@ -61,6 +66,15 @@ export const UsageContent: React.FC = () => {
         description="每次 AG-UI 对话完成后按 thread/run 记录；当前只统计对话模型 token，语义核验与嵌入暂未计入。"
         type="info"
         showIcon
+        style={{ marginBottom: 16 }}
+      />
+      <Segmented
+        value={scope}
+        onChange={(value) => setScope(value as 'self' | 'all')}
+        options={[
+          { label: '只看自己', value: 'self' },
+          { label: '看全部', value: 'all' },
+        ]}
         style={{ marginBottom: 16 }}
       />
       {error ? (

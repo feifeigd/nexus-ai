@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CopilotChat } from "@copilotkit/react-core/v2";
 import { AuthForm } from "../components/auth-form";
+import { UsagePanel } from "../components/usage-panel";
 import { clearAuth, getAuthUser, getToken, type AuthUser } from "../lib/auth";
 
 export default function ChatPanel() {
@@ -46,6 +47,9 @@ export default function ChatPanel() {
         >
           退出
         </button>
+      </div>
+      <div className="shrink-0 border-b border-slate-200 p-3">
+        <UsagePanel />
       </div>
       <div className="min-h-0 flex-1">
         <CopilotChat

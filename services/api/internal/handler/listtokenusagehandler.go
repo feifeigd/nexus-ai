@@ -14,7 +14,7 @@ import (
 func listTokenUsageHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		l := logic.NewListTokenUsageLogic(r.Context(), svcCtx)
-		resp, err := l.ListTokenUsage()
+		resp, err := l.ListTokenUsage(r.URL.Query().Get("scope"))
 		if err != nil {
 			httpx.ErrorCtx(r.Context(), w, err)
 		} else {
