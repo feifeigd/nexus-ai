@@ -134,7 +134,7 @@ func TestSearchReranksByBM25KeywordScore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create knowledge service: %v", err)
 	}
-	matches, err := service.Search(context.Background(), "蓝雀告警", 1)
+	matches, err := service.Search(context.Background(), "蓝雀告警", 1, "")
 	if err != nil {
 		t.Fatalf("search knowledge: %v", err)
 	}

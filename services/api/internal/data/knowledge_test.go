@@ -29,6 +29,7 @@ func TestKnowledgeBaseSQLiteSchema(t *testing.T) {
 		SetID("document-1").
 		SetTitle("网络运维手册").
 		SetContent("第一章：故障排查。第二章：恢复验证。").
+		SetTenantID("tenant-a").
 		Save(ctx)
 	if err != nil {
 		t.Fatalf("create document: %v", err)
@@ -47,6 +48,7 @@ func TestKnowledgeBaseSQLiteSchema(t *testing.T) {
 		if err := client.Chunk.Create().
 			SetID(input.id).
 			SetDocumentID(document.ID).
+			SetTenantID("tenant-a").
 			SetOrdinal(input.ordinal).
 			SetContent(input.content).
 			Exec(ctx); err != nil {
@@ -69,13 +71,14 @@ func TestKnowledgeBaseSQLiteSchema(t *testing.T) {
 	if len(values) != len(embedding.Slice()) || values[0] != 1 || values[1] != 0 {
 		t.Fatalf("sqlite embedding did not round-trip: got %v", values)
 	}
-	if _, err := NewKnowledgeStore(client, dialect.SQLite).SearchSimilar(ctx, embedding, 1); !errors.Is(err, ErrVectorSearchUnsupported) {
+	if _, err := NewKnowledgeStore(client, dialect.SQLite).SearchSimilar(ctx, embedding, 1, ""); !errors.Is(err, ErrVectorSearchUnsupported) {
 		t.Fatalf("expected sqlite vector search to be unsupported, got %v", err)
 	}
 
 	if err := client.Chunk.Create().
 		SetID("chunk-duplicate").
 		SetDocumentID(document.ID).
+		SetTenantID("tenant-a").
 		SetOrdinal(0).
 		SetContent("重复序号").
 		Exec(ctx); err == nil {
@@ -112,7 +115,7 @@ func TestKnowledgeBaseSQLiteSchema(t *testing.T) {
 			return next.Mutate(ctx, mutation)
 		})
 	})
-	if _, err := NewKnowledgeStore(client, dialect.SQLite).CreateDocument(ctx, "事务回滚", "完整内容", []KnowledgeChunkInput{
+	if _, err := NewKnowledgeStore(client, dialect.SQLite).CreateDocument(ctx, "事务回滚", "完整内容", "tenant-a", []KnowledgeChunkInput{
 		{Content: "第一块", Embedding: embedding},
 		{Content: "第二块", Embedding: embedding},
 	}); err == nil {

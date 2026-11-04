@@ -19,11 +19,11 @@ type knowledgeSearchStore struct {
 	limit     int
 }
 
-func (s *knowledgeSearchStore) CreateDocument(context.Context, string, string, []data.KnowledgeChunkInput) (string, error) {
+func (s *knowledgeSearchStore) CreateDocument(context.Context, string, string, string, []data.KnowledgeChunkInput) (string, error) {
 	return "", nil
 }
 
-func (s *knowledgeSearchStore) SearchSimilar(_ context.Context, embedding pgvector.Vector, limit int) ([]data.KnowledgeMatch, error) {
+func (s *knowledgeSearchStore) SearchSimilar(_ context.Context, embedding pgvector.Vector, limit int, _ string) ([]data.KnowledgeMatch, error) {
 	s.embedding = embedding
 	s.limit = limit
 	return s.matches, nil
@@ -44,7 +44,7 @@ func TestServiceSearchEmbedsQueryAndReturnsMatches(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create knowledge service: %v", err)
 	}
-	matches, err := service.Search(context.Background(), " 蓝雀告警 ", 0)
+	matches, err := service.Search(context.Background(), " 蓝雀告警 ", 0, "")
 	if err != nil {
 		t.Fatalf("search knowledge: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestServiceSearchEmbedsQueryAndReturnsMatches(t *testing.T) {
 		{query: "有效问题", limit: -1},
 		{query: "有效问题", limit: MaxSearchLimit + 1},
 	} {
-		if _, err := service.Search(context.Background(), test.query, test.limit); err == nil {
+		if _, err := service.Search(context.Background(), test.query, test.limit, ""); err == nil {
 			t.Fatalf("expected invalid search input to fail: %+v", test)
 		}
 	}
@@ -145,7 +145,7 @@ func TestSearchFiltersByDistanceThreshold(t *testing.T) {
 			if err != nil {
 				t.Fatalf("create knowledge service: %v", err)
 			}
-			matches, err := service.Search(context.Background(), "阈值过滤", len(test.matches))
+			matches, err := service.Search(context.Background(), "阈值过滤", len(test.matches), "")
 			if err != nil {
 				t.Fatalf("search knowledge: %v", err)
 			}

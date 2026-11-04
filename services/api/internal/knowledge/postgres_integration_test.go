@@ -58,7 +58,7 @@ func TestSearchPipelineAgainstPostgres(t *testing.T) {
 	nearContent := "数据库迁移需要停机维护窗口"
 	farContent := "容器编排采用声明式配置"
 
-	documentID, err := store.CreateDocument(ctx, "集成检索测试", "完整文档", []data.KnowledgeChunkInput{
+	documentID, err := store.CreateDocument(ctx, "集成检索测试", "完整文档", "tenant-a", []data.KnowledgeChunkInput{
 		{Content: nearContent, Embedding: knowledgePostgresVector(1, 0)},        // 余弦距离 0，无关键词重叠
 		{Content: keywordContent, Embedding: knowledgePostgresVector(0.9, 0.1)}, // 距离约 0.006，关键词重叠
 		{Content: farContent, Embedding: knowledgePostgresVector(0, 1)},         // 距离 1，应被阈值过滤
@@ -72,7 +72,7 @@ func TestSearchPipelineAgainstPostgres(t *testing.T) {
 		}
 	}()
 
-	matches, err := service.Search(ctx, "蓝雀告警", DefaultSearchLimit)
+	matches, err := service.Search(ctx, "蓝雀告警", DefaultSearchLimit, "tenant-a")
 	if err != nil {
 		t.Fatalf("search knowledge pipeline: %v", err)
 	}

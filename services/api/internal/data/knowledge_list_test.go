@@ -35,6 +35,7 @@ func TestKnowledgeStoreListDocuments(t *testing.T) {
 			SetID(input.id).
 			SetTitle(input.title).
 			SetContent("正文不会通过列表元数据返回").
+			SetTenantID("tenant-a").
 			SetCreatedAt(input.createdAt).
 			SetUpdatedAt(input.createdAt).
 			Exec(ctx); err != nil {
@@ -43,7 +44,7 @@ func TestKnowledgeStoreListDocuments(t *testing.T) {
 	}
 
 	store := NewKnowledgeStore(client, dialect.SQLite)
-	documents, err := store.ListDocuments(ctx)
+	documents, err := store.ListDocuments(ctx, "tenant-a")
 	if err != nil {
 		t.Fatalf("list documents: %v", err)
 	}
@@ -53,14 +54,14 @@ func TestKnowledgeStoreListDocuments(t *testing.T) {
 	if documents[0].Title != "新运维手册" || !documents[0].CreatedAt.Equal(newer) || !documents[0].UpdatedAt.Equal(newer) {
 		t.Fatalf("unexpected document metadata: %+v", documents[0])
 	}
-	detail, err := store.GetDocument(ctx, "document-new")
+	detail, err := store.GetDocument(ctx, "document-new", "tenant-a")
 	if err != nil {
 		t.Fatalf("get document detail: %v", err)
 	}
 	if detail.DocumentID != "document-new" || detail.Title != "新运维手册" || detail.Content != "正文不会通过列表元数据返回" {
 		t.Fatalf("unexpected document detail: %+v", detail)
 	}
-	if _, err := store.GetDocument(ctx, "missing"); err != ErrKnowledgeDocumentNotFound {
+	if _, err := store.GetDocument(ctx, "missing", "tenant-a"); err != ErrKnowledgeDocumentNotFound {
 		t.Fatalf("expected document not found, got %v", err)
 	}
 }

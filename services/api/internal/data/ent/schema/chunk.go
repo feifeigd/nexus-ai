@@ -25,6 +25,7 @@ func (Chunk) Fields() []ent.Field {
 		field.String("document_id").NotEmpty().Immutable(),
 		field.Int("ordinal").NonNegative().Immutable(),
 		field.String("content").NotEmpty(),
+		field.String("tenant_id").Immutable(),
 		field.Other("embedding", pgvector.Vector{}).
 			Optional().
 			Nillable().

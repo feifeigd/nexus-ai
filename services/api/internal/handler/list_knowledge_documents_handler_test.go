@@ -16,24 +16,24 @@ import (
 	"nexusai/services/api/internal/svc"
 )
 
-type knowledgeDocumentStoreFunc func(ctx context.Context) ([]data.KnowledgeDocument, error)
+type knowledgeDocumentStoreFunc func(ctx context.Context, tenantID string) ([]data.KnowledgeDocument, error)
 
-func (f knowledgeDocumentStoreFunc) ListDocuments(ctx context.Context) ([]data.KnowledgeDocument, error) {
-	return f(ctx)
+func (f knowledgeDocumentStoreFunc) ListDocuments(ctx context.Context, tenantID string) ([]data.KnowledgeDocument, error) {
+	return f(ctx, tenantID)
 }
 
-func (f knowledgeDocumentStoreFunc) GetDocument(context.Context, string) (data.KnowledgeDocumentDetail, error) {
+func (f knowledgeDocumentStoreFunc) GetDocument(context.Context, string, string) (data.KnowledgeDocumentDetail, error) {
 	return data.KnowledgeDocumentDetail{}, errors.New("unexpected GetDocument call")
 }
 
-func (f knowledgeDocumentStoreFunc) DeleteDocument(context.Context, string) error {
+func (f knowledgeDocumentStoreFunc) DeleteDocument(context.Context, string, string) error {
 	return errors.New("unexpected DeleteDocument call")
 }
 
 func TestListKnowledgeDocumentsHandler(t *testing.T) {
 	t.Run("success without an embedding service", func(t *testing.T) {
 		createdAt := time.Date(2026, time.November, 2, 4, 0, 0, 0, time.UTC)
-		store := knowledgeDocumentStoreFunc(func(context.Context) ([]data.KnowledgeDocument, error) {
+		store := knowledgeDocumentStoreFunc(func(context.Context, string) ([]data.KnowledgeDocument, error) {
 			return []data.KnowledgeDocument{{
 				DocumentID: "document-1",
 				Title:      "运维手册",
@@ -67,7 +67,7 @@ func TestListKnowledgeDocumentsHandler(t *testing.T) {
 	})
 
 	t.Run("store failure", func(t *testing.T) {
-		store := knowledgeDocumentStoreFunc(func(context.Context) ([]data.KnowledgeDocument, error) {
+		store := knowledgeDocumentStoreFunc(func(context.Context, string) ([]data.KnowledgeDocument, error) {
 			return nil, errors.New("sensitive database detail")
 		})
 		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, store, nil, nil)

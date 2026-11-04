@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"nexusai/services/api/internal/agent"
+	"nexusai/services/api/internal/auth"
 )
 
 const searchKnowledgeToolName = "search_knowledge"
@@ -72,7 +73,7 @@ func (s *Service) executeSearch(ctx context.Context, proposal agent.ToolProposal
 	if err := json.Unmarshal(proposal.Arguments, &arguments); err != nil {
 		return "", fmt.Errorf("invalid search_knowledge arguments: %w", err)
 	}
-	matches, err := s.Search(ctx, arguments.Query, arguments.Limit)
+	matches, err := s.Search(ctx, arguments.Query, arguments.Limit, auth.TenantIDFromContext(ctx))
 	if err != nil {
 		return "", err
 	}

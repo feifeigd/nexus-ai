@@ -8,6 +8,7 @@ import (
 	"errors"
 	"time"
 
+	"nexusai/services/api/internal/auth"
 	"nexusai/services/api/internal/svc"
 	"nexusai/services/api/internal/types"
 
@@ -33,11 +34,7 @@ func (l *ListTokenUsageLogic) ListTokenUsage(scope string) (resp *types.ListToke
 		return nil, errors.New("token usage store is not configured")
 	}
 	role, _ := l.ctx.Value("role").(string)
-	tenantID, _ := l.ctx.Value("tenant_id").(string)
-	if tenantID == "" {
-		// 兼容旧 token（无 tenant_id claim）：每用户一个租户，回退到用户 id。
-		tenantID, _ = l.ctx.Value("uid").(string)
-	}
+	tenantID := auth.TenantIDFromContext(l.ctx)
 	// staff（管理员）且 scope=all 时看全部租户；其余情况只看自己租户。
 	if role == "staff" && scope == "all" {
 		tenantID = ""

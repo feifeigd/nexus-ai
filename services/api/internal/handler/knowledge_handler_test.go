@@ -20,16 +20,16 @@ import (
 	"entgo.io/ent/dialect"
 )
 
-type knowledgeServiceFunc func(ctx context.Context, title, content string) (string, error)
+type knowledgeServiceFunc func(ctx context.Context, title, content, tenantID string) (string, error)
 
-func (f knowledgeServiceFunc) IngestDocument(ctx context.Context, title, content string) (string, error) {
-	return f(ctx, title, content)
+func (f knowledgeServiceFunc) IngestDocument(ctx context.Context, title, content, tenantID string) (string, error) {
+	return f(ctx, title, content, tenantID)
 }
 
 func TestIngestDocumentHandler(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		var title, content string
-		service := knowledgeServiceFunc(func(_ context.Context, gotTitle, gotContent string) (string, error) {
+		service := knowledgeServiceFunc(func(_ context.Context, gotTitle, gotContent, gotTenantID string) (string, error) {
 			title, content = gotTitle, gotContent
 			return "document-1", nil
 		})
@@ -50,7 +50,7 @@ func TestIngestDocumentHandler(t *testing.T) {
 	})
 
 	t.Run("invalid input", func(t *testing.T) {
-		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, knowledgeServiceFunc(func(context.Context, string, string) (string, error) {
+		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, knowledgeServiceFunc(func(context.Context, string, string, string) (string, error) {
 			t.Fatal("invalid input must not reach the knowledge service")
 			return "", nil
 		}), nil, nil, nil)
@@ -75,7 +75,7 @@ func TestIngestDocumentHandler(t *testing.T) {
 	})
 
 	t.Run("service failure", func(t *testing.T) {
-		service := knowledgeServiceFunc(func(context.Context, string, string) (string, error) {
+		service := knowledgeServiceFunc(func(context.Context, string, string, string) (string, error) {
 			return "", errors.New("sensitive provider detail")
 		})
 		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, service, nil, nil, nil)

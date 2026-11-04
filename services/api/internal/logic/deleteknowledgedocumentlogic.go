@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 
+	"nexusai/services/api/internal/auth"
 	"nexusai/services/api/internal/svc"
 	"nexusai/services/api/internal/types"
 
@@ -31,7 +32,7 @@ func (l *DeleteKnowledgeDocumentLogic) DeleteKnowledgeDocument(req *types.Delete
 	if l.svcCtx.Documents == nil {
 		return nil, errors.New("knowledge document store is not configured")
 	}
-	if err := l.svcCtx.Documents.DeleteDocument(l.ctx, req.ID); err != nil {
+	if err := l.svcCtx.Documents.DeleteDocument(l.ctx, req.ID, auth.TenantIDFromContext(l.ctx)); err != nil {
 		return nil, err
 	}
 	return &types.DeleteKnowledgeDocumentResponse{DocumentID: req.ID}, nil

@@ -16,13 +16,13 @@ import (
 )
 
 type KnowledgeService interface {
-	IngestDocument(ctx context.Context, title, content string) (string, error)
+	IngestDocument(ctx context.Context, title, content, tenantID string) (string, error)
 }
 
 type KnowledgeDocumentStore interface {
-	ListDocuments(ctx context.Context) ([]data.KnowledgeDocument, error)
-	GetDocument(ctx context.Context, id string) (data.KnowledgeDocumentDetail, error)
-	DeleteDocument(ctx context.Context, id string) error
+	ListDocuments(ctx context.Context, tenantID string) ([]data.KnowledgeDocument, error)
+	GetDocument(ctx context.Context, id, tenantID string) (data.KnowledgeDocumentDetail, error)
+	DeleteDocument(ctx context.Context, id, tenantID string) error
 }
 
 type ServiceContext struct {

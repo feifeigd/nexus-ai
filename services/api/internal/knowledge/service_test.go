@@ -46,7 +46,7 @@ func TestServiceIngestsChunkedDocument(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create knowledge service: %v", err)
 	}
-	documentID, err := service.IngestDocument(context.Background(), " 运维手册 ", "abcdefghij")
+	documentID, err := service.IngestDocument(context.Background(), " 运维手册 ", "abcdefghij", "tenant-a")
 	if err != nil {
 		t.Fatalf("ingest document: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestServiceIngestsChunkedDocument(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create failing knowledge service: %v", err)
 	}
-	if _, err := failingService.IngestDocument(context.Background(), "失败文档", "abcdefghij"); err == nil {
+	if _, err := failingService.IngestDocument(context.Background(), "失败文档", "abcdefghij", "tenant-a"); err == nil {
 		t.Fatal("expected embedding failure")
 	}
 	count, err := client.Document.Query().Count(context.Background())

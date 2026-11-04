@@ -16,17 +16,17 @@ import (
 	"nexusai/services/api/internal/svc"
 )
 
-type knowledgeDocumentDetailStoreFunc func(ctx context.Context, id string) (data.KnowledgeDocumentDetail, error)
+type knowledgeDocumentDetailStoreFunc func(ctx context.Context, id, tenantID string) (data.KnowledgeDocumentDetail, error)
 
-func (f knowledgeDocumentDetailStoreFunc) ListDocuments(context.Context) ([]data.KnowledgeDocument, error) {
+func (f knowledgeDocumentDetailStoreFunc) ListDocuments(context.Context, string) ([]data.KnowledgeDocument, error) {
 	return nil, errors.New("unexpected ListDocuments call")
 }
 
-func (f knowledgeDocumentDetailStoreFunc) GetDocument(ctx context.Context, id string) (data.KnowledgeDocumentDetail, error) {
-	return f(ctx, id)
+func (f knowledgeDocumentDetailStoreFunc) GetDocument(ctx context.Context, id, tenantID string) (data.KnowledgeDocumentDetail, error) {
+	return f(ctx, id, tenantID)
 }
 
-func (f knowledgeDocumentDetailStoreFunc) DeleteDocument(context.Context, string) error {
+func (f knowledgeDocumentDetailStoreFunc) DeleteDocument(context.Context, string, string) error {
 	return errors.New("unexpected DeleteDocument call")
 }
 
@@ -34,7 +34,7 @@ func TestGetKnowledgeDocumentHandler(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		createdAt := time.Date(2026, time.November, 2, 4, 0, 0, 0, time.UTC)
 		var requestedID string
-		store := knowledgeDocumentDetailStoreFunc(func(_ context.Context, id string) (data.KnowledgeDocumentDetail, error) {
+		store := knowledgeDocumentDetailStoreFunc(func(_ context.Context, id, tenantID string) (data.KnowledgeDocumentDetail, error) {
 			requestedID = id
 			return data.KnowledgeDocumentDetail{
 				KnowledgeDocument: data.KnowledgeDocument{
@@ -69,7 +69,7 @@ func TestGetKnowledgeDocumentHandler(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		store := knowledgeDocumentDetailStoreFunc(func(context.Context, string) (data.KnowledgeDocumentDetail, error) {
+		store := knowledgeDocumentDetailStoreFunc(func(context.Context, string, string) (data.KnowledgeDocumentDetail, error) {
 			return data.KnowledgeDocumentDetail{}, data.ErrKnowledgeDocumentNotFound
 		})
 		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, store, nil, nil)
@@ -82,7 +82,7 @@ func TestGetKnowledgeDocumentHandler(t *testing.T) {
 	})
 
 	t.Run("store failure", func(t *testing.T) {
-		store := knowledgeDocumentDetailStoreFunc(func(context.Context, string) (data.KnowledgeDocumentDetail, error) {
+		store := knowledgeDocumentDetailStoreFunc(func(context.Context, string, string) (data.KnowledgeDocumentDetail, error) {
 			return data.KnowledgeDocumentDetail{}, errors.New("sensitive database detail")
 		})
 		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, store, nil, nil)

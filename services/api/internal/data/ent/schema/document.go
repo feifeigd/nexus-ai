@@ -20,6 +20,7 @@ func (Document) Fields() []ent.Field {
 		field.String("id").Unique().Immutable(),
 		field.String("title").NotEmpty().MaxLen(200),
 		field.String("content").NotEmpty(),
+		field.String("tenant_id").Immutable(),
 		field.Time("created_at").Default(time.Now).Immutable(),
 		field.Time("updated_at").Default(time.Now).UpdateDefault(time.Now),
 	}

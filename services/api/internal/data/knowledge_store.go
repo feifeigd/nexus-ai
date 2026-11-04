@@ -55,11 +55,15 @@ func NewKnowledgeStore(client *ent.Client, driver string) *KnowledgeStore {
 	return &KnowledgeStore{client: client, driver: driver}
 }
 
-func (s *KnowledgeStore) ListDocuments(ctx context.Context) ([]KnowledgeDocument, error) {
+func (s *KnowledgeStore) ListDocuments(ctx context.Context, tenantID string) ([]KnowledgeDocument, error) {
 	if s == nil || s.client == nil {
 		return nil, fmt.Errorf("knowledge store client is required")
 	}
-	rows, err := s.client.Document.Query().
+	query := s.client.Document.Query()
+	if tenantID != "" {
+		query = query.Where(entdocument.TenantIDEQ(tenantID))
+	}
+	rows, err := query.
 		Order(ent.Desc(entdocument.FieldCreatedAt), ent.Asc(entdocument.FieldID)).
 		All(ctx)
 	if err != nil {
@@ -77,11 +81,15 @@ func (s *KnowledgeStore) ListDocuments(ctx context.Context) ([]KnowledgeDocument
 	return documents, nil
 }
 
-func (s *KnowledgeStore) GetDocument(ctx context.Context, id string) (KnowledgeDocumentDetail, error) {
+func (s *KnowledgeStore) GetDocument(ctx context.Context, id, tenantID string) (KnowledgeDocumentDetail, error) {
 	if s == nil || s.client == nil {
 		return KnowledgeDocumentDetail{}, fmt.Errorf("knowledge store client is required")
 	}
-	row, err := s.client.Document.Get(ctx, id)
+	query := s.client.Document.Query().Where(entdocument.IDEQ(id))
+	if tenantID != "" {
+		query = query.Where(entdocument.TenantIDEQ(tenantID))
+	}
+	row, err := query.First(ctx)
 	if ent.IsNotFound(err) {
 		return KnowledgeDocumentDetail{}, ErrKnowledgeDocumentNotFound
 	}
@@ -101,7 +109,7 @@ func (s *KnowledgeStore) GetDocument(ctx context.Context, id string) (KnowledgeD
 
 // DeleteDocument removes the document and relies on the schema's foreign-key
 // cascade to remove its chunks in the same transaction.
-func (s *KnowledgeStore) DeleteDocument(ctx context.Context, id string) error {
+func (s *KnowledgeStore) DeleteDocument(ctx context.Context, id, tenantID string) error {
 	if s == nil || s.client == nil {
 		return fmt.Errorf("knowledge store client is required")
 	}
@@ -110,10 +118,16 @@ func (s *KnowledgeStore) DeleteDocument(ctx context.Context, id string) error {
 		return fmt.Errorf("begin knowledge document deletion transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	if err := tx.Client().Document.DeleteOneID(id).Exec(ctx); ent.IsNotFound(err) {
-		return ErrKnowledgeDocumentNotFound
-	} else if err != nil {
+	query := tx.Client().Document.Delete().Where(entdocument.IDEQ(id))
+	if tenantID != "" {
+		query = query.Where(entdocument.TenantIDEQ(tenantID))
+	}
+	deleted, err := query.Exec(ctx)
+	if err != nil {
 		return fmt.Errorf("delete knowledge document: %w", err)
+	}
+	if deleted == 0 {
+		return ErrKnowledgeDocumentNotFound
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit knowledge document deletion transaction: %w", err)
@@ -124,7 +138,7 @@ func (s *KnowledgeStore) DeleteDocument(ctx context.Context, id string) error {
 // SearchSimilar returns chunks ordered by pgvector cosine distance. SQLite can
 // persist embeddings for development tests, but deliberately has no fallback
 // search implementation that would differ from production retrieval behavior.
-func (s *KnowledgeStore) SearchSimilar(ctx context.Context, embedding pgvector.Vector, limit int) ([]KnowledgeMatch, error) {
+func (s *KnowledgeStore) SearchSimilar(ctx context.Context, embedding pgvector.Vector, limit int, tenantID string) ([]KnowledgeMatch, error) {
 	if s == nil || s.client == nil {
 		return nil, fmt.Errorf("knowledge store client is required")
 	}
@@ -148,8 +162,12 @@ func (s *KnowledgeStore) SearchSimilar(ctx context.Context, embedding pgvector.V
 		ent.Chunk
 		Distance float64 `json:"distance"`
 	}
-	if err := s.client.Chunk.Query().
-		Where(chunk.EmbeddingNotNil()).
+	query := s.client.Chunk.Query().
+		Where(chunk.EmbeddingNotNil())
+	if tenantID != "" {
+		query = query.Where(chunk.TenantIDEQ(tenantID))
+	}
+	if err := query.
 		Limit(limit).
 		Modify(func(selector *entsql.Selector) {
 			selector.AppendSelectExprAs(distance, "distance")

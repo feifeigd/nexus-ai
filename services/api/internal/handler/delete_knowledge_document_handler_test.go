@@ -15,24 +15,24 @@ import (
 	"nexusai/services/api/internal/svc"
 )
 
-type knowledgeDocumentDeleteStoreFunc func(ctx context.Context, id string) error
+type knowledgeDocumentDeleteStoreFunc func(ctx context.Context, id, tenantID string) error
 
-func (f knowledgeDocumentDeleteStoreFunc) ListDocuments(context.Context) ([]data.KnowledgeDocument, error) {
+func (f knowledgeDocumentDeleteStoreFunc) ListDocuments(context.Context, string) ([]data.KnowledgeDocument, error) {
 	return nil, errors.New("unexpected ListDocuments call")
 }
 
-func (f knowledgeDocumentDeleteStoreFunc) GetDocument(context.Context, string) (data.KnowledgeDocumentDetail, error) {
+func (f knowledgeDocumentDeleteStoreFunc) GetDocument(context.Context, string, string) (data.KnowledgeDocumentDetail, error) {
 	return data.KnowledgeDocumentDetail{}, errors.New("unexpected GetDocument call")
 }
 
-func (f knowledgeDocumentDeleteStoreFunc) DeleteDocument(ctx context.Context, id string) error {
-	return f(ctx, id)
+func (f knowledgeDocumentDeleteStoreFunc) DeleteDocument(ctx context.Context, id, tenantID string) error {
+	return f(ctx, id, tenantID)
 }
 
 func TestDeleteKnowledgeDocumentHandler(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		var requestedID string
-		store := knowledgeDocumentDeleteStoreFunc(func(_ context.Context, id string) error {
+		store := knowledgeDocumentDeleteStoreFunc(func(_ context.Context, id, tenantID string) error {
 			requestedID = id
 			return nil
 		})
@@ -55,7 +55,7 @@ func TestDeleteKnowledgeDocumentHandler(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		store := knowledgeDocumentDeleteStoreFunc(func(context.Context, string) error {
+		store := knowledgeDocumentDeleteStoreFunc(func(context.Context, string, string) error {
 			return data.ErrKnowledgeDocumentNotFound
 		})
 		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, store, nil, nil)
@@ -68,7 +68,7 @@ func TestDeleteKnowledgeDocumentHandler(t *testing.T) {
 	})
 
 	t.Run("store failure", func(t *testing.T) {
-		store := knowledgeDocumentDeleteStoreFunc(func(context.Context, string) error {
+		store := knowledgeDocumentDeleteStoreFunc(func(context.Context, string, string) error {
 			return errors.New("sensitive database detail")
 		})
 		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, store, nil, nil)

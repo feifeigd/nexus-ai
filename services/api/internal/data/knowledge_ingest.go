@@ -19,7 +19,7 @@ type KnowledgeChunkInput struct {
 }
 
 // CreateDocument stores a document and all embedded chunks atomically.
-func (s *KnowledgeStore) CreateDocument(ctx context.Context, title, content string, chunks []KnowledgeChunkInput) (string, error) {
+func (s *KnowledgeStore) CreateDocument(ctx context.Context, title, content, tenantID string, chunks []KnowledgeChunkInput) (string, error) {
 	if s == nil || s.client == nil {
 		return "", fmt.Errorf("knowledge store client is required")
 	}
@@ -56,6 +56,7 @@ func (s *KnowledgeStore) CreateDocument(ctx context.Context, title, content stri
 		SetID(documentID).
 		SetTitle(title).
 		SetContent(content).
+		SetTenantID(tenantID).
 		Exec(ctx); err != nil {
 		return "", fmt.Errorf("insert knowledge document: %w", err)
 	}
@@ -67,6 +68,7 @@ func (s *KnowledgeStore) CreateDocument(ctx context.Context, title, content stri
 		if err := tx.Client().Chunk.Create().
 			SetID(chunkID).
 			SetDocumentID(documentID).
+			SetTenantID(tenantID).
 			SetOrdinal(ordinal).
 			SetContent(chunk.Content).
 			SetEmbedding(chunk.Embedding).

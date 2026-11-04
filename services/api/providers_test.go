@@ -155,7 +155,7 @@ func TestWireContextUsesIndependentChatAndEmbeddingProviders(t *testing.T) {
 	if ctx.Knowledge == nil {
 		t.Fatal("expected knowledge service for the independent embedding provider")
 	}
-	if _, err := ctx.Knowledge.IngestDocument(context.Background(), "运维手册", "故障排查"); err != nil {
+	if _, err := ctx.Knowledge.IngestDocument(context.Background(), "运维手册", "故障排查", ""); err != nil {
 		t.Fatalf("ingest through independent embedding provider: %v", err)
 	}
 	if err := ctx.Runner.Run(context.Background(), types.AGUIRunInput{

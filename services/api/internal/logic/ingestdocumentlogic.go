@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 
+	"nexusai/services/api/internal/auth"
 	"nexusai/services/api/internal/svc"
 	"nexusai/services/api/internal/types"
 
@@ -33,7 +34,7 @@ func (l *IngestDocumentLogic) IngestDocument(req *types.IngestDocumentInput) (*t
 	if l.svcCtx.Knowledge == nil {
 		return nil, ErrKnowledgeNotConfigured
 	}
-	documentID, err := l.svcCtx.Knowledge.IngestDocument(l.ctx, req.Title, req.Content)
+	documentID, err := l.svcCtx.Knowledge.IngestDocument(l.ctx, req.Title, req.Content, auth.TenantIDFromContext(l.ctx))
 	if err != nil {
 		return nil, err
 	}

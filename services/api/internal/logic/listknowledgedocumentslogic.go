@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 
+	"nexusai/services/api/internal/auth"
 	"nexusai/services/api/internal/svc"
 	"nexusai/services/api/internal/types"
 
@@ -31,7 +32,7 @@ func (l *ListKnowledgeDocumentsLogic) ListKnowledgeDocuments() (*types.ListKnowl
 	if l.svcCtx.Documents == nil {
 		return nil, errors.New("knowledge document store is not configured")
 	}
-	documents, err := l.svcCtx.Documents.ListDocuments(l.ctx)
+	documents, err := l.svcCtx.Documents.ListDocuments(l.ctx, auth.TenantIDFromContext(l.ctx))
 	if err != nil {
 		return nil, err
 	}

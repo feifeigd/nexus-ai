@@ -41,6 +41,7 @@ func TestKnowledgeStorePostgres(t *testing.T) {
 		SetID(id).
 		SetTitle("pgvector 检索测试").
 		SetContent("向量检索集成测试").
+		SetTenantID("tenant-a").
 		Exec(ctx); err != nil {
 		t.Fatalf("create postgres document: %v", err)
 	}
@@ -62,6 +63,7 @@ func TestKnowledgeStorePostgres(t *testing.T) {
 		if err := client.Chunk.Create().
 			SetID(id + "-" + input.suffix).
 			SetDocumentID(id).
+			SetTenantID("tenant-a").
 			SetOrdinal(input.ordinal).
 			SetContent(input.suffix).
 			SetEmbedding(input.embedding).
@@ -72,6 +74,7 @@ func TestKnowledgeStorePostgres(t *testing.T) {
 	if err := client.Chunk.Create().
 		SetID(id + "-without-embedding").
 		SetDocumentID(id).
+		SetTenantID("tenant-a").
 		SetOrdinal(3).
 		SetContent("not searchable").
 		Exec(ctx); err != nil {
@@ -79,7 +82,7 @@ func TestKnowledgeStorePostgres(t *testing.T) {
 	}
 
 	store := NewKnowledgeStore(client, dialect.Postgres)
-	matches, err := store.SearchSimilar(ctx, knowledgeTestVector(1, 0), 2)
+	matches, err := store.SearchSimilar(ctx, knowledgeTestVector(1, 0), 2, "tenant-a")
 	if err != nil {
 		t.Fatalf("search postgres embeddings: %v", err)
 	}
@@ -89,14 +92,14 @@ func TestKnowledgeStorePostgres(t *testing.T) {
 	if matches[0].Distance < 0 || matches[0].Distance > matches[1].Distance {
 		t.Fatalf("invalid cosine distances: %+v", matches)
 	}
-	if _, err := store.SearchSimilar(ctx, pgvector.NewVector([]float32{1}), 1); err == nil {
+	if _, err := store.SearchSimilar(ctx, pgvector.NewVector([]float32{1}), 1, "tenant-a"); err == nil {
 		t.Fatal("expected an embedding dimension validation error")
 	}
-	if _, err := store.SearchSimilar(ctx, knowledgeTestVector(1, 0), -1); err == nil {
+	if _, err := store.SearchSimilar(ctx, knowledgeTestVector(1, 0), -1, "tenant-a"); err == nil {
 		t.Fatal("expected a search limit validation error")
 	}
 
-	ingestedID, err := store.CreateDocument(ctx, "事务写入测试", "完整文档", []KnowledgeChunkInput{
+	ingestedID, err := store.CreateDocument(ctx, "事务写入测试", "完整文档", "tenant-a", []KnowledgeChunkInput{
 		{Content: "第一块", Embedding: knowledgeTestVector(1, 0)},
 		{Content: "第二块", Embedding: knowledgeTestVector(0, 1)},
 	})

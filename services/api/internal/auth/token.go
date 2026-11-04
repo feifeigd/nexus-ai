@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -49,4 +50,14 @@ func ParseToken(secret, tokenString string) (*Claims, error) {
 		return nil, fmt.Errorf("invalid token")
 	}
 	return claims, nil
+}
+
+// TenantIDFromContext 从请求 context 取 JWT 中间件注入的 tenant_id claim。
+// 兼容旧 token（无 tenant_id claim）：每用户一个租户，回退到用户 id（uid）。
+func TenantIDFromContext(ctx context.Context) string {
+	tenantID, _ := ctx.Value("tenant_id").(string)
+	if tenantID == "" {
+		tenantID, _ = ctx.Value("uid").(string)
+	}
+	return tenantID
 }

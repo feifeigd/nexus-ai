@@ -87,7 +87,7 @@ func TestRealModelKnowledgePipeline(t *testing.T) {
 	content := "蓝雀缓存服务使用 LRU 淘汰策略，内存不足时会优先淘汰最近最少使用的键。出现缓存雪崩时，应对热点键设置随机过期时间，并启用熔断与限流以保护下游数据库。"
 
 	ingestStart := time.Now()
-	documentID, err := service.IngestDocument(ctx, title, content)
+	documentID, err := service.IngestDocument(ctx, title, content, "tenant-a")
 	if err != nil {
 		t.Fatalf("ingest document through real embedding model: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestRealModelKnowledgePipeline(t *testing.T) {
 	// 第 30 步：真实嵌入模型下的检索（余弦召回 + 阈值过滤 + BM25 关键词打分融合）。
 	query := "蓝雀缓存雪崩如何应对？"
 	searchStart := time.Now()
-	matches, err := service.Search(ctx, query, knowledge.DefaultSearchLimit)
+	matches, err := service.Search(ctx, query, knowledge.DefaultSearchLimit, "tenant-a")
 	if err != nil {
 		t.Fatalf("search through real embedding model: %v", err)
 	}

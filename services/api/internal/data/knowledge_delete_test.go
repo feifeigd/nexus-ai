@@ -28,6 +28,7 @@ func TestKnowledgeStoreDeleteDocument(t *testing.T) {
 		SetID("document-delete").
 		SetTitle("待删除运维手册").
 		SetContent("第一章：故障排查。第二章：恢复验证。").
+		SetTenantID("tenant-a").
 		Exec(ctx); err != nil {
 		t.Fatalf("create document: %v", err)
 	}
@@ -42,6 +43,7 @@ func TestKnowledgeStoreDeleteDocument(t *testing.T) {
 		if err := client.Chunk.Create().
 			SetID(input.id).
 			SetDocumentID("document-delete").
+			SetTenantID("tenant-a").
 			SetOrdinal(input.ordinal).
 			SetContent(input.content).
 			Exec(ctx); err != nil {
@@ -50,10 +52,10 @@ func TestKnowledgeStoreDeleteDocument(t *testing.T) {
 	}
 
 	store := NewKnowledgeStore(client, dialect.SQLite)
-	if err := store.DeleteDocument(ctx, "document-delete"); err != nil {
+	if err := store.DeleteDocument(ctx, "document-delete", "tenant-a"); err != nil {
 		t.Fatalf("delete document: %v", err)
 	}
-	if _, err := store.GetDocument(ctx, "document-delete"); !errors.Is(err, ErrKnowledgeDocumentNotFound) {
+	if _, err := store.GetDocument(ctx, "document-delete", "tenant-a"); !errors.Is(err, ErrKnowledgeDocumentNotFound) {
 		t.Fatalf("expected deleted document to be absent, got %v", err)
 	}
 	remaining, err := client.Chunk.Query().Where(chunk.DocumentID("document-delete")).Count(ctx)
@@ -63,7 +65,7 @@ func TestKnowledgeStoreDeleteDocument(t *testing.T) {
 	if remaining != 0 {
 		t.Fatalf("expected document chunks to be cascade deleted, got %d", remaining)
 	}
-	if err := store.DeleteDocument(ctx, "document-delete"); !errors.Is(err, ErrKnowledgeDocumentNotFound) {
+	if err := store.DeleteDocument(ctx, "document-delete", "tenant-a"); !errors.Is(err, ErrKnowledgeDocumentNotFound) {
 		t.Fatalf("expected repeated deletion to return not found, got %v", err)
 	}
 }

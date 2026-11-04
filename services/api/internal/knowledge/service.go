@@ -28,8 +28,8 @@ type Embedder interface {
 }
 
 type Store interface {
-	CreateDocument(ctx context.Context, title, content string, chunks []data.KnowledgeChunkInput) (string, error)
-	SearchSimilar(ctx context.Context, embedding pgvector.Vector, limit int) ([]data.KnowledgeMatch, error)
+	CreateDocument(ctx context.Context, title, content, tenantID string, chunks []data.KnowledgeChunkInput) (string, error)
+	SearchSimilar(ctx context.Context, embedding pgvector.Vector, limit int, tenantID string) ([]data.KnowledgeMatch, error)
 }
 
 // SupportJudge 判断每个候选句子是否被至少一个知识分块支撑。它用语义判定
@@ -70,7 +70,7 @@ func (s *Service) SetSupportJudge(judge SupportJudge) {
 	s.judge = judge
 }
 
-func (s *Service) IngestDocument(ctx context.Context, title, content string) (string, error) {
+func (s *Service) IngestDocument(ctx context.Context, title, content, tenantID string) (string, error) {
 	chunks := splitText(content, s.chunkSize, s.chunkOverlap)
 	if len(chunks) == 0 {
 		return "", fmt.Errorf("document content is required")
@@ -89,10 +89,10 @@ func (s *Service) IngestDocument(ctx context.Context, title, content string) (st
 		}
 		inputs[index] = data.KnowledgeChunkInput{Content: chunk, Embedding: embeddings[index]}
 	}
-	return s.store.CreateDocument(ctx, title, content, inputs)
+	return s.store.CreateDocument(ctx, title, content, tenantID, inputs)
 }
 
-func (s *Service) Search(ctx context.Context, query string, limit int) ([]data.KnowledgeMatch, error) {
+func (s *Service) Search(ctx context.Context, query string, limit int, tenantID string) ([]data.KnowledgeMatch, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return nil, fmt.Errorf("knowledge search query is required")
@@ -116,7 +116,7 @@ func (s *Service) Search(ctx context.Context, query string, limit int) ([]data.K
 	if len(embeddings[0].Slice()) != entschema.EmbeddingDimensions {
 		return nil, fmt.Errorf("embedding must contain %d dimensions, got %d", entschema.EmbeddingDimensions, len(embeddings[0].Slice()))
 	}
-	matches, err := s.store.SearchSimilar(ctx, embeddings[0], searchRecallLimit(limit))
+	matches, err := s.store.SearchSimilar(ctx, embeddings[0], searchRecallLimit(limit), tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("search knowledge: %w", err)
 	}

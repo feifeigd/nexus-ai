@@ -66,7 +66,7 @@ func TestRealModelRetrievalBenchmark(t *testing.T) {
 	}
 
 	// title -> documentId 映射，用于程序化判定命中。
-	docs, err := store.ListDocuments(ctx)
+	docs, err := store.ListDocuments(ctx, "")
 	if err != nil {
 		t.Fatalf("list documents: %v", err)
 	}
@@ -102,7 +102,7 @@ func TestRealModelRetrievalBenchmark(t *testing.T) {
 		}
 		valid++
 		start := time.Now()
-		matches, err := service.Search(ctx, q.query, knowledge.DefaultSearchLimit)
+		matches, err := service.Search(ctx, q.query, knowledge.DefaultSearchLimit, "")
 		elapsed := time.Since(start)
 		if err != nil {
 			t.Logf("[%d] %q 检索出错：%v", i+1, q.query, err)
