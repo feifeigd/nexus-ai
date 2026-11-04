@@ -109,6 +109,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 交叉编码器重排序评估（2026-11-04）：评估结论为当前不引入，详见 `docs/reranker-evaluation.md`。现有 pgvector 余弦召回 + BM25 关键词融合已零成本命中正确文档（距离 0.12～0.26），交叉编码器（reranker）的 15～25% 排序精度提升不足以覆盖其 100～500ms 延迟与每次查询的 API 成本；且 reranker 只能精排候选池、不能救回漏召回。重新评估条件：知识库规模显著上升 + 有量化数据证明排序精度成为瓶颈。若引入：保留召回 + 规则重排，加交叉编码器对 Top N 精排，优先用 API reranker（复用 DashScope）或本地 bge-reranker。
 - 知识库检索量化基准（2026-11-04）：新增门控测试 `TestRealModelRetrievalBenchmark`（`NEXUS_TEST_REAL_MODEL=1`），10 题覆盖多文档，命中率 10/10=100%、平均检索延迟 470ms；排序质量有提升空间（3 题正确答案非首位：HIT@4×2、HIT@2×1），印证交叉编码器评估里「精排是排序精度问题、非召回问题」的判断。另发现现有库文档为 7 篇（比预期 5 篇多 2 篇，疑为回归测试重复入库「故障排查」）。
 - 知识库端到端问答量化基准（2026-11-04）：新增门控测试 `TestRealModelE2EBenchmark`（`NEXUS_TEST_REAL_MODEL=1`），5 题走完整两段式问答（模型决定检索 → 工具执行 → 生成回答 → 语义核验），平均端到端延迟 8.04s（范围 2.4～18.4s，语义核验开启），每问模型调用 search_knowledge 2 次。token 成本尚未量化（需在 OpenAIRunner 记录 usage）。
+- 知识库问答 token 成本量化（2026-11-04）：`OpenAIRunner` 与 `OpenAISupportJudge` 新增 `Usage` 记录（请求开 `stream_options.include_usage`），基准每问输出对话模型 token（2 次调用 1460～2654）+ 语义核验 token（745～1935），合计约 2200～4500 token/问；嵌入 token 未计（查询约十几 token，可忽略）。成本需按实际模型单价折算。
 
 ### 环境注意事项
 

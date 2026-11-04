@@ -26,10 +26,30 @@ type OpenAIRunner struct {
 	model   string
 	client  *http.Client
 	tools   []Tool // 支持的工具
+	usage   Usage  // 累计 Run 过程中的对话模型 token（不含语义核验与嵌入）
 }
 
 // 实现接口
 var _ Runner = (*OpenAIRunner)(nil)
+
+// Usage 记录一次或多次模型调用的 token 消耗（OpenAI 兼容的 usage 字段）。
+type Usage struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
+	TotalTokens      int `json:"total_tokens"`
+}
+
+// add 累加一次调用的 usage。
+func (u *Usage) add(o Usage) {
+	u.PromptTokens += o.PromptTokens
+	u.CompletionTokens += o.CompletionTokens
+	u.TotalTokens += o.TotalTokens
+}
+
+// Usage 返回累计的对话模型 token 消耗。
+func (r *OpenAIRunner) Usage() Usage {
+	return r.usage
+}
 
 type chatMessage struct {
 	Role       string                   `json:"role"`
@@ -39,10 +59,15 @@ type chatMessage struct {
 }
 
 type chatCompletionRequest struct {
-	Model    string               `json:"model"`
-	Stream   bool                 `json:"stream"`
-	Messages []chatMessage        `json:"messages"`
-	Tools    []chatCompletionTool `json:"tools,omitempty"`
+	Model         string               `json:"model"`
+	Stream        bool                 `json:"stream"`
+	StreamOptions *streamOptions       `json:"stream_options,omitempty"`
+	Messages      []chatMessage        `json:"messages"`
+	Tools         []chatCompletionTool `json:"tools,omitempty"`
+}
+
+type streamOptions struct {
+	IncludeUsage bool `json:"include_usage"`
 }
 
 type chatCompletionTool struct {
@@ -64,6 +89,7 @@ type chatCompletionChunk struct {
 		} `json:"delta"`
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
+	Usage *Usage          `json:"usage,omitempty"`
 	Error json.RawMessage `json:"error"`
 }
 
@@ -118,6 +144,7 @@ func NewOpenAIRunnerWithTools(config OpenAIConfig, client *http.Client, tools []
 }
 
 func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit EmitFunc) error {
+	r.usage = Usage{}
 	messages, err := convertMessages(input.Messages)
 	if err != nil {
 		return err
@@ -139,10 +166,11 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 		toolsByName[tool.Name] = tool
 	}
 	payload, err := json.Marshal(chatCompletionRequest{
-		Model:    r.model,
-		Stream:   true,
-		Messages: messages,
-		Tools:    tools,
+		Model:         r.model,
+		Stream:        true,
+		StreamOptions: &streamOptions{IncludeUsage: true},
+		Messages:      messages,
+		Tools:         tools,
 	})
 	if err != nil {
 		return fmt.Errorf("encode model request: %w", err)
@@ -205,6 +233,9 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 		var chunk chatCompletionChunk
 		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
 			return fmt.Errorf("decode model stream event: %w", err)
+		}
+		if chunk.Usage != nil {
+			r.usage.add(*chunk.Usage)
 		}
 		if len(chunk.Error) > 0 && string(chunk.Error) != "null" {
 			return fmt.Errorf("model provider returned a stream error")
@@ -359,7 +390,7 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 }
 
 func (r *OpenAIRunner) streamFollowUp(ctx context.Context, messages []chatMessage, messageID string, validations []answerValidation, emit EmitFunc) error {
-	payload, err := json.Marshal(chatCompletionRequest{Model: r.model, Stream: true, Messages: messages})
+	payload, err := json.Marshal(chatCompletionRequest{Model: r.model, Stream: true, StreamOptions: &streamOptions{IncludeUsage: true}, Messages: messages})
 	if err != nil {
 		return fmt.Errorf("encode read-only tool follow-up request: %w", err)
 	}
@@ -399,6 +430,9 @@ func (r *OpenAIRunner) streamFollowUp(ctx context.Context, messages []chatMessag
 		var chunk chatCompletionChunk
 		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
 			return fmt.Errorf("decode read-only tool follow-up stream: %w", err)
+		}
+		if chunk.Usage != nil {
+			r.usage.add(*chunk.Usage)
 		}
 		if len(chunk.Error) > 0 && string(chunk.Error) != "null" {
 			return fmt.Errorf("model provider returned a read-only tool follow-up stream error")

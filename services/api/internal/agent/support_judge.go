@@ -19,6 +19,12 @@ type OpenAISupportJudge struct {
 	apiKey  string
 	model   string
 	client  *http.Client
+	usage   Usage // 最近一次 Judge 的 token 消耗
+}
+
+// Usage 返回最近一次语义核验的 token 消耗。
+func (j *OpenAISupportJudge) Usage() Usage {
+	return j.usage
 }
 
 func NewOpenAISupportJudge(config OpenAIConfig, client *http.Client) (*OpenAISupportJudge, error) {
@@ -47,6 +53,7 @@ type supportJudgeResponse struct {
 			Content string `json:"content"`
 		} `json:"message"`
 	} `json:"choices"`
+	Usage *Usage          `json:"usage,omitempty"`
 	Error json.RawMessage `json:"error"`
 }
 
@@ -54,6 +61,7 @@ func (j *OpenAISupportJudge) Judge(ctx context.Context, sentences []string, chun
 	if len(sentences) == 0 {
 		return nil, nil
 	}
+	j.usage = Usage{}
 	payload, err := json.Marshal(chatCompletionRequest{
 		Model:  j.model,
 		Stream: false,
@@ -85,6 +93,9 @@ func (j *OpenAISupportJudge) Judge(ctx context.Context, sentences []string, chun
 	var decoded supportJudgeResponse
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 4<<20)).Decode(&decoded); err != nil {
 		return nil, fmt.Errorf("decode support judge response: %w", err)
+	}
+	if decoded.Usage != nil {
+		j.usage = *decoded.Usage
 	}
 	if len(decoded.Error) > 0 && string(decoded.Error) != "null" {
 		return nil, fmt.Errorf("support judge provider returned an error response")

@@ -181,8 +181,9 @@ func TestRealModelE2EBenchmark(t *testing.T) {
 	if err != nil {
 		t.Fatalf("configure knowledge service: %v", err)
 	}
+	var judge *agent.OpenAISupportJudge
 	if agentCfg.SemanticFactCheck {
-		judge, err := agent.NewOpenAISupportJudge(agentCfg.OpenAI, nil)
+		judge, err = agent.NewOpenAISupportJudge(agentCfg.OpenAI, nil)
 		if err != nil {
 			t.Fatalf("configure real support judge: %v", err)
 		}
@@ -229,11 +230,17 @@ func TestRealModelE2EBenchmark(t *testing.T) {
 		}
 		total += elapsed
 		ran++
+		u := runner.Usage()
+		var judgeTokens int
+		if judge != nil {
+			judgeTokens = judge.Usage().TotalTokens
+		}
 		ans := strings.Join(strings.Fields(answer.String()), " ")
 		if len(ans) > 60 {
 			ans = ans[:60] + "…"
 		}
-		t.Logf("[%d] %-22s 端到端 %-8s 工具%d次 回答:%s", i+1, q, elapsed.Round(time.Millisecond), toolCalls, ans)
+		t.Logf("[%d] %-22s 端到端 %-8s 工具%d次 token(对话%d/核验%d) 回答:%s",
+			i+1, q, elapsed.Round(time.Millisecond), toolCalls, u.TotalTokens, judgeTokens, ans)
 	}
 	if ran > 0 {
 		t.Logf("汇总：平均端到端延迟 %s（语义核验 %t）",
