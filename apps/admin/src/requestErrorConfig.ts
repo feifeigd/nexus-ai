@@ -2,6 +2,7 @@
 import type { RequestConfig } from '@umijs/max';
 import { getIntl } from '@umijs/max';
 import { message, notification } from 'antd';
+import { clearAuth, getToken } from './utils/auth';
 
 // 错误处理方案： 错误类型
 enum ErrorShowType {
@@ -73,6 +74,14 @@ export const errorConfig: RequestConfig = {
       } else if (error.response) {
         // Axios 的错误
         // 请求成功发出且服务器也响应了状态码，但状态代码超出了 2xx 的范围
+        if (error.response.status === 401) {
+          clearAuth();
+          const { pathname, search } = window.location;
+          if (pathname !== '/user/login') {
+            window.location.href = `/user/login?redirect=${encodeURIComponent(pathname + search)}`;
+          }
+          return;
+        }
         message.error(`Response status:${error.response.status}`);
       } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
         message.error(
@@ -93,12 +102,14 @@ export const errorConfig: RequestConfig = {
   // 请求拦截器
   requestInterceptors: [
     (config: RequestOptions) => {
-      // 拦截请求配置，进行个性化处理。
-      // 示例：为请求附加 token（按需启用）
-      // const token = localStorage.getItem('token');
-      // if (token) {
-      //   config.headers = { ...config.headers, Authorization: `Bearer ${token}` };
-      // }
+      // 附加登录 token
+      const token = getToken();
+      if (token) {
+        config.headers = {
+          ...config.headers,
+          Authorization: `Bearer ${token}`,
+        };
+      }
       return config;
     },
   ],

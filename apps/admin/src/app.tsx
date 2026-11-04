@@ -20,9 +20,9 @@ import {
   VersionDropdown,
 } from '@/components';
 import { CopilotProvider } from '@/components/CopilotProvider';
-import { currentUser as queryCurrentUser } from '@/services/ant-design-pro/api';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
+import { getAuthUser } from './utils/auth';
 
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
@@ -38,18 +38,19 @@ export async function getInitialState(): Promise<{
   settingDrawerOpen?: boolean;
 }> {
   const fetchUserInfo = async () => {
-    try {
-      const msg = await queryCurrentUser({
-        skipErrorHandler: true,
-      });
-      return msg.data;
-    } catch (_error) {
+    const user = getAuthUser();
+    if (!user) {
       const { pathname, search, hash } = history.location;
       history.replace(
         `${loginPath}?redirect=${encodeURIComponent(pathname + search + hash)}`,
       );
+      return undefined;
     }
-    return undefined;
+    return {
+      name: user.username,
+      username: user.username,
+      role: user.role,
+    } as API.CurrentUser;
   };
   // 如果不是登录页面，执行
   const { location } = history;
