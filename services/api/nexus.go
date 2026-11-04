@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/handler"
@@ -37,6 +38,9 @@ func run() error {
 	var c config.Config
 	if err := conf.Load(*configFile, &c); err != nil {
 		return fmt.Errorf("load config: %w", err)
+	}
+	if secret := strings.TrimSpace(os.Getenv("NEXUS_AUTH_SECRET")); secret != "" {
+		c.Auth.AccessSecret = secret
 	}
 
 	ctx, cleanup, err := wireContext(&c)
