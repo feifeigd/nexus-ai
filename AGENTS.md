@@ -55,6 +55,8 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 截至 2026-11-03，第 1 至 30 步均已完成、合并到 `main` 并推送到 `origin/main`。第 22 步合并提交为 `a44ad27`，第 23 步合并提交为 `4a39302`（含 `c6c4710` 可折叠检索结果卡片），第 24 步为 `f002171`（检索距离阈值），第 25 步为 `22d9a69`（答案级引用校验），第 26 步为 `0c5568f`（检索重排序），第 27 步为 `bc307ef`（答案级事实核验），第 28 步为 `806c5e2`（PostgreSQL + pgvector 实库集成测试），第 29 步为 `feeab12`（语义级事实核验），第 30 步为 `4f05e85`（BM25 关键词打分融合），另有 `a8efcef` 强制 LF 换行配置；本地与远端 `main` 已同步。此后依赖升级到 CopilotKit `1.83.0`（仍锁 `@ag-ui/*` 为 `1.0.2`），dependabot 新增 `@ag-ui/*` ignore 规则，CI 在 Go 测试前新增 `pnpm generate:wire`；相关特性分支已随合并清理。存在未跟踪的 `services/api/__debug_bin.exe*` 调试文件，不要提交。
 
+此后（2026-11-04/05）在分支 `feat/tenant-isolation` 完成认证与租户隔离，已合并回 `main`（合并提交 `02385e1`，fast-forward）并推送 `origin/main`，分支已清理：账号密码登录 + JWT 鉴权 + staff 角色校验（Web 登录注册、Admin 鉴权头、`auth.TenantIDFromContext` 统一租户解析）；对话 token 记账带租户归属（staff 可看全部、普通用户看自己）；数据层租户隔离 `tenant_id` 覆盖 `users`、`token_usages`、`documents`、`chunks`、`approvals`、`tickets` 六张表（迁移 `007_tenant_isolation.sql`），知识库检索、文档列表/详情/删除与审批工单均按租户过滤。存量数据迁移后 `tenant_id` 默认空串（无租户），staff 全量可见、普通用户不可见，是否做归属迁移待定。
+
 ### 当前已具备能力
 
 - pnpm Monorepo、Next.js 用户端、Ant Design Pro 管理后台、go-zero API，以及 Docker Compose 中的 PostgreSQL、pgvector 和 Redis 本地基础设施。
@@ -110,6 +112,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 知识库检索量化基准（2026-11-04）：新增门控测试 `TestRealModelRetrievalBenchmark`（`NEXUS_TEST_REAL_MODEL=1`），10 题覆盖多文档，命中率 10/10=100%、平均检索延迟 470ms；排序质量有提升空间（3 题正确答案非首位：HIT@4×2、HIT@2×1），印证交叉编码器评估里「精排是排序精度问题、非召回问题」的判断。另发现现有库文档为 7 篇（比预期 5 篇多 2 篇，疑为回归测试重复入库「故障排查」）。
 - 知识库端到端问答量化基准（2026-11-04）：新增门控测试 `TestRealModelE2EBenchmark`（`NEXUS_TEST_REAL_MODEL=1`），5 题走完整两段式问答（模型决定检索 → 工具执行 → 生成回答 → 语义核验），平均端到端延迟 8.04s（范围 2.4～18.4s，语义核验开启），每问模型调用 search_knowledge 2 次。token 成本尚未量化（需在 OpenAIRunner 记录 usage）。
 - 知识库问答 token 成本量化（2026-11-04）：`OpenAIRunner` 与 `OpenAISupportJudge` 新增 `Usage` 记录（请求开 `stream_options.include_usage`），基准每问输出对话模型 token（2 次调用 1460～2654）+ 语义核验 token（745～1935），合计约 2200～4500 token/问；嵌入 token 未计（查询约十几 token，可忽略）。成本需按实际模型单价折算。
+- 数据层租户隔离（2026-11-04/05）：`tenant_id` 覆盖 `users`、`token_usages`、`documents`、`chunks`、`approvals`、`tickets` 六张表（迁移 `007_tenant_isolation.sql` 幂等加列与索引），知识库 CreateDocument/List/Get/Delete/SearchSimilar 与审批 propose/List/ListTickets/UpdateTicketStatus/Approve/Reject 均按租户过滤、跨租户操作返回 not found。新增 `TestKnowledgeStoreTenantIsolation`、`TestEntStoreTenantIsolation`。`go build ./...`、`go vet ./...`、`go test ./...`（含 `NEXUS_TEST_POSTGRES_DSN` 门控的 `TestSearchPipelineAgainstPostgres`、`TestKnowledgeStorePostgres`、`TestEntStorePersistsApprovalAndTicketAcrossReopen` 三个真实 pgvector 集成测试实际运行通过）、gofmt、`git diff HEAD --check`、Admin lint（Biome+tsc）均通过；分支已合并 main（`02385e1`）并推送。
 
 ### 环境注意事项
 
@@ -124,5 +127,4 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 - 排查 Web 端 CopilotChat 发送按钮 disabled 并补测 Web 流式回答（版本组合已记录，后期修复）。
 - 过滤语义核验中的结语/提醒类元语言（需非 LLM 确定性方案）。
-- 对话 token 消耗记账：按 thread 记录的版本（B）已完成合并；带用户归属的版本待认证接入后做。
-- 认证/租户隔离（A）：账号密码登录 + JWT 鉴权 + staff 角色校验已完成（合并 main）；剩余——租户隔离（数据层 tenant_id）、三方登录（OAuth）。
+- 三方登录（OAuth）：需先选平台（GitHub / 微信 / 企业微信 / 钉钉等）并到对方平台申请 App Key/Secret；未接入前仅账号密码登录。认证、token 记账与数据层租户隔离（六张表 tenant_id）均已合并 main。
