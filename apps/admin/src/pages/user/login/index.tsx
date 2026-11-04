@@ -131,10 +131,13 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (values: API.LoginParams) => {
     try {
-      const res = await login({
-        username: values.username ?? '',
-        password: values.password ?? '',
-      });
+      const res = await login(
+        {
+          username: values.username ?? '',
+          password: values.password ?? '',
+        },
+        { baseURL: '/api/nexus' },
+      );
       setAuth(res.token ?? '', {
         username: res.username ?? '',
         role: res.role ?? '',
