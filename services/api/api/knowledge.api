@@ -43,6 +43,7 @@ type DeleteKnowledgeDocumentResponse {
 
 @server(
 	jwt: Auth
+	middleware: StaffOnlyMiddleware
 )
 service nexus-api {
 	@handler listKnowledgeDocuments

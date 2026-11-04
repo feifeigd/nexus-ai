@@ -20,6 +20,7 @@ type UpdateTicketStatusInput {
 
 @server(
 	jwt: Auth
+	middleware: StaffOnlyMiddleware
 )
 service nexus-api {
 	@handler listTickets

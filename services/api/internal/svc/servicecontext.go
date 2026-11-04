@@ -10,6 +10,9 @@ import (
 	"nexusai/services/api/internal/approval"
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/data"
+	"nexusai/services/api/internal/middleware"
+
+	"github.com/zeromicro/go-zero/rest"
 )
 
 type KnowledgeService interface {
@@ -23,23 +26,25 @@ type KnowledgeDocumentStore interface {
 }
 
 type ServiceContext struct {
-	Config     *config.Config
-	Runner     agent.Runner
-	Approvals  approval.Store
-	Knowledge  KnowledgeService
-	Documents  KnowledgeDocumentStore
-	TokenUsage *data.TokenUsageStore
-	Users      *data.UserStore
+	Config              *config.Config
+	Runner              agent.Runner
+	Approvals           approval.Store
+	Knowledge           KnowledgeService
+	Documents           KnowledgeDocumentStore
+	TokenUsage          *data.TokenUsageStore
+	Users               *data.UserStore
+	StaffOnlyMiddleware rest.Middleware
 }
 
 func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval.Store, knowledge KnowledgeService, documents KnowledgeDocumentStore, tokenUsage *data.TokenUsageStore, users *data.UserStore) *ServiceContext {
 	return &ServiceContext{
-		Config:     c,
-		Runner:     runner,
-		Approvals:  approvals,
-		Knowledge:  knowledge,
-		Documents:  documents,
-		TokenUsage: tokenUsage,
-		Users:      users,
+		Config:              c,
+		Runner:              runner,
+		Approvals:           approvals,
+		Knowledge:           knowledge,
+		Documents:           documents,
+		TokenUsage:          tokenUsage,
+		Users:               users,
+		StaffOnlyMiddleware: middleware.NewStaffOnlyMiddleware().Handle,
 	}
 }

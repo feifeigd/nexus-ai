@@ -17,6 +17,7 @@ type ListTokenUsageResponse {
 
 @server(
 	jwt: Auth
+	middleware: StaffOnlyMiddleware
 )
 service nexus-api {
 	@handler listTokenUsage
