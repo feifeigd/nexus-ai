@@ -127,5 +127,5 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 - 组织级租户：当前每用户一租户（tenant_id = 用户 id），升级为组织/团队租户（tenants 表 + 邀请成员）。
 - 生产级授权与审计：操作审计日志、更细的角色/权限控制。
-- 更多三方登录（微信 / 企业微信 / 钉钉等），复用现有 OAuth 授权码流程。
-- 已完成（2026-11-05）：GitHub OAuth 登录（提交 `8502593`，教程 `docs/github-oauth-app.md`）；语义核验结语/提醒类元语言确定性过滤（提交 `2064b33`）；Web CopilotChat「info 没返回」确认为 dev 冷编译超时（非阻塞，issue #8192 仍 open）。
+- 更多三方登录（微信 / 企业微信 / 钉钉等；GitHub、Gitee 已接入，复用 `OAuthProvider` 抽象）。
+- 已完成（2026-11-05）：GitHub OAuth 登录（提交 `8502593`，教程 `docs/github-oauth-app.md`）；Gitee OAuth 登录（提交 `75cd53c`，抽 `OAuthProvider` 接口 + 身份泛化为 `oauth_provider`/`oauth_subject`）；语义核验结语/提醒类元语言确定性过滤（提交 `2064b33`）；Web CopilotChat「info 没返回」确认为 dev 冷编译超时（非阻塞，issue #8192 仍 open）。
