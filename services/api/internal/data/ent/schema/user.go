@@ -21,6 +21,7 @@ func (User) Fields() []ent.Field {
 		field.String("id").Unique().Immutable(),
 		field.String("username").Unique().Immutable(),
 		field.String("password_hash").Immutable(),
+		field.String("github_id").Optional().Nillable().Unique().Immutable(),
 		field.String("role").Immutable(),
 		field.String("tenant_id").Immutable(),
 		field.Time("created_at").Default(time.Now).Immutable(),

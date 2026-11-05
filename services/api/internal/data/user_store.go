@@ -57,6 +57,28 @@ func (s *UserStore) Create(ctx context.Context, username, passwordHash, role, te
 	return UserRecord{ID: id, Username: username, PasswordHash: passwordHash, Role: role, TenantID: tenantID}, nil
 }
 
+// CreateOAuth 创建通过三方登录（无密码）的用户，githubID 用于关联 GitHub 身份。
+func (s *UserStore) CreateOAuth(ctx context.Context, username, role, githubID string) (UserRecord, error) {
+	if s == nil || s.client == nil {
+		return UserRecord{}, fmt.Errorf("user store client is required")
+	}
+	id, err := newUserID()
+	if err != nil {
+		return UserRecord{}, err
+	}
+	if _, err := s.client.User.Create().
+		SetID(id).
+		SetUsername(username).
+		SetPasswordHash("").
+		SetGithubID(githubID).
+		SetRole(role).
+		SetTenantID(id).
+		Save(ctx); err != nil {
+		return UserRecord{}, fmt.Errorf("create oauth user: %w", err)
+	}
+	return UserRecord{ID: id, Username: username, Role: role, TenantID: id}, nil
+}
+
 // GetByUsername 按用户名查。不存在时返回 ErrUserNotFound。
 func (s *UserStore) GetByUsername(ctx context.Context, username string) (UserRecord, error) {
 	if s == nil || s.client == nil {
@@ -68,6 +90,21 @@ func (s *UserStore) GetByUsername(ctx context.Context, username string) (UserRec
 	}
 	if err != nil {
 		return UserRecord{}, fmt.Errorf("get user by username: %w", err)
+	}
+	return toUserRecord(row), nil
+}
+
+// GetByGithubID 按 GitHub ID 查。不存在时返回 ErrUserNotFound。
+func (s *UserStore) GetByGithubID(ctx context.Context, githubID string) (UserRecord, error) {
+	if s == nil || s.client == nil {
+		return UserRecord{}, fmt.Errorf("user store client is required")
+	}
+	row, err := s.client.User.Query().Where(entuser.GithubIDEQ(githubID)).Only(ctx)
+	if ent.IsNotFound(err) {
+		return UserRecord{}, ErrUserNotFound
+	}
+	if err != nil {
+		return UserRecord{}, fmt.Errorf("get user by github id: %w", err)
 	}
 	return toUserRecord(row), nil
 }

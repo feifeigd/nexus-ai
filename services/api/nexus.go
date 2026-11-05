@@ -42,6 +42,18 @@ func run() error {
 	if secret := strings.TrimSpace(os.Getenv("NEXUS_AUTH_SECRET")); secret != "" {
 		c.Auth.AccessSecret = secret
 	}
+	if v := strings.TrimSpace(os.Getenv("NEXUS_GITHUB_CLIENT_ID")); v != "" {
+		c.GitHub.ClientID = v
+	}
+	if v := strings.TrimSpace(os.Getenv("NEXUS_GITHUB_CLIENT_SECRET")); v != "" {
+		c.GitHub.ClientSecret = v
+	}
+	if v := strings.TrimSpace(os.Getenv("NEXUS_GITHUB_REDIRECT_URI")); v != "" {
+		c.GitHub.RedirectURI = v
+	}
+	if v := strings.TrimSpace(os.Getenv("NEXUS_WEB_BASE_URL")); v != "" {
+		c.GitHub.WebBaseURL = v
+	}
 
 	ctx, cleanup, err := wireContext(&c)
 	if err != nil {

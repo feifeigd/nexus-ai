@@ -79,6 +79,17 @@ export function AuthForm({ onLoggedIn }: { onLoggedIn: () => void }) {
         >
           {mode === "login" ? "没有账号？去注册" : "已有账号？去登录"}
         </button>
+        <div className="my-1 flex items-center gap-3 text-xs text-slate-500">
+          <span className="h-px flex-1 bg-slate-700" />
+          或
+          <span className="h-px flex-1 bg-slate-700" />
+        </div>
+        <a
+          href="/api/auth/github/login"
+          className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-center text-slate-100 hover:bg-slate-700"
+        >
+          使用 GitHub 登录
+        </a>
       </div>
     </div>
   );

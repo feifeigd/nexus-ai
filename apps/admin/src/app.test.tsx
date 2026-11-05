@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { clearAuth, setAuth } from './utils/auth';
 
 // Mock all heavy dependencies before importing app
 const mockReplace = vi.fn();
@@ -11,15 +12,9 @@ const mockHistory = {
   replace: mockReplace,
 };
 
-const mockQueryCurrentUser = vi.fn();
-
 vi.mock('@umijs/max', () => ({
   history: mockHistory,
   Link: ({ children }: any) => children,
-}));
-
-vi.mock('@/services/ant-design-pro/api', () => ({
-  currentUser: mockQueryCurrentUser,
 }));
 
 vi.mock('@/components', () => ({
@@ -55,6 +50,7 @@ vi.mock('../config/defaultSettings', () => ({
 describe('app getInitialState', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearAuth();
     mockHistory.location = {
       pathname: '/welcome',
       search: '',
@@ -62,29 +58,23 @@ describe('app getInitialState', () => {
     };
   });
 
-  it('should fetch currentUser when not on login page', async () => {
+  it('should read the auth user from localStorage when not on login page', async () => {
+    setAuth('token-1', { username: 'alice', role: 'user' });
     const { getInitialState } = await import('./app');
-    mockQueryCurrentUser.mockResolvedValue({
-      data: {
-        name: 'Test User',
-        access: 'admin',
-      },
-    });
 
     const state = await getInitialState();
 
-    expect(mockQueryCurrentUser).toHaveBeenCalled();
     expect(state.currentUser).toEqual({
-      name: 'Test User',
-      access: 'admin',
+      name: 'alice',
+      username: 'alice',
+      role: 'user',
     });
     expect(state.settingDrawerOpen).toBe(false);
     expect(state.fetchUserInfo).toBeDefined();
   });
 
-  it('should redirect to login when currentUser fetch fails (401)', async () => {
+  it('should redirect to login when not logged in', async () => {
     const { getInitialState } = await import('./app');
-    mockQueryCurrentUser.mockRejectedValue(new Error('401 Unauthorized'));
 
     const state = await getInitialState();
 
@@ -94,29 +84,28 @@ describe('app getInitialState', () => {
     expect(state.currentUser).toBeUndefined();
   });
 
-  it('should not fetch currentUser on login page', async () => {
-    const { getInitialState } = await import('./app');
+  it('should not read the auth user on login page', async () => {
     mockHistory.location = {
       pathname: '/user/login',
       search: '',
       hash: '',
     };
+    const { getInitialState } = await import('./app');
 
     const state = await getInitialState();
 
-    expect(mockQueryCurrentUser).not.toHaveBeenCalled();
     expect(state.currentUser).toBeUndefined();
     expect(state.fetchUserInfo).toBeDefined();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it('should encode redirect path correctly on 401', async () => {
-    const { getInitialState } = await import('./app');
+  it('should encode the redirect path correctly when not logged in', async () => {
     mockHistory.location = {
       pathname: '/admin/users',
       search: '?page=2',
       hash: '#section',
     };
-    mockQueryCurrentUser.mockRejectedValue(new Error('401'));
+    const { getInitialState } = await import('./app');
 
     await getInitialState();
 
@@ -126,25 +115,21 @@ describe('app getInitialState', () => {
   });
 
   it('should include default settings in initial state', async () => {
+    setAuth('token-1', { username: 'alice', role: 'user' });
     const { getInitialState } = await import('./app');
-    mockQueryCurrentUser.mockResolvedValue({
-      data: { name: 'User' },
-    });
 
     const state = await getInitialState();
 
     expect(state.settings).toEqual({ navTheme: 'light' });
   });
 
-  it('fetchUserInfo should return user data on success', async () => {
+  it('fetchUserInfo should return the auth user on success', async () => {
+    setAuth('token-1', { username: 'alice', role: 'user' });
     const { getInitialState } = await import('./app');
-    mockQueryCurrentUser.mockResolvedValue({
-      data: { name: 'Fetched User', access: 'user' },
-    });
 
     const state = await getInitialState();
-
     const user = await state.fetchUserInfo?.();
-    expect(user).toEqual({ name: 'Fetched User', access: 'user' });
+
+    expect(user).toEqual({ name: 'alice', username: 'alice', role: 'user' });
   });
 });

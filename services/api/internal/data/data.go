@@ -39,6 +39,9 @@ var postgresUsersMigration string
 //go:embed migrations/007_tenant_isolation.sql
 var postgresTenantIsolationMigration string
 
+//go:embed migrations/008_github_oauth.sql
+var postgresGithubOAuthMigration string
+
 // DriverName returns the effective dialect after applying environment overrides.
 func DriverName(c *Data) string {
 	if c == nil {
@@ -150,7 +153,7 @@ func migrate(ctx context.Context, driverName string, db *stdsql.DB, client *ent.
 	}
 
 	// PostgreSQL keeps the reviewed, versioned SQL migrations authoritative.
-	for _, migration := range []string{postgresApprovalMigration, postgresTicketStatusMigration, postgresKnowledgeBaseMigration, postgresKnowledgeEmbeddingsMigration, postgresTokenUsageMigration, postgresUsersMigration, postgresTenantIsolationMigration} {
+	for _, migration := range []string{postgresApprovalMigration, postgresTicketStatusMigration, postgresKnowledgeBaseMigration, postgresKnowledgeEmbeddingsMigration, postgresTokenUsageMigration, postgresUsersMigration, postgresTenantIsolationMigration, postgresGithubOAuthMigration} {
 		if _, err := db.ExecContext(ctx, migration); err != nil {
 			return fmt.Errorf("migrate postgres database: %w", err)
 		}

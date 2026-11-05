@@ -11,9 +11,16 @@ export default function ChatPanel() {
   const [ready, setReady] = useState(false);
   const [chatKey, setChatKey] = useState(0);
 
+  // useEffect 是 React 的 Hook，用于在「组件渲染之后」执行副作用（Side Effects）——
+  // 即那些跟「根据 props/state 计算 UI」无关的操作，常见有：
+  //   · 请求后端 API
+  //   · 读写 localStorage / sessionStorage
+  //   · 订阅事件 / 启动定时器（需要在 cleanup 里清理）
+  //   · 操作浏览器 API（history、document 等）
+  // 第二个参数是依赖数组；传 [] 表示「只在首次渲染后执行一次」。
+  // 这里一次性从 localStorage 读登录状态并置 ready，避免 SSR 阶段拿不到 window。
   useEffect(() => {
-    // 一次性初始化：从 localStorage 读取登录状态（客户端）。
-    // 同步 setState 在此只跑一次、不会级联渲染，属合理场景。
+    // 同步 setState 在这里只跑一次、不会级联渲染，属合理场景。
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setUser(getAuthUser());
     setReady(true);

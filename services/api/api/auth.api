@@ -17,10 +17,30 @@ type LoginResponse {
 	Role     string `json:"role"`
 }
 
+type GithubLoginResponse {
+	RedirectURL string `json:"redirectUrl"`
+	State       string `json:"state"`
+}
+
+type GithubCallbackInput {
+	Code  string `form:"code"`
+	State string `form:"state"`
+}
+
+type GithubCallbackResponse {
+	RedirectURL string `json:"redirectUrl"`
+}
+
 service nexus-api {
 	@handler login
 	post /auth/login (LoginInput) returns (LoginResponse)
 
 	@handler register
 	post /auth/register (RegisterInput) returns (LoginResponse)
+
+	@handler githubLogin
+	get /auth/github/login returns (GithubLoginResponse)
+
+	@handler githubCallback
+	get /auth/github/callback (GithubCallbackInput) returns (GithubCallbackResponse)
 }
