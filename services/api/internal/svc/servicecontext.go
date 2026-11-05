@@ -34,10 +34,11 @@ type ServiceContext struct {
 	TokenUsage          *data.TokenUsageStore
 	Users               *data.UserStore
 	Tenants             *data.TenantStore
+	Audit               *data.AuditStore
 	StaffOnlyMiddleware rest.Middleware
 }
 
-func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval.Store, knowledge KnowledgeService, documents KnowledgeDocumentStore, tokenUsage *data.TokenUsageStore, users *data.UserStore, tenants *data.TenantStore) *ServiceContext {
+func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval.Store, knowledge KnowledgeService, documents KnowledgeDocumentStore, tokenUsage *data.TokenUsageStore, users *data.UserStore, tenants *data.TenantStore, audit *data.AuditStore) *ServiceContext {
 	return &ServiceContext{
 		Config:              c,
 		Runner:              runner,
@@ -47,6 +48,7 @@ func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval
 		TokenUsage:          tokenUsage,
 		Users:               users,
 		Tenants:             tenants,
+		Audit:               audit,
 		StaffOnlyMiddleware: middleware.NewStaffOnlyMiddleware().Handle,
 	}
 }

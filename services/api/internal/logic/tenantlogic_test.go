@@ -28,7 +28,7 @@ func newTenantTestSvc(t *testing.T) (*svc.ServiceContext, *data.UserStore) {
 	t.Cleanup(closeData)
 	users := data.NewUserStore(client)
 	tenants := data.NewTenantStore(client)
-	svcCtx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, nil, nil, users, tenants)
+	svcCtx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, nil, nil, users, tenants, nil)
 	return svcCtx, users
 }
 
