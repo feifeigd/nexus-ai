@@ -41,6 +41,9 @@ func answerSupportNote(ctx context.Context, judge SupportJudge, answer string, m
 		if isOrganizationalSentence(stripped) {
 			continue
 		}
+		if isClosingMetaSentence(stripped) {
+			continue
+		}
 		sentences = append(sentences, sentence)
 		cleaned = append(cleaned, stripped)
 	}
@@ -175,6 +178,39 @@ func isOrganizationalSentence(s string) bool {
 	}
 	if strings.HasSuffix(trimmed, "：") || strings.HasSuffix(trimmed, ":") {
 		return true // 引导/连接语
+	}
+	return false
+}
+
+// closingMetaPrefixes 是「结语/免责/提醒」类元语言的句首标志词。这类句子（如
+// 「以上内容来自知识库检索结果」「如需更多帮助请联系技术支持」「仅供参考」）本身
+// 不是需要被检索结果支撑的知识论断，用确定性前缀即可稳定过滤，无需语义判定器——
+// 之前用 LLM 做二分类/三分类都因为无法区分「组织语言」与「编造知识」而失败并回退。
+var closingMetaPrefixes = []string{
+	"以上", // 以上内容来自…
+	"综上", // 综上所述…
+	"总之", // 总之 / 总而言之…
+	"总而言之",
+	"如需",   // 如需更多帮助…
+	"如有疑问", // 如有疑问请联系…
+	"如有问题",
+	"若有疑问",
+	"若有问题",
+	"请注意",  // 请注意…
+	"提醒：",  // 提醒：生产环境需开启监控（带冒号，避免误判「提醒功能」等正文）
+	"仅供参考", // 仅供参考
+	"欢迎",   // 欢迎…
+	"希望",   // 希望以上内容对你有帮助
+}
+
+// isClosingMetaSentence 判断句子是否属于「结语/免责/提醒」类元语言，而非需要
+// 事实核验的知识论断。只看句首前缀，避免把正文里的「建议」「提醒」等词误判。
+func isClosingMetaSentence(s string) bool {
+	trimmed := strings.TrimSpace(s)
+	for _, prefix := range closingMetaPrefixes {
+		if strings.HasPrefix(trimmed, prefix) {
+			return true
+		}
 	}
 	return false
 }

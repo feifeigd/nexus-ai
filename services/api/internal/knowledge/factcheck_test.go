@@ -198,6 +198,52 @@ func TestAnswerSupportNoteSkipsOrganizationalSentences(t *testing.T) {
 	}
 }
 
+func TestIsClosingMetaSentence(t *testing.T) {
+	for _, s := range []string{
+		"以上内容来自知识库检索结果",
+		"综上所述，缓存雪崩应对方式如下",
+		"总之，先检查服务状态",
+		"总而言之，按文档操作即可",
+		"如需更多帮助请联系技术支持",
+		"如有疑问请联系管理员",
+		"若有问题请查阅运维手册",
+		"请注意及时更新配置",
+		"提醒：生产环境需开启监控",
+		"仅供参考",
+		"欢迎反馈",
+		"希望以上内容对你有帮助",
+	} {
+		if !isClosingMetaSentence(s) {
+			t.Errorf("expected closing meta sentence %q to be filtered", s)
+		}
+	}
+	for _, s := range []string{
+		"缓存雪崩时建议设置随机过期时间",    // 含「建议」但句首不是结语标志
+		"提醒功能需要配置告警规则",       // 「提醒」作名词，非提醒语
+		"蓝雀告警需要先检查 API 服务状态", // 正常知识论断
+		"数据库主从复制默认异步",        // 正常知识论断
+	} {
+		if isClosingMetaSentence(s) {
+			t.Errorf("expected knowledge claim %q NOT to be filtered", s)
+		}
+	}
+}
+
+func TestAnswerSupportNoteSkipsClosingMetaSentences(t *testing.T) {
+	matches := []searchKnowledgeMatch{{Content: "缓存雪崩时应对热点键设置随机过期时间"}}
+	judge := supportJudgeFunc(func(_ context.Context, sentences []string, _ []string) ([]bool, error) {
+		return make([]bool, len(sentences)), nil // 全部判无支撑：结语若未过滤会暴露出来
+	})
+	answer := "缓存雪崩时应对热点键设置随机过期时间。以上内容来自知识库检索结果。"
+	note, err := answerSupportNote(context.Background(), judge, answer, matches)
+	if err != nil {
+		t.Fatalf("answer support note: %v", err)
+	}
+	if note != "" {
+		t.Fatalf("expected closing meta sentence to be skipped, got %q", note)
+	}
+}
+
 func TestValidateSearchAnswerCombinesCitationAndSupport(t *testing.T) {
 	valid := "document_" + strings.Repeat("a", 32)
 	fabricated := "document_" + strings.Repeat("f", 32)
