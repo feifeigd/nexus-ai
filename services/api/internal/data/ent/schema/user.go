@@ -27,7 +27,8 @@ func (User) Fields() []ent.Field {
 		field.String("oauth_provider").Optional().Nillable(),
 		field.String("oauth_subject").Optional().Nillable(),
 		field.String("role").Immutable(),
-		field.String("tenant_id").Immutable(),
+		// tenant_id 表示用户当前所属租户；加入组织时会切换，因此不设 Immutable。
+		field.String("tenant_id"),
 		field.Time("created_at").Default(time.Now).Immutable(),
 	}
 }

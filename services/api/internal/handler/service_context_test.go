@@ -40,7 +40,7 @@ func newTestServiceContext(store approval.Store, runner agent.Runner) *svc.Servi
 	if runner == nil {
 		runner = agent.MockRunner{}
 	}
-	return svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, runner, store, nil, nil, nil, nil)
+	return svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, runner, store, nil, nil, nil, nil, nil)
 }
 
 func withPathID(r *http.Request, id string) *http.Request {

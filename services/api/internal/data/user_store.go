@@ -165,6 +165,21 @@ func toUserRecord(row *ent.User) UserRecord {
 	}
 }
 
+// UpdateTenantID 把用户的 tenant_id 切到指定租户（如加入组织）。用户不存在时返回
+// ErrUserNotFound。
+func (s *UserStore) UpdateTenantID(ctx context.Context, userID, tenantID string) (UserRecord, error) {
+	if s == nil || s.client == nil {
+		return UserRecord{}, fmt.Errorf("user store client is required")
+	}
+	if _, err := s.GetByID(ctx, userID); err != nil {
+		return UserRecord{}, err
+	}
+	if _, err := s.client.User.UpdateOneID(userID).SetTenantID(tenantID).Save(ctx); err != nil {
+		return UserRecord{}, fmt.Errorf("update user tenant: %w", err)
+	}
+	return s.GetByID(ctx, userID)
+}
+
 func newUserID() (string, error) {
 	var value [16]byte
 	if _, err := rand.Read(value[:]); err != nil {

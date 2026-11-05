@@ -52,7 +52,7 @@ func TestGithubCallbackLogicCreatesAndReusesUser(t *testing.T) {
 			UserURL:      gh.URL + "/user",
 		},
 	}
-	svcCtx := svc.NewServiceContext(cfg, agent.MockRunner{}, nil, nil, nil, nil, data.NewUserStore(client))
+	svcCtx := svc.NewServiceContext(cfg, agent.MockRunner{}, nil, nil, nil, nil, data.NewUserStore(client), nil)
 	l := NewGithubCallbackLogic(context.Background(), svcCtx)
 
 	resp, err := l.GithubCallback(&types.GithubCallbackInput{Code: "code-1"})
@@ -91,7 +91,7 @@ func TestGithubCallbackLogicMissingCode(t *testing.T) {
 	}
 	defer closeData()
 
-	svcCtx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, nil, nil, data.NewUserStore(client))
+	svcCtx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, nil, nil, data.NewUserStore(client), nil)
 	l := NewGithubCallbackLogic(context.Background(), svcCtx)
 
 	resp, err := l.GithubCallback(&types.GithubCallbackInput{})

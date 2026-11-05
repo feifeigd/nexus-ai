@@ -23,6 +23,7 @@ import (
 var ProviderSet = wire.NewSet(
 	NewTokenUsageStore,
 	NewUserStore,
+	NewTenantStore,
 )
 
 //go:embed migrations/001_approvals.sql
