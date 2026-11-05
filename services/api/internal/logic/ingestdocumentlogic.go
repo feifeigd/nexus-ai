@@ -38,5 +38,6 @@ func (l *IngestDocumentLogic) IngestDocument(req *types.IngestDocumentInput) (*t
 	if err != nil {
 		return nil, err
 	}
+	recordAudit(l.ctx, l.svcCtx, "ingest_document", "document", documentID, req.Title)
 	return &types.IngestDocumentResponse{DocumentID: documentID}, nil
 }

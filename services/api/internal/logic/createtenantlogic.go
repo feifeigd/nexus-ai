@@ -52,5 +52,6 @@ func (l *CreateTenantLogic) CreateTenant(req *types.CreateTenantInput) (*types.C
 	if _, err := l.svcCtx.Users.UpdateTenantID(l.ctx, uid, tenant.ID); err != nil {
 		return nil, err
 	}
+	recordAudit(l.ctx, l.svcCtx, "create_tenant", "tenant", tenant.ID, tenant.Name)
 	return &types.CreateTenantResponse{TenantID: tenant.ID, Name: tenant.Name}, nil
 }

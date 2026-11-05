@@ -47,5 +47,6 @@ func (l *SwitchTenantLogic) SwitchTenant(req *types.SwitchTenantInput) (*types.S
 	if _, err := l.svcCtx.Users.UpdateTenantID(l.ctx, uid, req.ID); err != nil {
 		return nil, err
 	}
+	recordAudit(l.ctx, l.svcCtx, "switch_tenant", "tenant", req.ID, "")
 	return &types.SwitchTenantResponse{TenantID: req.ID}, nil
 }

@@ -31,6 +31,7 @@ func (l *ApproveApprovalLogic) ApproveApproval(req *types.ApprovalDecisionInput)
 	if err != nil {
 		return nil, err
 	}
+	recordAudit(l.ctx, l.svcCtx, "approve_approval", "approval", req.ID, result.TicketID)
 	response := approvalResponse(result)
 	return &response, nil
 }

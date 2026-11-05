@@ -28,7 +28,8 @@ func newTenantTestSvc(t *testing.T) (*svc.ServiceContext, *data.UserStore) {
 	t.Cleanup(closeData)
 	users := data.NewUserStore(client)
 	tenants := data.NewTenantStore(client)
-	svcCtx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, nil, nil, users, tenants, nil)
+	audit := data.NewAuditStore(client)
+	svcCtx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, nil, nil, users, tenants, audit)
 	return svcCtx, users
 }
 
@@ -93,6 +94,30 @@ func TestSwitchTenant(t *testing.T) {
 	st2 := NewSwitchTenantLogic(context.WithValue(ctx, "uid", other.ID), svcCtx)
 	if _, err := st2.SwitchTenant(&types.SwitchTenantInput{ID: tenant.TenantID}); err == nil {
 		t.Fatal("expected non-member switch to fail")
+	}
+}
+
+func TestCreateTenantRecordsAudit(t *testing.T) {
+	svcCtx, users := newTenantTestSvc(t)
+	ctx := context.Background()
+
+	owner, _ := users.Create(ctx, "owner", "hash", "user", "")
+
+	authCtx := context.WithValue(ctx, "uid", owner.ID)
+	authCtx = context.WithValue(authCtx, "tenant_id", owner.TenantID)
+	authCtx = context.WithValue(authCtx, "username", "owner")
+
+	l := NewCreateTenantLogic(authCtx, svcCtx)
+	if _, err := l.CreateTenant(&types.CreateTenantInput{Name: "蓝雀科技"}); err != nil {
+		t.Fatalf("create tenant: %v", err)
+	}
+
+	entries, err := svcCtx.Audit.List(ctx, "", 10)
+	if err != nil {
+		t.Fatalf("list audit: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Action != "create_tenant" || entries[0].ActorUsername != "owner" || entries[0].ResourceID == "" {
+		t.Fatalf("unexpected audit entries: %+v", entries)
 	}
 }
 

@@ -32,6 +32,7 @@ func (l *UpdateTicketStatusLogic) UpdateTicketStatus(req *types.UpdateTicketStat
 	if err != nil {
 		return nil, err
 	}
+	recordAudit(l.ctx, l.svcCtx, "update_ticket_status", "ticket", req.ID, req.Status)
 	response := ticketResponse(ticket)
 	return &response, nil
 }

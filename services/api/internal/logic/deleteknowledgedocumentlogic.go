@@ -35,5 +35,6 @@ func (l *DeleteKnowledgeDocumentLogic) DeleteKnowledgeDocument(req *types.Delete
 	if err := l.svcCtx.Documents.DeleteDocument(l.ctx, req.ID, auth.TenantIDFromContext(l.ctx)); err != nil {
 		return nil, err
 	}
+	recordAudit(l.ctx, l.svcCtx, "delete_document", "document", req.ID, "")
 	return &types.DeleteKnowledgeDocumentResponse{DocumentID: req.ID}, nil
 }

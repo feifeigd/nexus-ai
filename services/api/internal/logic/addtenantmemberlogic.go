@@ -71,5 +71,6 @@ func (l *AddTenantMemberLogic) AddTenantMember(req *types.AddTenantMemberInput) 
 	if err := l.svcCtx.Tenants.AddMember(l.ctx, tenant.ID, member.ID, "member"); err != nil {
 		return nil, err
 	}
+	recordAudit(l.ctx, l.svcCtx, "add_tenant_member", "tenant", tenant.ID, member.Username)
 	return &types.AddTenantMemberResponse{UserID: member.ID, Username: member.Username}, nil
 }
