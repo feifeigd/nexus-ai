@@ -1,0 +1,25 @@
+// API DSL reference: https://go-zero.dev/reference/api-dsl/
+syntax = "v1"
+
+type AuditLogItem {
+	ID            string `json:"id"`
+	ActorUsername string `json:"actorUsername"`
+	Action        string `json:"action"`
+	ResourceType  string `json:"resourceType"`
+	ResourceID    string `json:"resourceId"`
+	Detail        string `json:"detail"`
+	CreatedAt     string `json:"createdAt"`
+}
+
+type ListAuditLogsResponse {
+	Items []AuditLogItem `json:"items"`
+}
+
+@server(
+	jwt: Auth
+	middleware: StaffOnlyMiddleware
+)
+service nexus-api {
+	@handler listAuditLogs
+	get /audit-logs returns (ListAuditLogsResponse)
+}
