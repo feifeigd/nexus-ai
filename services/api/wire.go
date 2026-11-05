@@ -33,8 +33,7 @@ func wireContext(*config.Config) (*svc.ServiceContext, func(), error) {
 		newKnowledgeStore,
 		wire.Bind(new(svc.KnowledgeDocumentStore), new(*data.KnowledgeStore)),
 		newKnowledgeService,
-		newTokenUsageStore,
-		newUserStore,
+		data.ProviderSet,
 		svc.NewServiceContext,
 	))
 }

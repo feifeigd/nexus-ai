@@ -37,14 +37,6 @@ func newKnowledgeStore(client *dataent.Client, driver string) *data.KnowledgeSto
 	return data.NewKnowledgeStore(client, driver)
 }
 
-func newTokenUsageStore(client *dataent.Client) *data.TokenUsageStore {
-	return data.NewTokenUsageStore(client)
-}
-
-func newUserStore(client *dataent.Client) *data.UserStore {
-	return data.NewUserStore(client)
-}
-
 func newKnowledgeService(c agent.Config, store *data.KnowledgeStore) (svc.KnowledgeService, error) {
 	if c.Embedding.Model == "" {
 		return nil, nil

@@ -16,6 +16,13 @@ import (
 	_ "modernc.org/sqlite"
 
 	"nexusai/services/api/internal/data/ent"
+
+	"github.com/google/wire"
+)
+
+var ProviderSet = wire.NewSet(
+	NewTokenUsageStore,
+	NewUserStore,
 )
 
 //go:embed migrations/001_approvals.sql
