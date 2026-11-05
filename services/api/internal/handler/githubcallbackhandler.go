@@ -6,7 +6,6 @@ package handler
 import (
 	"net/http"
 
-	"github.com/zeromicro/go-zero/rest/httpx"
 	"nexusai/services/api/internal/logic"
 	"nexusai/services/api/internal/svc"
 	"nexusai/services/api/internal/types"
@@ -14,10 +13,11 @@ import (
 
 func githubCallbackHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.GithubCallbackInput
-		if err := httpx.Parse(r, &req); err != nil {
-			http.Error(w, "invalid github callback", http.StatusBadRequest)
-			return
+		// 回调是 GET + query 参数（无 body），直接读 query 更可靠，避免 httpx.Parse
+		// 对空 body 的处理差异。
+		req := &types.GithubCallbackInput{
+			Code:  r.URL.Query().Get("code"),
+			State: r.URL.Query().Get("state"),
 		}
 		cookie, err := r.Cookie("oauth_state")
 		if err != nil || cookie.Value == "" || cookie.Value != req.State {
@@ -34,7 +34,7 @@ func githubCallbackHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		})
 
 		l := logic.NewGithubCallbackLogic(r.Context(), svcCtx)
-		resp, err := l.GithubCallback(&req)
+		resp, err := l.GithubCallback(req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
