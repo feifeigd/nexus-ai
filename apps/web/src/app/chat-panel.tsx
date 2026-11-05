@@ -45,15 +45,20 @@ export default function ChatPanel() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2 text-sm text-slate-600">
         <span>已登录：{user.username}</span>
-        <button
-          onClick={() => {
-            clearAuth();
-            setUser(null);
-          }}
-          className="text-slate-400 hover:text-slate-600"
-        >
-          退出
-        </button>
+        <div className="flex items-center gap-3">
+          <a href="/tenants" className="text-slate-400 hover:text-slate-600">
+            租户管理
+          </a>
+          <button
+            onClick={() => {
+              clearAuth();
+              setUser(null);
+            }}
+            className="text-slate-400 hover:text-slate-600"
+          >
+            退出
+          </button>
+        </div>
       </div>
       <div className="shrink-0 border-b border-slate-200 p-3">
         <UsagePanel />

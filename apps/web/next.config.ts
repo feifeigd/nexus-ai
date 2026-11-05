@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
         source: "/api/usage",
         destination: "http://127.0.0.1:8080/usage",
       },
+      {
+        source: "/api/tenants/:path*",
+        destination: "http://127.0.0.1:8080/tenants/:path*",
+      },
     ];
   },
   turbopack: {
