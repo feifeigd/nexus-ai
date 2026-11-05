@@ -73,7 +73,7 @@ func (l *GithubCallbackLogic) GithubCallback(req *types.GithubCallbackInput) (re
 		return fail("GitHub 用户信息不完整"), nil
 	}
 
-	user, err := l.svcCtx.Users.GetByGithubID(l.ctx, ghUser.ID)
+	user, err := l.svcCtx.Users.GetByOAuthSubject(l.ctx, "github", ghUser.ID)
 	if errors.Is(err, data.ErrUserNotFound) {
 		user, err = l.createOAuthUser(ghUser.ID, ghUser.Login)
 		if err != nil {
@@ -81,7 +81,7 @@ func (l *GithubCallbackLogic) GithubCallback(req *types.GithubCallbackInput) (re
 			return fail("创建账号失败，请重试"), nil
 		}
 	} else if err != nil {
-		l.Errorf("get user by github id: %v", err)
+		l.Errorf("get user by oauth subject: %v", err)
 		return fail("查询账号失败，请重试"), nil
 	}
 
@@ -114,5 +114,5 @@ func (l *GithubCallbackLogic) createOAuthUser(githubID, login string) (data.User
 		}
 		username = username + "_" + suffix
 	}
-	return l.svcCtx.Users.CreateOAuth(l.ctx, username, "user", githubID)
+	return l.svcCtx.Users.CreateOAuth(l.ctx, "github", githubID, username, "user")
 }

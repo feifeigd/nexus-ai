@@ -83,11 +83,11 @@ func TestUserStoreOAuth(t *testing.T) {
 	ctx := context.Background()
 	store := NewUserStore(client)
 
-	if _, err := store.GetByGithubID(ctx, "12345"); !errors.Is(err, ErrUserNotFound) {
-		t.Fatalf("expected ErrUserNotFound for missing github id, got %v", err)
+	if _, err := store.GetByOAuthSubject(ctx, "github", "12345"); !errors.Is(err, ErrUserNotFound) {
+		t.Fatalf("expected ErrUserNotFound for missing oauth subject, got %v", err)
 	}
 
-	created, err := store.CreateOAuth(ctx, "alice", "user", "12345")
+	created, err := store.CreateOAuth(ctx, "github", "12345", "alice", "user")
 	if err != nil {
 		t.Fatalf("create oauth user: %v", err)
 	}
@@ -95,11 +95,16 @@ func TestUserStoreOAuth(t *testing.T) {
 		t.Fatalf("unexpected oauth user: %+v", created)
 	}
 
-	got, err := store.GetByGithubID(ctx, "12345")
+	got, err := store.GetByOAuthSubject(ctx, "github", "12345")
 	if err != nil {
-		t.Fatalf("get by github id: %v", err)
+		t.Fatalf("get by oauth subject: %v", err)
 	}
 	if got.ID != created.ID {
-		t.Fatalf("unexpected user by github id: %+v", got)
+		t.Fatalf("unexpected user by oauth subject: %+v", got)
+	}
+
+	// 跨平台同 subject 应是不同用户。
+	if _, err := store.GetByOAuthSubject(ctx, "gitee", "12345"); !errors.Is(err, ErrUserNotFound) {
+		t.Fatalf("expected gitee subject 12345 to be a separate identity, got %v", err)
 	}
 }

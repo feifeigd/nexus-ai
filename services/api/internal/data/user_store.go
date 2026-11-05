@@ -57,8 +57,9 @@ func (s *UserStore) Create(ctx context.Context, username, passwordHash, role, te
 	return UserRecord{ID: id, Username: username, PasswordHash: passwordHash, Role: role, TenantID: tenantID}, nil
 }
 
-// CreateOAuth 创建通过三方登录（无密码）的用户，githubID 用于关联 GitHub 身份。
-func (s *UserStore) CreateOAuth(ctx context.Context, username, role, githubID string) (UserRecord, error) {
+// CreateOAuth 创建通过三方登录（无密码）的用户。provider/subject 标识一个 OAuth 身份
+// （如 provider=github、subject=该 GitHub 用户的 id），跨平台 subject 可重复。
+func (s *UserStore) CreateOAuth(ctx context.Context, provider, subject, username, role string) (UserRecord, error) {
 	if s == nil || s.client == nil {
 		return UserRecord{}, fmt.Errorf("user store client is required")
 	}
@@ -70,7 +71,8 @@ func (s *UserStore) CreateOAuth(ctx context.Context, username, role, githubID st
 		SetID(id).
 		SetUsername(username).
 		SetPasswordHash("").
-		SetGithubID(githubID).
+		SetOauthProvider(provider).
+		SetOauthSubject(subject).
 		SetRole(role).
 		SetTenantID(id).
 		Save(ctx); err != nil {
@@ -94,17 +96,19 @@ func (s *UserStore) GetByUsername(ctx context.Context, username string) (UserRec
 	return toUserRecord(row), nil
 }
 
-// GetByGithubID 按 GitHub ID 查。不存在时返回 ErrUserNotFound。
-func (s *UserStore) GetByGithubID(ctx context.Context, githubID string) (UserRecord, error) {
+// GetByOAuthSubject 按 provider + subject 查三方登录用户。不存在时返回 ErrUserNotFound。
+func (s *UserStore) GetByOAuthSubject(ctx context.Context, provider, subject string) (UserRecord, error) {
 	if s == nil || s.client == nil {
 		return UserRecord{}, fmt.Errorf("user store client is required")
 	}
-	row, err := s.client.User.Query().Where(entuser.GithubIDEQ(githubID)).Only(ctx)
+	row, err := s.client.User.Query().
+		Where(entuser.OauthProviderEQ(provider), entuser.OauthSubjectEQ(subject)).
+		Only(ctx)
 	if ent.IsNotFound(err) {
 		return UserRecord{}, ErrUserNotFound
 	}
 	if err != nil {
-		return UserRecord{}, fmt.Errorf("get user by github id: %w", err)
+		return UserRecord{}, fmt.Errorf("get user by oauth subject: %w", err)
 	}
 	return toUserRecord(row), nil
 }

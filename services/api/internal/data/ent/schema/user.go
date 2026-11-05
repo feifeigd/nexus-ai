@@ -21,7 +21,11 @@ func (User) Fields() []ent.Field {
 		field.String("id").Unique().Immutable(),
 		field.String("username").Unique().Immutable(),
 		field.String("password_hash").Immutable(),
-		field.String("github_id").Optional().Nillable().Unique().Immutable(),
+		// oauth_provider + oauth_subject 表示一个三方登录身份（provider 如
+		// github/gitee，subject 是对应平台上的用户 id）。相比每个平台单独加一列
+		// （github_id/gitee_id/…），泛化成两列更可扩展。
+		field.String("oauth_provider").Optional().Nillable(),
+		field.String("oauth_subject").Optional().Nillable(),
 		field.String("role").Immutable(),
 		field.String("tenant_id").Immutable(),
 		field.Time("created_at").Default(time.Now).Immutable(),
@@ -32,6 +36,9 @@ func (User) Fields() []ent.Field {
 func (User) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("created_at").Annotations(entsql.DescColumns("created_at")),
+		// 同一平台下的 subject 唯一，跨平台可重复（同一个 subject 在 github 与
+		// gitee 可能是不同的人）。
+		index.Fields("oauth_provider", "oauth_subject").Unique(),
 	}
 }
 
