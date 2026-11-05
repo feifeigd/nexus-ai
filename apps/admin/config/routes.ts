@@ -47,6 +47,12 @@ export default [
     component: './Tickets',
   },
   {
+    path: '/audit-logs',
+    name: 'auditLogs',
+    icon: 'fileText',
+    component: './Audit',
+  },
+  {
     path: '/admin',
     name: 'admin',
     icon: 'crown',

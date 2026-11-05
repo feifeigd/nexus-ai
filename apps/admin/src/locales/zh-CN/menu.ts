@@ -54,4 +54,5 @@ export default {
   'menu.usage': '用量统计',
   'menu.approvals': '工具审批',
   'menu.tickets': '工单管理',
+  'menu.auditLogs': '审计日志',
 };

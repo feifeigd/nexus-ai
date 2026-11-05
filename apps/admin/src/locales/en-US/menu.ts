@@ -54,4 +54,5 @@ export default {
   'menu.usage': 'Usage',
   'menu.approvals': 'Tool Approvals',
   'menu.tickets': 'Tickets',
+  'menu.auditLogs': 'Audit Logs',
 };

@@ -32,10 +32,10 @@ export const UsageContent: React.FC = () => {
     setLoading(true);
     setError(undefined);
     try {
-      const response = await listTokenUsage({
-        ...NEXUS_API_OPTIONS,
-        params: scope === 'all' ? { scope: 'all' } : {},
-      });
+      const response = await listTokenUsage(
+        scope === 'all' ? { scope: 'all' } : {},
+        { ...NEXUS_API_OPTIONS },
+      );
       setItems(response.items ?? []);
     } catch (requestError) {
       setError(
