@@ -67,12 +67,8 @@ func (o *GitHubOAuth) AuthorizeURL(state string) string {
 	return githubAuthorizeURL + "?" + query.Encode()
 }
 
-// GitHubUser 是登录所需的 GitHub 用户信息最小集合。
-type GitHubUser struct {
-	ID    string // GitHub 数字 id（转字符串），用于关联本地账号
-	Login string // 登录名，作为本地 username
-	Email string // 主邮箱（可能为空）
-}
+// Name 返回提供方标识，用于 oauth_provider 存储与回调路由。
+func (o *GitHubOAuth) Name() string { return "github" }
 
 // ExchangeCode 用一次性授权码换 access_token。
 func (o *GitHubOAuth) ExchangeCode(ctx context.Context, code string) (string, error) {
@@ -111,22 +107,22 @@ func (o *GitHubOAuth) ExchangeCode(ctx context.Context, code string) (string, er
 }
 
 // FetchUser 用 access_token 拉取 GitHub 用户信息。
-func (o *GitHubOAuth) FetchUser(ctx context.Context, accessToken string) (GitHubUser, error) {
+func (o *GitHubOAuth) FetchUser(ctx context.Context, accessToken string) (OAuthUser, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, o.userURL(), nil)
 	if err != nil {
-		return GitHubUser{}, fmt.Errorf("build github user request: %w", err)
+		return OAuthUser{}, fmt.Errorf("build github user request: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Accept", "application/vnd.github+json")
 
 	resp, err := o.client().Do(req)
 	if err != nil {
-		return GitHubUser{}, fmt.Errorf("fetch github user: %w", err)
+		return OAuthUser{}, fmt.Errorf("fetch github user: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return GitHubUser{}, fmt.Errorf("github user endpoint returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return OAuthUser{}, fmt.Errorf("github user endpoint returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	var raw struct {
 		ID    int64   `json:"id"`
@@ -134,16 +130,16 @@ func (o *GitHubOAuth) FetchUser(ctx context.Context, accessToken string) (GitHub
 		Email *string `json:"email"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
-		return GitHubUser{}, fmt.Errorf("decode github user response: %w", err)
+		return OAuthUser{}, fmt.Errorf("decode github user response: %w", err)
 	}
-	user := GitHubUser{ID: strconv.FormatInt(raw.ID, 10), Login: raw.Login}
+	user := OAuthUser{ID: strconv.FormatInt(raw.ID, 10), Login: raw.Login}
 	if raw.Email != nil {
 		user.Email = *raw.Email
 	}
 	if user.Email == "" {
 		user.Email, err = o.fetchPrimaryEmail(ctx, accessToken)
 		if err != nil {
-			return GitHubUser{}, err
+			return OAuthUser{}, err
 		}
 	}
 	return user, nil

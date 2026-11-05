@@ -13,6 +13,11 @@ type Config struct {
 	Data   data.Data
 	Auth   AuthConfig
 	GitHub GitHubOAuthConfig
+	Gitee  GiteeOAuthConfig
+
+	// WebBaseURL 是 Web 用户端地址（如 http://localhost:3000），三方登录成功后跳回
+	// Web 用它拼接回调地址。所有提供方共享。
+	WebBaseURL string `json:",optional"`
 }
 
 // AuthConfig 是认证配置，字段对齐 go-zero 的 JWT 中间件命名。AccessSecret 是 JWT
@@ -29,7 +34,16 @@ type GitHubOAuthConfig struct {
 	ClientID     string `json:",optional"`
 	ClientSecret string `json:",optional"`
 	RedirectURI  string `json:",optional"`
-	WebBaseURL   string `json:",optional"`
+	TokenURL     string `json:",optional"`
+	UserURL      string `json:",optional"`
+	EmailsURL    string `json:",optional"`
+}
+
+// GiteeOAuthConfig 是码云（Gitee）OAuth 配置，字段语义同 GitHubOAuthConfig。
+type GiteeOAuthConfig struct {
+	ClientID     string `json:",optional"`
+	ClientSecret string `json:",optional"`
+	RedirectURI  string `json:",optional"`
 	TokenURL     string `json:",optional"`
 	UserURL      string `json:",optional"`
 	EmailsURL    string `json:",optional"`

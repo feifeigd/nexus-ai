@@ -52,7 +52,16 @@ func run() error {
 		c.GitHub.RedirectURI = v
 	}
 	if v := strings.TrimSpace(os.Getenv("NEXUS_WEB_BASE_URL")); v != "" {
-		c.GitHub.WebBaseURL = v
+		c.WebBaseURL = v
+	}
+	if v := strings.TrimSpace(os.Getenv("NEXUS_GITEE_CLIENT_ID")); v != "" {
+		c.Gitee.ClientID = v
+	}
+	if v := strings.TrimSpace(os.Getenv("NEXUS_GITEE_CLIENT_SECRET")); v != "" {
+		c.Gitee.ClientSecret = v
+	}
+	if v := strings.TrimSpace(os.Getenv("NEXUS_GITEE_REDIRECT_URI")); v != "" {
+		c.Gitee.RedirectURI = v
 	}
 
 	ctx, cleanup, err := wireContext(&c)

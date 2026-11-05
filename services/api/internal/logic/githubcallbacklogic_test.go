@@ -42,12 +42,12 @@ func TestGithubCallbackLogicCreatesAndReusesUser(t *testing.T) {
 	defer closeData()
 
 	cfg := &config.Config{
-		Auth: config.AuthConfig{AccessSecret: "test-secret-123"},
+		Auth:       config.AuthConfig{AccessSecret: "test-secret-123"},
+		WebBaseURL: "http://localhost:3000",
 		GitHub: config.GitHubOAuthConfig{
 			ClientID:     "client-1",
 			ClientSecret: "secret-1",
 			RedirectURI:  "http://localhost:8080/auth/github/callback",
-			WebBaseURL:   "http://localhost:3000",
 			TokenURL:     gh.URL + "/token",
 			UserURL:      gh.URL + "/user",
 		},
