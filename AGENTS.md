@@ -125,6 +125,5 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 下一步
 
-- 排查 Web 端 CopilotChat 发送按钮 disabled 并补测 Web 流式回答（版本组合已记录，后期修复）。
 - 过滤语义核验中的结语/提醒类元语言（需非 LLM 确定性方案）。
-- 三方登录（OAuth）：需先选平台（GitHub / 微信 / 企业微信 / 钉钉等）并到对方平台申请 App Key/Secret；未接入前仅账号密码登录。认证、token 记账与数据层租户隔离（六张表 tenant_id）均已合并 main。
+- 已完成（2026-11-05）：三方登录 OAuth 接入 GitHub（授权码模式 + state 防 CSRF + `github_id` 建号复用，提交 `8502593`，教程见 `docs/github-oauth-app.md`）；Web CopilotChat 的「info 没返回」确认为 dev 首次访问冷编译超时（114s > CopilotChat 5s 超时），路由热后即正常，生产构建无此问题，上游 issue #8192 仍 open（不阻塞）。
