@@ -14,3 +14,9 @@ func managementTenantID(ctx context.Context) string {
 	}
 	return auth.TenantIDFromContext(ctx)
 }
+
+// currentUserID 从请求 context 取 JWT 注入的当前用户 id（uid）。
+func currentUserID(ctx context.Context) string {
+	userID, _ := ctx.Value("uid").(string)
+	return userID
+}

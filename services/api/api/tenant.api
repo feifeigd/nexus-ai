@@ -1,0 +1,44 @@
+// API DSL reference: https://go-zero.dev/reference/api-dsl/
+syntax = "v1"
+
+type CreateTenantInput {
+	Name string `json:"name"`
+}
+
+type CreateTenantResponse {
+	TenantID string `json:"tenantId"`
+	Name     string `json:"name"`
+}
+
+type AddTenantMemberInput {
+	ID       string `path:"id"`
+	Username string `json:"username"`
+}
+
+type AddTenantMemberResponse {
+	UserID   string `json:"userId"`
+	Username string `json:"username"`
+}
+
+type TenantItem {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type ListTenantsResponse {
+	Tenants []TenantItem `json:"tenants"`
+}
+
+@server(
+	jwt: Auth
+)
+service nexus-api {
+	@handler createTenant
+	post /tenants (CreateTenantInput) returns (CreateTenantResponse)
+
+	@handler listTenants
+	get /tenants returns (ListTenantsResponse)
+
+	@handler addTenantMember
+	post /tenants/:id/members (AddTenantMemberInput) returns (AddTenantMemberResponse)
+}

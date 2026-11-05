@@ -15,5 +15,6 @@ import (
 	"knowledge.api"
 	"usage.api"
 	"auth.api"
+	"tenant.api"
 )
 
