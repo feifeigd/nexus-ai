@@ -90,6 +90,12 @@ export function AuthForm({ onLoggedIn }: { onLoggedIn: () => void }) {
         >
           使用 GitHub 登录
         </a>
+        <a
+          href="/api/auth/gitee/login"
+          className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-center text-slate-100 hover:bg-slate-700"
+        >
+          使用 Gitee 登录
+        </a>
       </div>
     </div>
   );

@@ -31,6 +31,20 @@ type GithubCallbackResponse {
 	RedirectURL string `json:"redirectUrl"`
 }
 
+type GiteeLoginResponse {
+	RedirectURL string `json:"redirectUrl"`
+	State       string `json:"state"`
+}
+
+type GiteeCallbackInput {
+	Code  string `form:"code"`
+	State string `form:"state"`
+}
+
+type GiteeCallbackResponse {
+	RedirectURL string `json:"redirectUrl"`
+}
+
 service nexus-api {
 	@handler login
 	post /auth/login (LoginInput) returns (LoginResponse)
@@ -43,4 +57,10 @@ service nexus-api {
 
 	@handler githubCallback
 	get /auth/github/callback (GithubCallbackInput) returns (GithubCallbackResponse)
+
+	@handler giteeLogin
+	get /auth/gitee/login returns (GiteeLoginResponse)
+
+	@handler giteeCallback
+	get /auth/gitee/callback (GiteeCallbackInput) returns (GiteeCallbackResponse)
 }

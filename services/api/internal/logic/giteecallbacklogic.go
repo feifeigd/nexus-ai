@@ -1,0 +1,47 @@
+// Code scaffolded by goctl. Safe to edit.
+// goctl 1.10.2
+
+package logic
+
+import (
+	"context"
+
+	"github.com/zeromicro/go-zero/core/logx"
+
+	"nexusai/services/api/internal/auth"
+	"nexusai/services/api/internal/svc"
+	"nexusai/services/api/internal/types"
+)
+
+type GiteeCallbackLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewGiteeCallbackLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GiteeCallbackLogic {
+	return &GiteeCallbackLogic{
+		Logger: logx.WithContext(ctx),
+		ctx:    ctx,
+		svcCtx: svcCtx,
+	}
+}
+
+// GiteeCallback 完成码云 OAuth 回调：构造 Gitee 客户端后走通用授权码流程
+// （换 token → 拉用户 → 建号/复用 → 签 JWT），返回跳回 Web 的地址。
+func (l *GiteeCallbackLogic) GiteeCallback(req *types.GiteeCallbackInput) (*types.GiteeCallbackResponse, error) {
+	cfg := l.svcCtx.Config.Gitee
+	oauth := &auth.GiteeOAuth{
+		ClientID:     cfg.ClientID,
+		ClientSecret: cfg.ClientSecret,
+		RedirectURI:  cfg.RedirectURI,
+		TokenURL:     cfg.TokenURL,
+		UserURL:      cfg.UserURL,
+		EmailsURL:    cfg.EmailsURL,
+	}
+	redirectURL, err := oauthCallbackRedirect(l.ctx, l.svcCtx, oauth, req.Code)
+	if err != nil {
+		return nil, err
+	}
+	return &types.GiteeCallbackResponse{RedirectURL: redirectURL}, nil
+}
