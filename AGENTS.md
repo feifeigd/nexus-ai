@@ -125,5 +125,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 下一步
 
-- 过滤语义核验中的结语/提醒类元语言（需非 LLM 确定性方案）。
-- 已完成（2026-11-05）：三方登录 OAuth 接入 GitHub（授权码模式 + state 防 CSRF + `github_id` 建号复用，提交 `8502593`，教程见 `docs/github-oauth-app.md`）；Web CopilotChat 的「info 没返回」确认为 dev 首次访问冷编译超时（114s > CopilotChat 5s 超时），路由热后即正常，生产构建无此问题，上游 issue #8192 仍 open（不阻塞）。
+- 组织级租户：当前每用户一租户（tenant_id = 用户 id），升级为组织/团队租户（tenants 表 + 邀请成员）。
+- 生产级授权与审计：操作审计日志、更细的角色/权限控制。
+- 更多三方登录（微信 / 企业微信 / 钉钉等），复用现有 OAuth 授权码流程。
+- 已完成（2026-11-05）：GitHub OAuth 登录（提交 `8502593`，教程 `docs/github-oauth-app.md`）；语义核验结语/提醒类元语言确定性过滤（提交 `2064b33`）；Web CopilotChat「info 没返回」确认为 dev 冷编译超时（非阻塞，issue #8192 仍 open）。
