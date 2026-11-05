@@ -29,6 +29,14 @@ type ListTenantsResponse {
 	Tenants []TenantItem `json:"tenants"`
 }
 
+type SwitchTenantInput {
+	ID string `path:"id"`
+}
+
+type SwitchTenantResponse {
+	TenantID string `json:"tenantId"`
+}
+
 @server(
 	jwt: Auth
 )
@@ -41,4 +49,7 @@ service nexus-api {
 
 	@handler addTenantMember
 	post /tenants/:id/members (AddTenantMemberInput) returns (AddTenantMemberResponse)
+
+	@handler switchTenant
+	post /tenants/:id/switch (SwitchTenantInput) returns (SwitchTenantResponse)
 }

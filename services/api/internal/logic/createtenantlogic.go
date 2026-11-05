@@ -46,6 +46,9 @@ func (l *CreateTenantLogic) CreateTenant(req *types.CreateTenantInput) (*types.C
 	if err != nil {
 		return nil, err
 	}
+	if err := l.svcCtx.Tenants.AddMember(l.ctx, tenant.ID, uid, "owner"); err != nil {
+		return nil, err
+	}
 	if _, err := l.svcCtx.Users.UpdateTenantID(l.ctx, uid, tenant.ID); err != nil {
 		return nil, err
 	}

@@ -45,7 +45,11 @@ func (l *AddTenantMemberLogic) AddTenantMember(req *types.AddTenantMemberInput) 
 	if err != nil {
 		return nil, err
 	}
-	if tenant.OwnerID != uid {
+	role, err := l.svcCtx.Tenants.MemberRole(l.ctx, tenant.ID, uid)
+	if err != nil {
+		return nil, err
+	}
+	if role != "owner" {
 		return nil, errors.New("只有租户所有者可以添加成员")
 	}
 	username := strings.TrimSpace(req.Username)
@@ -59,7 +63,12 @@ func (l *AddTenantMemberLogic) AddTenantMember(req *types.AddTenantMemberInput) 
 	if err != nil {
 		return nil, err
 	}
-	if _, err := l.svcCtx.Users.UpdateTenantID(l.ctx, member.ID, tenant.ID); err != nil {
+	if existing, err := l.svcCtx.Tenants.MemberRole(l.ctx, tenant.ID, member.ID); err != nil {
+		return nil, err
+	} else if existing != "" {
+		return nil, errors.New("该用户已是成员")
+	}
+	if err := l.svcCtx.Tenants.AddMember(l.ctx, tenant.ID, member.ID, "member"); err != nil {
 		return nil, err
 	}
 	return &types.AddTenantMemberResponse{UserID: member.ID, Username: member.Username}, nil

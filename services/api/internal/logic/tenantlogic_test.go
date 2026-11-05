@@ -62,7 +62,7 @@ func TestCreateTenantSwitchesOwner(t *testing.T) {
 	}
 }
 
-func TestAddTenantMember(t *testing.T) {
+func TestSwitchTenant(t *testing.T) {
 	svcCtx, users := newTenantTestSvc(t)
 	ctx := context.Background()
 
@@ -74,14 +74,59 @@ func TestAddTenantMember(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create tenant: %v", err)
 	}
+	am := NewAddTenantMemberLogic(context.WithValue(ctx, "uid", owner.ID), svcCtx)
+	if _, err := am.AddTenantMember(&types.AddTenantMemberInput{ID: tenant.TenantID, Username: "member"}); err != nil {
+		t.Fatalf("add member: %v", err)
+	}
+
+	st := NewSwitchTenantLogic(context.WithValue(ctx, "uid", member.ID), svcCtx)
+	if _, err := st.SwitchTenant(&types.SwitchTenantInput{ID: tenant.TenantID}); err != nil {
+		t.Fatalf("switch tenant: %v", err)
+	}
+	got, _ := users.GetByID(ctx, member.ID)
+	if got.TenantID != tenant.TenantID {
+		t.Fatalf("member active tenant not switched: got %q want %q", got.TenantID, tenant.TenantID)
+	}
+
+	// 非成员不能切换。
+	other, _ := users.Create(ctx, "other", "hash", "user", "")
+	st2 := NewSwitchTenantLogic(context.WithValue(ctx, "uid", other.ID), svcCtx)
+	if _, err := st2.SwitchTenant(&types.SwitchTenantInput{ID: tenant.TenantID}); err == nil {
+		t.Fatal("expected non-member switch to fail")
+	}
+}
+
+func TestAddTenantMember(t *testing.T) {
+	svcCtx, users := newTenantTestSvc(t)
+	ctx := context.Background()
+
+	owner, _ := users.Create(ctx, "owner", "hash", "user", "")
+	member, _ := users.Create(ctx, "member", "hash", "user", "")
+	memberPersonalTenant := member.TenantID
+
+	l := NewCreateTenantLogic(context.WithValue(ctx, "uid", owner.ID), svcCtx)
+	tenant, err := l.CreateTenant(&types.CreateTenantInput{Name: "蓝雀科技"})
+	if err != nil {
+		t.Fatalf("create tenant: %v", err)
+	}
 
 	am := NewAddTenantMemberLogic(context.WithValue(ctx, "uid", owner.ID), svcCtx)
 	if _, err := am.AddTenantMember(&types.AddTenantMemberInput{ID: tenant.TenantID, Username: "member"}); err != nil {
 		t.Fatalf("add member: %v", err)
 	}
+	// 成员关系已建立，但成员的激活租户不变（可稍后自行切换）。
+	role, err := svcCtx.Tenants.MemberRole(ctx, tenant.TenantID, member.ID)
+	if err != nil || role != "member" {
+		t.Fatalf("expected member role, got %q err=%v", role, err)
+	}
 	got, _ := users.GetByID(ctx, member.ID)
-	if got.TenantID != tenant.TenantID {
-		t.Fatalf("member tenant not switched: got %q want %q", got.TenantID, tenant.TenantID)
+	if got.TenantID != memberPersonalTenant {
+		t.Fatalf("member tenant should not switch on add: got %q want %q", got.TenantID, memberPersonalTenant)
+	}
+
+	// 重复添加应报错。
+	if _, err := am.AddTenantMember(&types.AddTenantMemberInput{ID: tenant.TenantID, Username: "member"}); err == nil {
+		t.Fatal("expected duplicate add to fail")
 	}
 
 	// 非 owner 不能添加成员。

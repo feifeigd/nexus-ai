@@ -36,7 +36,7 @@ func (l *ListTenantsLogic) ListTenants() (*types.ListTenantsResponse, error) {
 	if l.svcCtx.Tenants == nil {
 		return nil, errors.New("tenant store is not configured")
 	}
-	tenants, err := l.svcCtx.Tenants.ListByOwner(l.ctx, uid)
+	tenants, err := l.svcCtx.Tenants.ListByMember(l.ctx, uid)
 	if err != nil {
 		return nil, err
 	}
