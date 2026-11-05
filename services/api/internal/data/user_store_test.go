@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"entgo.io/ent/dialect"
@@ -91,8 +92,17 @@ func TestUserStoreOAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create oauth user: %v", err)
 	}
-	if created.ID == "" || created.Username != "alice" || created.Role != "user" || created.TenantID != created.ID {
+	if created.ID == "" || created.Username != "alice" || created.Role != "user" || created.TenantID == "" {
 		t.Fatalf("unexpected oauth user: %+v", created)
+	}
+
+	// 个人租户应已创建，且 owner 是自己、名称含用户名。
+	tenant, err := client.Tenant.Get(ctx, created.TenantID)
+	if err != nil {
+		t.Fatalf("load personal tenant: %v", err)
+	}
+	if tenant.OwnerID != created.ID || !strings.Contains(tenant.Name, "alice") {
+		t.Fatalf("unexpected personal tenant: %+v", tenant)
 	}
 
 	got, err := store.GetByOAuthSubject(ctx, "github", "12345")
