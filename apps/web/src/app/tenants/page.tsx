@@ -118,6 +118,27 @@ export default function TenantsPage() {
     }
   };
 
+  const switchTenant = async (id: string) => {
+    setError("");
+    setMessage("");
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/tenants/${id}/switch`, {
+        method: "POST",
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        setError(await readError(res));
+        return;
+      }
+      setMessage("已切换租户，请重新登录或刷新以生效");
+    } catch {
+      setError("切换租户失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 p-6 text-slate-200">
       <div className="mx-auto max-w-2xl space-y-6">
@@ -180,16 +201,25 @@ export default function TenantsPage() {
                       {tenant.id}
                     </div>
                   </div>
-                  <button
-                    onClick={() => setMemberTenant(tenant.id)}
-                    className={`shrink-0 rounded px-2 py-1 text-xs ${
-                      memberTenant === tenant.id
-                        ? "bg-cyan-600 text-white"
-                        : "bg-slate-700 text-slate-200 hover:bg-slate-600"
-                    }`}
-                  >
-                    {memberTenant === tenant.id ? "已选中" : "选为当前"}
-                  </button>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      onClick={() => void switchTenant(tenant.id)}
+                      disabled={busy}
+                      className="rounded px-2 py-1 text-xs bg-slate-700 text-slate-200 hover:bg-slate-600 disabled:opacity-50"
+                    >
+                      切换
+                    </button>
+                    <button
+                      onClick={() => setMemberTenant(tenant.id)}
+                      className={`rounded px-2 py-1 text-xs ${
+                        memberTenant === tenant.id
+                          ? "bg-cyan-600 text-white"
+                          : "bg-slate-700 text-slate-200 hover:bg-slate-600"
+                      }`}
+                    >
+                      {memberTenant === tenant.id ? "已选中" : "加成员"}
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
