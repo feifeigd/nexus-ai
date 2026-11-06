@@ -63,6 +63,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - Web 内嵌 CopilotKit Runtime 与 Admin 独立 `apps/agent-runtime` 均已接入 go-zero AG-UI SSE；Agent 支持 Mock 和 OpenAI 兼容 Chat Completions 流式模型。
 - go-zero 提供服务端白名单 `create_ticket` 工具提议、审批列表、批准和拒绝接口；批准后才创建工单，重复决策返回冲突。
 - Admin 提供 AI 聊天、工具审批和工单页面；工单状态按 `open → in_progress → resolved` 顺序流转，不支持删除、跳级或重新打开。
+- Admin 提供机器列表（裸机登记：私有/公网地址、区域、root 公钥与 SSH 私钥、是否加入 K8s；`staff` 只读、`admin` 增删改）与「执行命令」：go-zero 用 `crypto/ssh` 以 root 登录目标机器执行白名单内命令（`uptime / df / free / hostname / uname / systemctl status / docker ps / kubectl get / tail`，逐步开放），回显 stdout/stderr/退出码并写审计 `run_ssh_command`；私钥只写不读、仅注入 go-zero。设计见 `docs/ssh-remote-exec.md`。
 - 知识库支持纯文本文档导入、Unicode 安全分块、1536 维向量生成、文档与分块事务写入，以及文档列表、详情和删除；删除文档时通过外键级联删除分块。
 - Agent 已注册只读 `search_knowledge` 工具：第一次模型请求决定检索，go-zero 生成查询向量并通过 pgvector 按余弦距离检索、过滤超过 `0.5` 阈值的低相关分块、再按 BM25 关键词分数（bigram 词元 + 候选池内局部 IDF）加权重排序，第二次模型请求依据工具结果生成流式回答；go-zero 还会校验回答中的 `documentId` 引用是否来自本次检索结果，并按字面重叠对回答逐句做来源支撑校验，开启 `NEXUS_KNOWLEDGE_SEMANTIC_CHECK` 时改用 NLI/LLM 语义判定（单次非流式批量请求），未开启时回退到字面 bigram 启发式，不可验证或无支撑时在答案末尾追加告警并写结构化日志。该工具不需要人工审批。
 - Admin 为 `search_knowledge` 提供专用检索结果卡片，展示命中文档 ID、分块序号、正文与余弦距离，并与模型最终回答分离；解析、空结果与异常结果均有前端测试覆盖。
