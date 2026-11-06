@@ -1,10 +1,11 @@
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlayCircleOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { PageContainer } from '@ant-design/pro-components';
 import {
   Alert,
   App as AntdApp,
   Button,
   Card,
+  Drawer,
   Form,
   Input,
   Modal,
@@ -20,6 +21,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   createMachine,
   deleteMachine,
+  execMachineCommand,
   listMachines,
   updateMachine,
 } from '@/services/nexus/machine';
@@ -34,6 +36,7 @@ interface MachineFormValues {
   publicAddress?: string;
   region?: string;
   rootPublicKey?: string;
+  sshPrivateKey?: string;
   joinedK8s?: boolean;
 }
 
@@ -47,7 +50,8 @@ export const MachineTable: React.FC<{
   deletingId?: string;
   onEdit: (machine: Machine) => void;
   onDelete: (id: string) => void;
-}> = ({ machines, loading, deletingId, onEdit, onDelete }) => (
+  onExec: (machine: Machine) => void;
+}> = ({ machines, loading, deletingId, onEdit, onDelete, onExec }) => (
   <Table<Machine>
     rowKey="id"
     dataSource={machines}
@@ -120,10 +124,18 @@ export const MachineTable: React.FC<{
       {
         title: '操作',
         key: 'actions',
-        width: 130,
+        width: 200,
         fixed: 'right',
         render: (_, record) => (
           <Space size={0}>
+            <Button
+              type="link"
+              size="small"
+              icon={<PlayCircleOutlined />}
+              onClick={() => onExec(record)}
+            >
+              执行命令
+            </Button>
             <Button type="link" size="small" onClick={() => onEdit(record)}>
               编辑
             </Button>
@@ -216,6 +228,16 @@ export const MachineFormModal: React.FC<{
           />
         </Form.Item>
         <Form.Item
+          name="sshPrivateKey"
+          label="SSH 登录私钥"
+          extra="用于远程执行命令（root 登录）。私钥只写不读：编辑时留空保持不变，输入新值则替换。"
+        >
+          <Input.TextArea
+            placeholder="-----BEGIN OPENSSH PRIVATE KEY-----（可选）"
+            autoSize={{ minRows: 3, maxRows: 8 }}
+          />
+        </Form.Item>
+        <Form.Item
           name="joinedK8s"
           label="是否已加入 K8s 集群"
           valuePropName="checked"
@@ -224,6 +246,123 @@ export const MachineFormModal: React.FC<{
         </Form.Item>
       </Form>
     </Modal>
+  );
+};
+
+const ALLOWED_COMMANDS_HINT =
+  'uptime / df / free / hostname / uname / systemctl status / docker ps / kubectl get / tail';
+
+const outputStyle: React.CSSProperties = {
+  background: '#f6f8fa',
+  padding: 12,
+  borderRadius: 6,
+  overflowX: 'auto',
+  margin: '8px 0 0',
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+};
+
+export const MachineExecDrawer: React.FC<{
+  machine?: Machine;
+  open: boolean;
+  onClose: () => void;
+}> = ({ machine, open, onClose }) => {
+  const [command, setCommand] = useState('');
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState<API.ExecMachineCommandResponse>();
+  const [execError, setExecError] = useState<string>();
+
+  // 每次打开清空上一次的命令与输出。
+  useEffect(() => {
+    if (open) {
+      setCommand('');
+      setResult(undefined);
+      setExecError(undefined);
+    }
+  }, [open, machine?.id]);
+
+  const run = useCallback(async () => {
+    if (!machine) return;
+    const trimmed = command.trim();
+    if (!trimmed) {
+      setExecError('请输入要执行的命令。');
+      return;
+    }
+    setRunning(true);
+    setExecError(undefined);
+    setResult(undefined);
+    try {
+      const response = await execMachineCommand(
+        { id: machine.id },
+        { command: trimmed },
+        NEXUS_API_OPTIONS,
+      );
+      setResult(response);
+    } catch (requestError) {
+      setExecError(errorMessage(requestError));
+    } finally {
+      setRunning(false);
+    }
+  }, [machine, command]);
+
+  return (
+    <Drawer
+      title={machine ? `执行命令 · ${machine.name || machine.privateAddress}` : '执行命令'}
+      open={open}
+      onClose={onClose}
+      size="large"
+    >
+      <Space orientation="vertical" size={16} style={{ width: '100%' }}>
+        <Alert
+          title="命令白名单（只读诊断，逐步开放）"
+          description={`仅允许：${ALLOWED_COMMANDS_HINT}。白名单由 go-zero 配置，此处提示仅作参考。`}
+          type="info"
+          showIcon
+        />
+        <Input.Search
+          value={command}
+          onChange={(event) => setCommand(event.target.value)}
+          onSearch={() => void run()}
+          enterButton="运行"
+          loading={running}
+          placeholder="例如：df -h"
+        />
+        {execError ? (
+          <Alert
+            title="执行失败"
+            description={execError}
+            type="error"
+            showIcon
+            closable
+            onClose={() => setExecError(undefined)}
+          />
+        ) : null}
+        {result ? (
+          <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+            <Space>
+              <Typography.Text type="secondary">退出码</Typography.Text>
+              <Tag color={result.exitCode === 0 ? 'success' : 'error'}>
+                {result.exitCode}
+              </Tag>
+            </Space>
+            {result.stdout ? (
+              <div>
+                <Typography.Text type="secondary">stdout</Typography.Text>
+                <pre style={outputStyle}>{result.stdout}</pre>
+              </div>
+            ) : null}
+            {result.stderr ? (
+              <div>
+                <Typography.Text type="secondary">stderr</Typography.Text>
+                <pre style={{ ...outputStyle, background: '#fff1f0' }}>
+                  {result.stderr}
+                </pre>
+              </div>
+            ) : null}
+          </Space>
+        ) : null}
+      </Space>
+    </Drawer>
   );
 };
 
@@ -236,6 +375,7 @@ export const MachinesContent: React.FC = () => {
   const [editing, setEditing] = useState<Machine>();
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string>();
+  const [execMachine, setExecMachine] = useState<Machine>();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -345,6 +485,7 @@ export const MachinesContent: React.FC = () => {
           deletingId={deletingId}
           onEdit={openEdit}
           onDelete={(id) => void remove(id)}
+          onExec={setExecMachine}
         />
       </Card>
       <MachineFormModal
@@ -353,6 +494,11 @@ export const MachinesContent: React.FC = () => {
         submitting={submitting}
         onSubmit={(values) => void submit(values)}
         onCancel={() => setModalOpen(false)}
+      />
+      <MachineExecDrawer
+        machine={execMachine}
+        open={Boolean(execMachine)}
+        onClose={() => setExecMachine(undefined)}
       />
     </>
   );

@@ -19,6 +19,10 @@ const ACTION_LABELS: Record<string, string> = {
   add_tenant_member: '添加成员',
   ingest_document: '导入文档',
   delete_document: '删除文档',
+  create_machine: '创建机器',
+  update_machine: '更新机器',
+  delete_machine: '删除机器',
+  run_ssh_command: '执行 SSH 命令',
 };
 
 const Audit: React.FC = () => {

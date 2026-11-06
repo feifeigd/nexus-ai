@@ -15,9 +15,14 @@ const bareMetal: Machine = {
 };
 
 describe('MachineTable', () => {
-  it('renders machine fields and edit/delete actions', () => {
+  it('renders machine fields and edit/delete/exec actions', () => {
     const html = renderToStaticMarkup(
-      <MachineTable machines={[bareMetal]} onEdit={vi.fn()} onDelete={vi.fn()} />,
+      <MachineTable
+        machines={[bareMetal]}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onExec={vi.fn()}
+      />,
     );
 
     expect(html).toContain('web-1');
@@ -26,6 +31,7 @@ describe('MachineTable', () => {
     expect(html).toContain('cn-east');
     expect(html).toContain('ssh-rsa AAAA');
     expect(html).toContain('未加入');
+    expect(html).toContain('执行命令');
     expect(html).toContain('编辑');
     expect(html).toContain('删除');
   });
@@ -38,6 +44,7 @@ describe('MachineTable', () => {
         ]}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onExec={vi.fn()}
       />,
     );
 
