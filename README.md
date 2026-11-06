@@ -15,7 +15,7 @@ NexusAI 是一个建设中的企业级 AI 应用开发框架，并将内置多�
 | 数据基础设施 | PostgreSQL 17、pgvector、Redis 7.4、Docker Compose |
 | 工程化 | pnpm Monorepo、TypeScript、Vitest、ESLint、Biome、GitHub Actions |
 
-完整的当前架构、请求时序与目标架构见 [架构文档](docs/architecture.md)。
+完整的当前架构、请求时序与目标架构见 [架构文档](docs/architecture.md)；生产部署见 [部署指南](docs/deployment.md)。
 
 ## 当前能力
 
