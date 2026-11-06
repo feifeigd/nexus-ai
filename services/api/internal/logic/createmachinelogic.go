@@ -44,6 +44,7 @@ func (l *CreateMachineLogic) CreateMachine(req *types.CreateMachineInput) (*type
 		PublicAddress:  strings.TrimSpace(req.PublicAddress),
 		Region:         strings.TrimSpace(req.Region),
 		RootPublicKey:  strings.TrimSpace(req.RootPublicKey),
+		SSHPrivateKey:  strings.TrimSpace(req.SSHPrivateKey),
 		JoinedK8s:      req.JoinedK8s,
 	})
 	if err != nil {

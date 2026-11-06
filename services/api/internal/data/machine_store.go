@@ -12,6 +12,8 @@ import (
 )
 
 // MachineRecord 是一台运营中的裸机/服务器（平台级基础设施）。
+// SSHPrivateKey 是 root 登录私钥，只写不读：仅由 Create/Update 写入、由 Exec 逻辑
+// 内部读取，绝不通过 API 响应或前端列表返回给调用方。
 type MachineRecord struct {
 	ID             string
 	Name           string
@@ -19,6 +21,7 @@ type MachineRecord struct {
 	PublicAddress  string
 	Region         string
 	RootPublicKey  string
+	SSHPrivateKey  string
 	JoinedK8s      bool
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -137,6 +140,9 @@ func applyOptional(builder *ent.MachineCreate, m MachineRecord) {
 	if m.RootPublicKey != "" {
 		builder.SetRootPublicKey(m.RootPublicKey)
 	}
+	if m.SSHPrivateKey != "" {
+		builder.SetSSHPrivateKey(m.SSHPrivateKey)
+	}
 }
 
 // applyOptionalUpdate 把可选字段设置（或清空）到 UpdateOne builder。
@@ -161,6 +167,11 @@ func applyOptionalUpdate(builder *ent.MachineUpdateOne, m MachineRecord) *ent.Ma
 	} else {
 		builder.ClearRootPublicKey()
 	}
+	// 私钥只写不读：留空表示「保持不变」，而不是清空。否则编辑机器其它字段时，
+	// 前端看不到旧私钥、无法回填，全量更新会意外抹掉已配置的私钥。
+	if m.SSHPrivateKey != "" {
+		builder.SetSSHPrivateKey(m.SSHPrivateKey)
+	}
 	return builder
 }
 
@@ -172,6 +183,7 @@ func machineFromEnt(row *ent.Machine) MachineRecord {
 		PublicAddress:  derefOrEmpty(row.PublicAddress),
 		Region:         derefOrEmpty(row.Region),
 		RootPublicKey:  derefOrEmpty(row.RootPublicKey),
+		SSHPrivateKey:  derefOrEmpty(row.SSHPrivateKey),
 		JoinedK8s:      row.JoinedK8s,
 		CreatedAt:      row.CreatedAt,
 		UpdatedAt:      row.UpdatedAt,

@@ -63,6 +63,10 @@ func run() error {
 	if v := strings.TrimSpace(os.Getenv("NEXUS_GITEE_REDIRECT_URI")); v != "" {
 		c.Gitee.RedirectURI = v
 	}
+	// NEXUS_SSH_ALLOWED_COMMANDS 用逗号分隔覆盖 SSH 命令白名单；空项由 sshx.NewWhitelist 忽略。
+	if v := strings.TrimSpace(os.Getenv("NEXUS_SSH_ALLOWED_COMMANDS")); v != "" {
+		c.SSH.AllowedCommands = strings.Split(v, ",")
+	}
 
 	ctx, cleanup, err := wireContext(&c)
 	if err != nil {

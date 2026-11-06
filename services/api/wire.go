@@ -33,6 +33,7 @@ func wireContext(*config.Config) (*svc.ServiceContext, func(), error) {
 		newKnowledgeStore,
 		wire.Bind(new(svc.KnowledgeDocumentStore), new(*data.KnowledgeStore)),
 		newKnowledgeService,
+		newSSHRunner,
 		data.ProviderSet,
 		// ServiceContextDeps 用 wire.Struct 聚合所有业务依赖，
 		// 再由 NewServiceContext 注入到 ServiceContext。

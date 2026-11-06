@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"entgo.io/ent/dialect"
@@ -29,12 +30,13 @@ func TestMachineStoreCRUD(t *testing.T) {
 		PublicAddress:  "1.2.3.4",
 		Region:         "cn-east",
 		RootPublicKey:  "ssh-rsa AAAA",
+		SSHPrivateKey:  "-----BEGIN OPENSSH PRIVATE KEY-----\ntest\n-----END OPENSSH PRIVATE KEY-----",
 		JoinedK8s:      false,
 	})
 	if err != nil {
 		t.Fatalf("create machine: %v", err)
 	}
-	if created.ID == "" || created.PrivateAddress != "10.0.0.1" || created.PublicAddress != "1.2.3.4" || created.JoinedK8s {
+	if created.ID == "" || created.PrivateAddress != "10.0.0.1" || created.PublicAddress != "1.2.3.4" || created.JoinedK8s || created.SSHPrivateKey == "" {
 		t.Fatalf("unexpected created machine: %+v", created)
 	}
 
@@ -43,7 +45,7 @@ func TestMachineStoreCRUD(t *testing.T) {
 		t.Fatalf("unexpected machine list: %+v err=%v", list, err)
 	}
 
-	// 更新：加入集群 + 清空公网地址。
+	// 更新：加入集群 + 清空公网地址。私钥留空应保持原值不变（只写不读）。
 	updated, err := store.Update(ctx, MachineRecord{
 		ID:             created.ID,
 		Name:           "web-1",
@@ -53,8 +55,23 @@ func TestMachineStoreCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("update machine: %v", err)
 	}
-	if !updated.JoinedK8s || updated.PublicAddress != "" {
+	if !updated.JoinedK8s || updated.PublicAddress != "" || updated.SSHPrivateKey == "" {
 		t.Fatalf("unexpected updated machine: %+v", updated)
+	}
+
+	// 换新私钥。
+	rotated, err := store.Update(ctx, MachineRecord{
+		ID:             created.ID,
+		Name:           "web-1",
+		PrivateAddress: "10.0.0.1",
+		JoinedK8s:      true,
+		SSHPrivateKey:  "-----BEGIN OPENSSH PRIVATE KEY-----\nrotated\n-----END OPENSSH PRIVATE KEY-----",
+	})
+	if err != nil {
+		t.Fatalf("rotate machine key: %v", err)
+	}
+	if !strings.Contains(rotated.SSHPrivateKey, "rotated") {
+		t.Fatalf("expected rotated private key, got %+v", rotated.SSHPrivateKey)
 	}
 
 	if err := store.Delete(ctx, created.ID); err != nil {

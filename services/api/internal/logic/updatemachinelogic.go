@@ -45,6 +45,7 @@ func (l *UpdateMachineLogic) UpdateMachine(req *types.UpdateMachineInput) (*type
 		PublicAddress:  strings.TrimSpace(req.PublicAddress),
 		Region:         strings.TrimSpace(req.Region),
 		RootPublicKey:  strings.TrimSpace(req.RootPublicKey),
+		SSHPrivateKey:  strings.TrimSpace(req.SSHPrivateKey),
 		JoinedK8s:      req.JoinedK8s,
 	})
 	if err != nil {

@@ -18,6 +18,23 @@ Auth:
   AccessSecret: "nexus-dev-secret-123"
   AccessExpire: 86400
 
+SSH:
+  # 远程命令执行：固定 root、端口 22、超时 30s。
+  User: root
+  Port: 22
+  Timeout: 30
+  # 命令白名单前缀（只读诊断，逐步开放）；可用 NEXUS_SSH_ALLOWED_COMMANDS 覆盖。
+  AllowedCommands:
+    - uptime
+    - df
+    - free
+    - hostname
+    - uname
+    - "systemctl status"
+    - "docker ps"
+    - "kubectl get"
+    - tail
+
 Data:
   Database:
     Driver: sqlite3

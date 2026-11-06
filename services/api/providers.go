@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/approval"
@@ -10,6 +11,7 @@ import (
 	dataent "nexusai/services/api/internal/data/ent"
 	entschema "nexusai/services/api/internal/data/ent/schema"
 	"nexusai/services/api/internal/knowledge"
+	"nexusai/services/api/internal/sshx"
 	"nexusai/services/api/internal/svc"
 )
 
@@ -35,6 +37,15 @@ func newRunner(c agent.Config, approvals *approval.EntStore, knowledgeService sv
 
 func newKnowledgeStore(client *dataent.Client, driver string) *data.KnowledgeStore {
 	return data.NewKnowledgeStore(client, driver)
+}
+
+// newSSHRunner 用 SSH 配置构造远程命令执行器。Timeout 为 0 时由 sshx 使用默认 30s。
+func newSSHRunner(c *config.Config) sshx.Runner {
+	return sshx.NewClient(sshx.Config{
+		User:    c.SSH.User,
+		Port:    c.SSH.Port,
+		Timeout: time.Duration(c.SSH.Timeout) * time.Second,
+	})
 }
 
 func newKnowledgeService(c agent.Config, store *data.KnowledgeStore) (svc.KnowledgeService, error) {

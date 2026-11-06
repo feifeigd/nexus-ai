@@ -19,6 +19,7 @@ type CreateMachineInput {
 	PublicAddress  string `json:"publicAddress,optional"`
 	Region         string `json:"region,optional"`
 	RootPublicKey  string `json:"rootPublicKey,optional"`
+	SSHPrivateKey  string `json:"sshPrivateKey,optional"`
 	JoinedK8s      bool   `json:"joinedK8s,optional"`
 }
 
@@ -29,6 +30,7 @@ type UpdateMachineInput {
 	PublicAddress  string `json:"publicAddress,optional"`
 	Region         string `json:"region,optional"`
 	RootPublicKey  string `json:"rootPublicKey,optional"`
+	SSHPrivateKey  string `json:"sshPrivateKey,optional"`
 	JoinedK8s      bool   `json:"joinedK8s,optional"`
 }
 
@@ -38,6 +40,17 @@ type DeleteMachineInput {
 
 type DeleteMachineResponse {
 	ID string `json:"id"`
+}
+
+type ExecMachineCommandInput {
+	ID      string `path:"id"`
+	Command string `json:"command"`
+}
+
+type ExecMachineCommandResponse {
+	Stdout   string `json:"stdout"`
+	Stderr   string `json:"stderr"`
+	ExitCode int    `json:"exitCode"`
 }
 
 type ListMachinesResponse {
@@ -66,4 +79,7 @@ service nexus-api {
 
 	@handler deleteMachine
 	delete /machines/:id (DeleteMachineInput) returns (DeleteMachineResponse)
+
+	@handler execMachineCommand
+	post /machines/:id/exec (ExecMachineCommandInput) returns (ExecMachineCommandResponse)
 }

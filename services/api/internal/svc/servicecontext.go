@@ -11,6 +11,7 @@ import (
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/data"
 	"nexusai/services/api/internal/middleware"
+	"nexusai/services/api/internal/sshx"
 
 	"github.com/zeromicro/go-zero/rest"
 )
@@ -36,6 +37,8 @@ type ServiceContext struct {
 	Tenants             *data.TenantStore
 	Audit               *data.AuditStore
 	Machines            *data.MachineStore
+	SSHRunner           sshx.Runner
+	SSHWhitelist        *sshx.Whitelist
 	StaffOnlyMiddleware rest.Middleware
 	AdminOnlyMiddleware rest.Middleware
 	ApproverMiddleware  rest.Middleware
@@ -57,6 +60,7 @@ type ServiceContextDeps struct {
 	Tenants    *data.TenantStore
 	Audit      *data.AuditStore
 	Machines   *data.MachineStore
+	SSHRunner  sshx.Runner
 }
 
 func NewServiceContext(c *config.Config, deps ServiceContextDeps) *ServiceContext {
@@ -71,6 +75,8 @@ func NewServiceContext(c *config.Config, deps ServiceContextDeps) *ServiceContex
 		Tenants:             deps.Tenants,
 		Audit:               deps.Audit,
 		Machines:            deps.Machines,
+		SSHRunner:           deps.SSHRunner,
+		SSHWhitelist:        sshx.NewWhitelist(c.SSH.AllowedCommands),
 		StaffOnlyMiddleware: middleware.NewStaffOnlyMiddleware().Handle,
 		AdminOnlyMiddleware: middleware.NewAdminOnlyMiddleware().Handle,
 		ApproverMiddleware:  middleware.NewApproverMiddleware().Handle,
