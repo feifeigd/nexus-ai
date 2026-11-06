@@ -53,6 +53,12 @@ export default [
     component: './Audit',
   },
   {
+    path: '/machines',
+    name: 'machines',
+    icon: 'cluster',
+    component: './Machines',
+  },
+  {
     path: '/admin',
     name: 'admin',
     icon: 'crown',

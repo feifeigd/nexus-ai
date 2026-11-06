@@ -55,4 +55,5 @@ export default {
   'menu.approvals': 'Tool Approvals',
   'menu.tickets': 'Tickets',
   'menu.auditLogs': 'Audit Logs',
+  'menu.machines': 'Machines',
 };

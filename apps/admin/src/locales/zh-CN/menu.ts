@@ -55,4 +55,5 @@ export default {
   'menu.approvals': '工具审批',
   'menu.tickets': '工单管理',
   'menu.auditLogs': '审计日志',
+  'menu.machines': '机器列表',
 };
