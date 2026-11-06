@@ -13,7 +13,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-// seedAdminUser 在启动时确保存在一个 staff 账号。密码来自环境变量
+// seedAdminUser 在启动时确保存在一个 admin 账号。密码来自环境变量
 // NEXUS_ADMIN_PASSWORD，未设置时跳过（不创建默认账号）。已存在时幂等跳过。
 func seedAdminUser(ctx context.Context, svcCtx *svc.ServiceContext) error {
 	password := strings.TrimSpace(os.Getenv("NEXUS_ADMIN_PASSWORD"))
@@ -33,9 +33,9 @@ func seedAdminUser(ctx context.Context, svcCtx *svc.ServiceContext) error {
 	if err != nil {
 		return err
 	}
-	if _, err := svcCtx.Users.Create(ctx, username, hash, "staff", ""); err != nil {
+	if _, err := svcCtx.Users.Create(ctx, username, hash, auth.RoleAdmin, ""); err != nil {
 		return err
 	}
-	logx.Infow("seeded admin staff user", logx.Field("username", username))
+	logx.Infow("seeded admin user", logx.Field("username", username))
 	return nil
 }

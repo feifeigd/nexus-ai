@@ -35,8 +35,8 @@ func (l *ListTokenUsageLogic) ListTokenUsage(scope string) (resp *types.ListToke
 	}
 	role, _ := l.ctx.Value("role").(string)
 	tenantID := auth.TenantIDFromContext(l.ctx)
-	// staff（管理员）且 scope=all 时看全部租户；其余情况只看自己租户。
-	if role == "staff" && scope == "all" {
+	// 内部工作人员（admin/auditor/readonly）且 scope=all 时看全部租户；其余只看自己租户。
+	if auth.IsStaffRole(role) && scope == "all" {
 		tenantID = ""
 	} else if tenantID == "" {
 		return nil, errors.New("未登录或缺少租户信息")

@@ -48,7 +48,7 @@ func (User) Annotations() []schema.Annotation {
 	return []schema.Annotation{
 		&entsql.Annotation{
 			Checks: map[string]string{
-				"users_role_check": "role IN ('staff', 'user')",
+				"users_role_check": "role IN ('admin', 'auditor', 'readonly', 'user')",
 			},
 		},
 	}

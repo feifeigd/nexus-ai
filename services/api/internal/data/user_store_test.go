@@ -24,11 +24,11 @@ func TestUserStoreCreateAndGet(t *testing.T) {
 	ctx := context.Background()
 	store := NewUserStore(client)
 
-	created, err := store.Create(ctx, "alice", "hashed-password", "staff", "")
+	created, err := store.Create(ctx, "alice", "hashed-password", "admin", "")
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}
-	if created.ID == "" || created.Username != "alice" || created.Role != "staff" {
+	if created.ID == "" || created.Username != "alice" || created.Role != "admin" {
 		t.Fatalf("unexpected created user: %+v", created)
 	}
 

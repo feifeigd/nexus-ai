@@ -17,7 +17,7 @@ func TestStaffOnlyMiddleware(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 		})
 		r := httptest.NewRequest(http.MethodGet, "/approvals", nil)
-		r = r.WithContext(context.WithValue(r.Context(), "role", "staff"))
+		r = r.WithContext(context.WithValue(r.Context(), "role", "admin"))
 		w := httptest.NewRecorder()
 		handler(w, r)
 		if w.Code != http.StatusOK || !called {

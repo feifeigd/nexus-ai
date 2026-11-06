@@ -114,7 +114,7 @@ func TestApprovalAndTicketRoutesReadGoZeroPathID(t *testing.T) {
 	}
 	proposal := mustList(t, store)[0]
 	baseURL := startTestServer(t, store)
-	token, err := auth.SignToken("test-secret-123", "user-test", "tester", "staff", "tenant-test", time.Now(), time.Hour)
+	token, err := auth.SignToken("test-secret-123", "user-test", "tester", "admin", "tenant-test", time.Now(), time.Hour)
 	if err != nil {
 		t.Fatalf("sign test token: %v", err)
 	}

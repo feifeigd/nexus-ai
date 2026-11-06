@@ -23,7 +23,7 @@ func TestPasswordHashAndCheck(t *testing.T) {
 
 func TestTokenSignAndParse(t *testing.T) {
 	now := time.Now()
-	token, err := SignToken("test-secret", "user-1", "alice", "staff", "tenant-1", now, time.Hour)
+	token, err := SignToken("test-secret", "user-1", "alice", "admin", "tenant-1", now, time.Hour)
 	if err != nil {
 		t.Fatalf("sign token: %v", err)
 	}
@@ -31,13 +31,13 @@ func TestTokenSignAndParse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse token: %v", err)
 	}
-	if claims.UserID != "user-1" || claims.Username != "alice" || claims.Role != "staff" {
+	if claims.UserID != "user-1" || claims.Username != "alice" || claims.Role != "admin" {
 		t.Fatalf("unexpected claims: %+v", claims)
 	}
 }
 
 func TestTokenRejectsWrongSecret(t *testing.T) {
-	token, err := SignToken("secret-a", "user-1", "alice", "staff", "tenant-1", time.Now(), time.Hour)
+	token, err := SignToken("secret-a", "user-1", "alice", "admin", "tenant-1", time.Now(), time.Hour)
 	if err != nil {
 		t.Fatalf("sign token: %v", err)
 	}
