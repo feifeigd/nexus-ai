@@ -35,22 +35,42 @@ type ServiceContext struct {
 	Users               *data.UserStore
 	Tenants             *data.TenantStore
 	Audit               *data.AuditStore
+	Machines            *data.MachineStore
 	StaffOnlyMiddleware rest.Middleware
 	AdminOnlyMiddleware rest.Middleware
 	ApproverMiddleware  rest.Middleware
 }
 
-func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval.Store, knowledge KnowledgeService, documents KnowledgeDocumentStore, tokenUsage *data.TokenUsageStore, users *data.UserStore, tenants *data.TenantStore, audit *data.AuditStore) *ServiceContext {
+// ServiceContextDeps 聚合 ServiceContext 的所有业务依赖。
+//
+// 为什么用结构体而不是一长串位置参数：位置参数构造器每新增一个依赖
+// （例如机器列表的 Machines），所有按位置传参的测试都必须同步补一个 nil，
+// 否则无法编译。改成结构体后，新增依赖只需在结构体里加一个字段，
+// 已有测试只设置自己关心的字段、其余保持零值即可，不再受新依赖牵连。
+type ServiceContextDeps struct {
+	Runner     agent.Runner
+	Approvals  approval.Store
+	Knowledge  KnowledgeService
+	Documents  KnowledgeDocumentStore
+	TokenUsage *data.TokenUsageStore
+	Users      *data.UserStore
+	Tenants    *data.TenantStore
+	Audit      *data.AuditStore
+	Machines   *data.MachineStore
+}
+
+func NewServiceContext(c *config.Config, deps ServiceContextDeps) *ServiceContext {
 	return &ServiceContext{
 		Config:              c,
-		Runner:              runner,
-		Approvals:           approvals,
-		Knowledge:           knowledge,
-		Documents:           documents,
-		TokenUsage:          tokenUsage,
-		Users:               users,
-		Tenants:             tenants,
-		Audit:               audit,
+		Runner:              deps.Runner,
+		Approvals:           deps.Approvals,
+		Knowledge:           deps.Knowledge,
+		Documents:           deps.Documents,
+		TokenUsage:          deps.TokenUsage,
+		Users:               deps.Users,
+		Tenants:             deps.Tenants,
+		Audit:               deps.Audit,
+		Machines:            deps.Machines,
 		StaffOnlyMiddleware: middleware.NewStaffOnlyMiddleware().Handle,
 		AdminOnlyMiddleware: middleware.NewAdminOnlyMiddleware().Handle,
 		ApproverMiddleware:  middleware.NewApproverMiddleware().Handle,

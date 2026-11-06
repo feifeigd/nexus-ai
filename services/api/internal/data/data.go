@@ -25,6 +25,7 @@ var ProviderSet = wire.NewSet(
 	NewUserStore,
 	NewTenantStore,
 	NewAuditStore,
+	NewMachineStore,
 )
 
 //go:embed migrations/001_approvals.sql
@@ -65,6 +66,9 @@ var postgresAuditLogsMigration string
 
 //go:embed migrations/013_rbac_roles.sql
 var postgresRBACRolesMigration string
+
+//go:embed migrations/014_machines.sql
+var postgresMachinesMigration string
 
 // DriverName returns the effective dialect after applying environment overrides.
 func DriverName(c *Data) string {
@@ -177,7 +181,7 @@ func migrate(ctx context.Context, driverName string, db *stdsql.DB, client *ent.
 	}
 
 	// PostgreSQL keeps the reviewed, versioned SQL migrations authoritative.
-	for _, migration := range []string{postgresApprovalMigration, postgresTicketStatusMigration, postgresKnowledgeBaseMigration, postgresKnowledgeEmbeddingsMigration, postgresTokenUsageMigration, postgresUsersMigration, postgresTenantIsolationMigration, postgresGithubOAuthMigration, postgresOAuthIdentityMigration, postgresTenantsMigration, postgresTenantMembersMigration, postgresAuditLogsMigration, postgresRBACRolesMigration} {
+	for _, migration := range []string{postgresApprovalMigration, postgresTicketStatusMigration, postgresKnowledgeBaseMigration, postgresKnowledgeEmbeddingsMigration, postgresTokenUsageMigration, postgresUsersMigration, postgresTenantIsolationMigration, postgresGithubOAuthMigration, postgresOAuthIdentityMigration, postgresTenantsMigration, postgresTenantMembersMigration, postgresAuditLogsMigration, postgresRBACRolesMigration, postgresMachinesMigration} {
 		if _, err := db.ExecContext(ctx, migration); err != nil {
 			return fmt.Errorf("migrate postgres database: %w", err)
 		}

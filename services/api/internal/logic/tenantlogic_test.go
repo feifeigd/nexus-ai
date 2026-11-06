@@ -6,7 +6,6 @@ import (
 
 	"entgo.io/ent/dialect"
 
-	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/data"
 	"nexusai/services/api/internal/svc"
@@ -29,7 +28,7 @@ func newTenantTestSvc(t *testing.T) (*svc.ServiceContext, *data.UserStore) {
 	users := data.NewUserStore(client)
 	tenants := data.NewTenantStore(client)
 	audit := data.NewAuditStore(client)
-	svcCtx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, nil, nil, users, tenants, audit)
+	svcCtx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, svc.ServiceContextDeps{Users: users, Tenants: tenants, Audit: audit})
 	return svcCtx, users
 }
 

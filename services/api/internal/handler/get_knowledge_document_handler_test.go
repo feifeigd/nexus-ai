@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/data"
 	"nexusai/services/api/internal/svc"
@@ -46,7 +45,7 @@ func TestGetKnowledgeDocumentHandler(t *testing.T) {
 				Content: "第一章：故障排查。\n第二章：恢复验证。",
 			}, nil
 		})
-		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, store, nil, nil, nil, nil)
+		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, svc.ServiceContextDeps{Documents: store})
 		request := withPathID(httptest.NewRequest(http.MethodGet, "/knowledge/documents/document-1", nil), "document-1")
 		response := httptest.NewRecorder()
 		getKnowledgeDocumentHandler(ctx).ServeHTTP(response, request)
@@ -72,7 +71,7 @@ func TestGetKnowledgeDocumentHandler(t *testing.T) {
 		store := knowledgeDocumentDetailStoreFunc(func(context.Context, string, string) (data.KnowledgeDocumentDetail, error) {
 			return data.KnowledgeDocumentDetail{}, data.ErrKnowledgeDocumentNotFound
 		})
-		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, store, nil, nil, nil, nil)
+		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, svc.ServiceContextDeps{Documents: store})
 		request := withPathID(httptest.NewRequest(http.MethodGet, "/knowledge/documents/missing", nil), "missing")
 		response := httptest.NewRecorder()
 		getKnowledgeDocumentHandler(ctx).ServeHTTP(response, request)
@@ -85,7 +84,7 @@ func TestGetKnowledgeDocumentHandler(t *testing.T) {
 		store := knowledgeDocumentDetailStoreFunc(func(context.Context, string, string) (data.KnowledgeDocumentDetail, error) {
 			return data.KnowledgeDocumentDetail{}, errors.New("sensitive database detail")
 		})
-		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, store, nil, nil, nil, nil)
+		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, svc.ServiceContextDeps{Documents: store})
 		request := withPathID(httptest.NewRequest(http.MethodGet, "/knowledge/documents/document-1", nil), "document-1")
 		response := httptest.NewRecorder()
 		getKnowledgeDocumentHandler(ctx).ServeHTTP(response, request)

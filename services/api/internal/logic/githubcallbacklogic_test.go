@@ -10,7 +10,6 @@ import (
 
 	"entgo.io/ent/dialect"
 
-	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/data"
 	"nexusai/services/api/internal/svc"
@@ -52,7 +51,7 @@ func TestGithubCallbackLogicCreatesAndReusesUser(t *testing.T) {
 			UserURL:      gh.URL + "/user",
 		},
 	}
-	svcCtx := svc.NewServiceContext(cfg, agent.MockRunner{}, nil, nil, nil, nil, data.NewUserStore(client), nil, nil)
+	svcCtx := svc.NewServiceContext(cfg, svc.ServiceContextDeps{Users: data.NewUserStore(client)})
 	l := NewGithubCallbackLogic(context.Background(), svcCtx)
 
 	resp, err := l.GithubCallback(&types.GithubCallbackInput{Code: "code-1"})
@@ -91,7 +90,7 @@ func TestGithubCallbackLogicMissingCode(t *testing.T) {
 	}
 	defer closeData()
 
-	svcCtx := svc.NewServiceContext(&config.Config{}, agent.MockRunner{}, nil, nil, nil, nil, data.NewUserStore(client), nil, nil)
+	svcCtx := svc.NewServiceContext(&config.Config{}, svc.ServiceContextDeps{Users: data.NewUserStore(client)})
 	l := NewGithubCallbackLogic(context.Background(), svcCtx)
 
 	resp, err := l.GithubCallback(&types.GithubCallbackInput{})

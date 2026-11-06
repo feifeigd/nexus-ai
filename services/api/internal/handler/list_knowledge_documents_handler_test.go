@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/data"
 	"nexusai/services/api/internal/svc"
@@ -41,7 +40,7 @@ func TestListKnowledgeDocumentsHandler(t *testing.T) {
 				UpdatedAt:  createdAt.Add(time.Minute),
 			}}, nil
 		})
-		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, store, nil, nil, nil, nil)
+		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, svc.ServiceContextDeps{Documents: store})
 		request := httptest.NewRequest(http.MethodGet, "/knowledge/documents", nil)
 		response := httptest.NewRecorder()
 		listKnowledgeDocumentsHandler(ctx).ServeHTTP(response, request)
@@ -70,7 +69,7 @@ func TestListKnowledgeDocumentsHandler(t *testing.T) {
 		store := knowledgeDocumentStoreFunc(func(context.Context, string) ([]data.KnowledgeDocument, error) {
 			return nil, errors.New("sensitive database detail")
 		})
-		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, store, nil, nil, nil, nil)
+		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, svc.ServiceContextDeps{Documents: store})
 		request := httptest.NewRequest(http.MethodGet, "/knowledge/documents", nil)
 		response := httptest.NewRecorder()
 		listKnowledgeDocumentsHandler(ctx).ServeHTTP(response, request)

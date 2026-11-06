@@ -17,5 +17,6 @@ import (
 	"auth.api"
 	"tenant.api"
 	"audit.api"
+	"machine.api"
 )
 

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"nexusai/services/api/internal/agent"
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/data"
 	"nexusai/services/api/internal/svc"
@@ -36,7 +35,7 @@ func TestDeleteKnowledgeDocumentHandler(t *testing.T) {
 			requestedID = id
 			return nil
 		})
-		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, store, nil, nil, nil, nil)
+		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, svc.ServiceContextDeps{Documents: store})
 		request := withPathID(httptest.NewRequest(http.MethodDelete, "/knowledge/documents/document-1", nil), "document-1")
 		response := httptest.NewRecorder()
 		deleteKnowledgeDocumentHandler(ctx).ServeHTTP(response, request)
@@ -58,7 +57,7 @@ func TestDeleteKnowledgeDocumentHandler(t *testing.T) {
 		store := knowledgeDocumentDeleteStoreFunc(func(context.Context, string, string) error {
 			return data.ErrKnowledgeDocumentNotFound
 		})
-		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, store, nil, nil, nil, nil)
+		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, svc.ServiceContextDeps{Documents: store})
 		request := withPathID(httptest.NewRequest(http.MethodDelete, "/knowledge/documents/missing", nil), "missing")
 		response := httptest.NewRecorder()
 		deleteKnowledgeDocumentHandler(ctx).ServeHTTP(response, request)
@@ -71,7 +70,7 @@ func TestDeleteKnowledgeDocumentHandler(t *testing.T) {
 		store := knowledgeDocumentDeleteStoreFunc(func(context.Context, string, string) error {
 			return errors.New("sensitive database detail")
 		})
-		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, agent.MockRunner{}, nil, nil, store, nil, nil, nil, nil)
+		ctx := svc.NewServiceContext(&config.Config{Auth: config.AuthConfig{AccessSecret: "test-secret-123"}}, svc.ServiceContextDeps{Documents: store})
 		request := withPathID(httptest.NewRequest(http.MethodDelete, "/knowledge/documents/document-1", nil), "document-1")
 		response := httptest.NewRecorder()
 		deleteKnowledgeDocumentHandler(ctx).ServeHTTP(response, request)
