@@ -52,7 +52,7 @@ func NewServiceContext(c *config.Config, runner agent.Runner, approvals approval
 		Tenants:             tenants,
 		Audit:               audit,
 		StaffOnlyMiddleware: middleware.NewStaffOnlyMiddleware().Handle,
-		AdminOnlyMiddleware: middleware.NewAdminOnlyMiddleware(),
-		ApproverMiddleware:  middleware.NewApproverMiddleware(),
+		AdminOnlyMiddleware: middleware.NewAdminOnlyMiddleware().Handle,
+		ApproverMiddleware:  middleware.NewApproverMiddleware().Handle,
 	}
 }

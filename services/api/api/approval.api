@@ -34,7 +34,13 @@ type ApprovalDecisionInput {
 service nexus-api {
 	@handler listApprovals
 	get /approvals returns (ApprovalListResponse)
+}
 
+@server(
+	jwt: Auth
+	middleware: ApproverMiddleware
+)
+service nexus-api {
 	@handler approveApproval
 	post /approvals/:id/approve (ApprovalDecisionInput) returns (Approval)
 

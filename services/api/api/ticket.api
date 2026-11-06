@@ -25,7 +25,13 @@ type UpdateTicketStatusInput {
 service nexus-api {
 	@handler listTickets
 	get /tickets returns (TicketListResponse)
+}
 
+@server(
+	jwt: Auth
+	middleware: AdminOnlyMiddleware
+)
+service nexus-api {
 	@handler updateTicketStatus
 	patch /tickets/:id/status (UpdateTicketStatusInput) returns (Ticket)
 }

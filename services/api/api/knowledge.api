@@ -51,7 +51,13 @@ service nexus-api {
 
 	@handler getKnowledgeDocument
 	get /knowledge/documents/:id (GetKnowledgeDocumentInput) returns (KnowledgeDocumentDetail)
+}
 
+@server(
+	jwt: Auth
+	middleware: AdminOnlyMiddleware
+)
+service nexus-api {
 	@handler deleteKnowledgeDocument
 	delete /knowledge/documents/:id (DeleteKnowledgeDocumentInput) returns (DeleteKnowledgeDocumentResponse)
 

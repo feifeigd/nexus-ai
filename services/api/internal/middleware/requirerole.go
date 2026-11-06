@@ -4,8 +4,6 @@ import (
 	"net/http"
 
 	"github.com/zeromicro/go-zero/core/logx"
-
-	"nexusai/services/api/internal/auth"
 )
 
 // RequireRole 返回一个校验当前用户 role 是否满足 check 的中间件。
@@ -25,14 +23,4 @@ func RequireRole(check func(string) bool) func(http.HandlerFunc) http.HandlerFun
 			next(w, r)
 		}
 	}
-}
-
-// NewAdminOnlyMiddleware 返回只允许 admin 角色的中间件。
-func NewAdminOnlyMiddleware() func(http.HandlerFunc) http.HandlerFunc {
-	return RequireRole(auth.IsAdmin)
-}
-
-// NewApproverMiddleware 返回允许 admin/auditor 角色的中间件。
-func NewApproverMiddleware() func(http.HandlerFunc) http.HandlerFunc {
-	return RequireRole(auth.CanApprove)
 }
