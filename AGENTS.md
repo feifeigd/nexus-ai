@@ -125,6 +125,5 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 下一步
 
-- 细粒度授权：staff 内部再分级（管理员/审核员/只读等角色，接入权限校验）。
 - 更多三方登录（微信 / 企业微信 / 钉钉等；GitHub、Gitee 已接入，复用 `OAuthProvider` 抽象）。
-- 已完成（2026-11-05/06）：组织级租户 + 多租户成员制（`tenants`/`tenant_members`、创建组织/拉成员/切换租户，`80ead10`）；操作审计日志（`audit_logs` 表 + 8 类动作记录 + staff 审计页，`3529c93`）；Admin 401 自动跳登录、AI 助手 agent 连接状态；GitHub OAuth（`8502593`）与 Gitee OAuth（`75cd53c`）；语义核验结语/提醒类元语言确定性过滤（`2064b33`）；Web CopilotChat「info 没返回」确认为 dev 冷编译超时（非阻塞，issue #8192 仍 open）。
+- 已完成（2026-11-05/06）：细粒度授权 RBAC（admin/auditor/readonly/user 四角色 + `AdminOnly`/`Approver` 中间件接线，`41d58a8`）；组织级租户 + 多租户成员制（`tenants`/`tenant_members`、创建组织/拉成员/切换租户，`80ead10`）；操作审计日志（`audit_logs` 表 + 8 类动作记录 + staff 审计页，`3529c93`）；Admin 401 自动跳登录、AI 助手 agent 连接状态、角色显示；GitHub OAuth（`8502593`）与 Gitee OAuth（`75cd53c`）；语义核验结语/提醒类元语言确定性过滤（`2064b33`）；Web CopilotChat「info 没返回」确认为 dev 冷编译超时（非阻塞，issue #8192 仍 open）。
