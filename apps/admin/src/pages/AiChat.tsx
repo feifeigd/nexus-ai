@@ -5,8 +5,9 @@ import {
   useDefaultRenderTool,
   useRenderTool,
 } from '@copilotkit/react-core/v2';
-import { Alert, Card } from 'antd';
+import { Alert, Card, Tag } from 'antd';
 import type React from 'react';
+import { useEffect, useState } from 'react';
 import { z } from 'zod';
 import { KnowledgeSearchToolResult } from '@/components/KnowledgeSearchToolResult';
 import './AiChat.less';
@@ -25,6 +26,11 @@ const AssistantMessageWithoutEmptyCopy = Object.assign(
   CopilotChatAssistantMessage,
 );
 
+type AgentStatus = {
+  connected: boolean;
+  label: string;
+};
+
 export const AiChatContent: React.FC = () => {
   useDefaultRenderTool();
   useRenderTool({
@@ -35,14 +41,65 @@ export const AiChatContent: React.FC = () => {
       limit: z.number().int().min(1).max(10).optional(),
     }),
     render: ({ status, parameters, result }) => (
-      <KnowledgeSearchToolResult status={status} query={parameters.query} result={result} />
+      <KnowledgeSearchToolResult
+        status={status}
+        query={parameters.query}
+        result={result}
+      />
     ),
   });
+
+  const [agentStatus, setAgentStatus] = useState<AgentStatus>({
+    connected: false,
+    label: '检测中…',
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/copilotkit/info');
+        if (!res.ok) throw new Error(`info ${res.status}`);
+        const info = (await res.json()) as {
+          version?: string;
+          agents?: Record<string, { name?: string }>;
+          mode?: string;
+        };
+        const names = Object.keys(info.agents ?? {});
+        const mode = String(info.mode ?? 'sse').toUpperCase();
+        const version = info.version ? ` v${info.version}` : '';
+        if (!cancelled) {
+          setAgentStatus({
+            connected: names.length > 0,
+            label:
+              names.length > 0
+                ? `${names.join('、')} · ${mode}${version}`
+                : `${mode}${version}`,
+          });
+        }
+      } catch {
+        if (!cancelled) setAgentStatus({ connected: false, label: '未连接' });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <Card>
       <Alert
-        title="NexusAI 管理助手"
+        title={
+          <span>
+            NexusAI 管理助手
+            <Tag
+              color={agentStatus.connected ? 'success' : 'error'}
+              style={{ marginLeft: 8 }}
+            >
+              {agentStatus.label}
+            </Tag>
+          </span>
+        }
         description="支持 Mock 或 OpenAI 兼容模型，回复来源由 go-zero 配置；创建工单等工具提议必须先经过人工审批，不会未经批准执行后台操作。"
         type="info"
         showIcon
@@ -58,7 +115,8 @@ export const AiChatContent: React.FC = () => {
           messageView={{ assistantMessage: AssistantMessageWithoutEmptyCopy }}
           labels={{
             chatInputPlaceholder: '输入消息，按 Enter 发送…',
-            chatDisclaimerText: '回复来源由 go-zero 配置；未经人工批准，不会执行真实后台操作。',
+            chatDisclaimerText:
+              '回复来源由 go-zero 配置；未经人工批准，不会执行真实后台操作。',
             welcomeMessageText: '向 NexusAI 管理后台 AI 助手发送一条消息。',
             modalHeaderTitle: 'NexusAI 管理助手',
           }}
