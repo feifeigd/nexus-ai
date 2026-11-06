@@ -2,7 +2,7 @@
 
 NexusAI 是一个建设中的企业级 AI 应用开发框架，并将内置多租户“企业知识库与智能工单”SaaS 参考应用。项目定位是 AI 应用框架 / AI PaaS，而不是 MaaS。
 
-当前仓库已打通用户端、管理后台、CopilotKit Runtime、go-zero 与 AG-UI SSE 流式聊天链路，并提供 Mock 和 OpenAI 兼容模型两种 Agent 运行模式。工具审批默认使用配置中的 SQLite 共享内存数据源，也可配置 PostgreSQL 持久化审批记录和已创建工单；已具备纯文本文档知识库与向量检索，真实认证、租户隔离、生产级审批和审计仍在后续建设中。
+当前仓库已打通用户端、管理后台、CopilotKit Runtime、go-zero 与 AG-UI SSE 流式聊天链路，并提供 Mock 和 OpenAI 兼容模型两种 Agent 运行模式。已具备：账号密码 + GitHub/Gitee 三方登录、多租户成员制（创建组织/拉成员/切换租户）、细粒度 RBAC（admin/auditor/readonly/user）、操作审计日志、对话 token 记账、纯文本文档知识库与向量检索，以及工具审批与工单流转。
 
 ## 技术栈
 
@@ -32,8 +32,13 @@ NexusAI 是一个建设中的企业级 AI 应用开发框架，并将内置多�
 - 管理后台支持从真实 OpenAPI JSON 生成 TypeScript API 代码。
 - 知识库支持纯文本文档导入、Unicode 安全分块、1536 维向量生成与事务写入，以及文档列表、详情和删除。
 - Agent 注册只读 `search_knowledge` 工具：go-zero 生成查询向量并按余弦距离检索 Top N 分块，Admin 用专用卡片展示命中文档、分块序号、正文与距离，与模型最终回答分离。
+- 认证：账号密码登录（bcrypt + JWT）、GitHub 与 Gitee OAuth 授权码登录（复用 `OAuthProvider` 抽象，state 防 CSRF）。
+- 多租户：组织/团队租户（`tenants` + `tenant_members`），支持创建组织、拉成员、切换激活租户；数据按 `tenant_id` 隔离。
+- 细粒度 RBAC：`admin`（全权限）/ `auditor`（读 + 审批）/ `readonly`（只读）/ `user`（普通用户），经 `AdminOnly`/`Approver`/`StaffOnly` 中间件强制校验。
+- 操作审计：`audit_logs` 只追加记录审批、工单、文档、租户等 8 类操作，Admin `/audit-logs`（staff 专用）查看。
+- 对话 token 记账：按 thread/run 记录对话与语义核验 token 消耗，Web 用量面板与 Admin 用量统计（staff 可看全部）展示。
 
-> 工具审批默认使用 SQLite 共享内存参考实现，服务重启后记录清空；PostgreSQL 持久化需要显式配置。真实认证、租户隔离和审计尚未接入，不能将当前接口直接视为生产安全边界。
+> 工具审批默认使用 SQLite 共享内存参考实现，服务重启后记录清空；PostgreSQL 持久化需要显式配置 `NEXUS_POSTGRES_DSN`。认证、租户隔离、RBAC 与审计已接入（见下文），但生产环境仍需自行配置密钥与回调地址。
 
 ## 目录结构
 
@@ -199,6 +204,21 @@ Kubernetes 部署时不共享根环境文件：非敏感配置通过各 Deployme
 | `NEXUS_COPILOT_RUNTIME_PROXY_TARGET` | Admin 开发代理 | `http://127.0.0.1:4000` | Admin 独立 Runtime 地址 |
 | `OPENAPI_SCHEMA_PATH` | Admin OpenAPI 生成 | `apps/admin/schema/openapi.json` | NexusAI 真实 OpenAPI JSON 路径 |
 
+### 认证、多租户与审计
+
+| 变量 | 默认值 | 用途 |
+| --- | --- | --- |
+| `NEXUS_AUTH_SECRET` | `nexus-dev-secret-123` | JWT 签名密钥，生产必须覆盖 |
+| `NEXUS_ADMIN_PASSWORD` | 空 | seed `admin`（管理员）账号密码 |
+| `NEXUS_AUDITOR_PASSWORD` | 空 | seed `auditor`（审核员）账号密码 |
+| `NEXUS_READONLY_PASSWORD` | 空 | seed `readonly`（只读）账号密码 |
+| `NEXUS_GITHUB_CLIENT_ID` / `NEXUS_GITHUB_CLIENT_SECRET` | 空 | GitHub OAuth App 凭据（见 `docs/github-oauth-app.md`） |
+| `NEXUS_GITHUB_REDIRECT_URI` | `http://localhost:8080/auth/github/callback` | GitHub 授权回调地址 |
+| `NEXUS_GITEE_CLIENT_ID` / `NEXUS_GITEE_CLIENT_SECRET` | 空 | Gitee OAuth App 凭据（见 `docs/gitee-oauth-app.md`） |
+| `NEXUS_GITEE_REDIRECT_URI` | `http://localhost:8080/auth/gitee/callback` | Gitee 授权回调地址 |
+| `NEXUS_WEB_BASE_URL` | `http://localhost:3000` | 三方登录成功后跳回 Web 的地址 |
+| `NEXUS_KNOWLEDGE_SEMANTIC_CHECK` | 空 | 设为 `true` 开启语义级事实核验（LLM 判定，默认关闭以控制成本） |
+
 生产环境需要为 Admin 的 `/api/copilotkit` 配置指向独立 Runtime 的同源反向代理；Umi 的开发代理不会在生产构建中生效。独立 Runtime 和 go-zero 均可只暴露在内网。
 
 ## 常用命令
@@ -242,15 +262,14 @@ CI 还会执行契约漂移检查、`pnpm --filter admin exec max setup` 和 `pn
 - CopilotKit Runtime 只是轻量协议适配层，不承载企业业务，也不是第二个 Agent 后端；Web 使用 Next.js 内嵌 Runtime，Admin 使用独立 Runtime 服务。
 - go-zero 是企业业务与 Agent 后端；权限、租户隔离、参数校验、人工审批和审计必须以它为权威。
 - 模型只能提议工具调用，不能凭模型输出或前端状态绕过服务端校验。
-- 两个 Runtime 都只允许向 Agent 后端转发 `authorization` 和 `x-tenant-id` 请求头；这不等于真实认证和租户隔离已经实现。
+- 两个 Runtime 都只允许向 Agent 后端转发 `authorization` 请求头；认证、租户隔离与 RBAC 由 go-zero 的 JWT 中间件、`tenant_id` 过滤和角色中间件保证，Runtime 只是协议适配层。
 - 普通业务使用 REST；AG-UI 用于 Agent 事件通信，A2UI 规划用于受控动态 UI。
 
 ## 后续路线
 
-1. 完成真实模型接入与 Web、Admin 流式聊天验证，同时保留 Mock 开关。
-2. 接入后台 AI 工具调用、权限校验、人工审批和审计。
-3. 建设多租户企业知识库与智能工单。
-4. 后续使用 Expo + React Native 扩展安卓端。
+1. 更多三方登录（微信 / 企业微信 / 钉钉等，需对应平台的企业资质）。
+2. 生产部署与网关配置：Admin 的 `/api/copilotkit` 同源反向代理、HTTPS 回调地址、密钥注入等。
+3. 后续使用 Expo + React Native 扩展安卓端。
 
 第一阶段保持 go-zero 模块化单体，不提前拆微服务，不引入 NestJS、Python Agent 服务或 Kubernetes。后期规划：RESTful 业务继续用 go-zero，Agent 进程引入 go-micro，运行环境基于 Istio（服务网格）；也可能引入无服务架构（Serverless），使用 MicroVM（微虚拟机）与沙箱。
 
