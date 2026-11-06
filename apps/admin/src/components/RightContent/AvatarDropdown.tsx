@@ -14,7 +14,14 @@ type GlobalHeaderRightProps = {
   children?: React.ReactNode;
 };
 
-const menuItems: MenuProps['items'] = [
+const ROLE_LABELS: Record<string, string> = {
+  admin: '管理员',
+  auditor: '审核员',
+  readonly: '只读',
+  user: '普通用户',
+};
+
+const baseMenuItems: MenuProps['items'] = [
   {
     key: 'settings',
     icon: <SettingOutlined />,
@@ -86,13 +93,25 @@ export const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({
     return <Spin size="small" />;
   }
 
+  const role = (currentUser as { role?: string }).role;
+  const roleLabel = ROLE_LABELS[role ?? ''] ?? role ?? '未知角色';
+  const items: MenuProps['items'] = [
+    {
+      key: 'user-info',
+      label: `${currentUser.name ?? ''} · ${roleLabel}`,
+      disabled: true,
+    },
+    { type: 'divider' as const },
+    ...(baseMenuItems ?? []),
+  ];
+
   return (
     <HeaderDropdown
       placement="bottomRight"
       menu={{
         selectedKeys: [],
         onClick: onMenuClick,
-        items: menuItems,
+        items,
       }}
       arrow
     >
