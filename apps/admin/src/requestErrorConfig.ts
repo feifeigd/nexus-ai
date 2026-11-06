@@ -42,6 +42,15 @@ export const errorConfig: RequestConfig = {
     },
     // 错误接收及处理
     errorHandler: (error: any, opts: any) => {
+      // 401 未登录/凭证失效：永远先跳登录页，即使请求设了 skipErrorHandler。
+      if (error.response?.status === 401) {
+        clearAuth();
+        const { pathname, search } = window.location;
+        if (pathname !== '/user/login') {
+          window.location.href = `/user/login?redirect=${encodeURIComponent(pathname + search)}`;
+        }
+        return;
+      }
       if (opts?.skipErrorHandler) throw error;
       // 我们的 errorThrower 抛出的错误。
       if (error.name === 'BizError') {
@@ -72,16 +81,7 @@ export const errorConfig: RequestConfig = {
           }
         }
       } else if (error.response) {
-        // Axios 的错误
-        // 请求成功发出且服务器也响应了状态码，但状态代码超出了 2xx 的范围
-        if (error.response.status === 401) {
-          clearAuth();
-          const { pathname, search } = window.location;
-          if (pathname !== '/user/login') {
-            window.location.href = `/user/login?redirect=${encodeURIComponent(pathname + search)}`;
-          }
-          return;
-        }
+        // Axios 的非 401 错误（401 已在上方统一处理并跳登录）。
         message.error(`Response status:${error.response.status}`);
       } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
         message.error(
