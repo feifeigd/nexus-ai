@@ -70,8 +70,8 @@ func run() error {
 	}
 	defer cleanup()
 
-	if err := seedAdminUser(context.Background(), ctx); err != nil {
-		return fmt.Errorf("seed admin user: %w", err)
+	if err := seedStaffUsers(context.Background(), ctx); err != nil {
+		return fmt.Errorf("seed staff users: %w", err)
 	}
 
 	server, err := rest.NewServer(c.RestConf)

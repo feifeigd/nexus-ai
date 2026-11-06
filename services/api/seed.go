@@ -13,17 +13,34 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-// seedAdminUser 在启动时确保存在一个 admin 账号。密码来自环境变量
-// NEXUS_ADMIN_PASSWORD，未设置时跳过（不创建默认账号）。已存在时幂等跳过。
-func seedAdminUser(ctx context.Context, svcCtx *svc.ServiceContext) error {
-	password := strings.TrimSpace(os.Getenv("NEXUS_ADMIN_PASSWORD"))
-	if password == "" {
-		return nil
-	}
+// seedStaffUsers 在启动时确保存在 admin/auditor/readonly 三个内部账号。密码分别来自
+// NEXUS_ADMIN_PASSWORD / NEXUS_AUDITOR_PASSWORD / NEXUS_READONLY_PASSWORD；未设置则跳过，
+// 已存在则幂等跳过。
+func seedStaffUsers(ctx context.Context, svcCtx *svc.ServiceContext) error {
 	if svcCtx.Users == nil {
 		return errors.New("user store is not configured for seeding")
 	}
-	const username = "admin"
+	for _, spec := range []struct {
+		username string
+		role     string
+		envKey   string
+	}{
+		{username: "admin", role: auth.RoleAdmin, envKey: "NEXUS_ADMIN_PASSWORD"},
+		{username: "auditor", role: auth.RoleAuditor, envKey: "NEXUS_AUDITOR_PASSWORD"},
+		{username: "readonly", role: auth.RoleReadonly, envKey: "NEXUS_READONLY_PASSWORD"},
+	} {
+		if err := seedStaffUser(ctx, svcCtx, spec.username, spec.role, spec.envKey); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func seedStaffUser(ctx context.Context, svcCtx *svc.ServiceContext, username, role, envKey string) error {
+	password := strings.TrimSpace(os.Getenv(envKey))
+	if password == "" {
+		return nil
+	}
 	if _, err := svcCtx.Users.GetByUsername(ctx, username); err == nil {
 		return nil
 	} else if !errors.Is(err, data.ErrUserNotFound) {
@@ -33,9 +50,9 @@ func seedAdminUser(ctx context.Context, svcCtx *svc.ServiceContext) error {
 	if err != nil {
 		return err
 	}
-	if _, err := svcCtx.Users.Create(ctx, username, hash, auth.RoleAdmin, ""); err != nil {
+	if _, err := svcCtx.Users.Create(ctx, username, hash, role, ""); err != nil {
 		return err
 	}
-	logx.Infow("seeded admin user", logx.Field("username", username))
+	logx.Infow("seeded staff user", logx.Field("username", username), logx.Field("role", role))
 	return nil
 }
