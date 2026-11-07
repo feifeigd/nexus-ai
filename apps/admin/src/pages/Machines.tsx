@@ -41,6 +41,14 @@ interface MachineFormValues {
 }
 
 function errorMessage(error: unknown) {
+  // go-zero 的 logic 错误以纯文本返回（HTTP 400），透出后端真实信息（如
+  // 「该机器未配置 SSH 私钥」「命令不在白名单内」），而不是 axios 的通用报错。
+  const responseData = (
+    error as { response?: { data?: unknown } } | undefined
+  )?.response?.data;
+  if (typeof responseData === 'string' && responseData.trim()) {
+    return responseData;
+  }
   return error instanceof Error ? error.message : '请求失败，请稍后重试。';
 }
 
