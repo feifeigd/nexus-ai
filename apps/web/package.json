@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@ag-ui/client": "1.0.2",
-    "@copilotkit/react-core": "^1.83.0",
-    "@copilotkit/runtime": "^1.83.0",
-    "next": "16.4.3",
+    "@copilotkit/react-core": "^1.84.1",
+    "@copilotkit/runtime": "^1.84.1",
+    "next": "16.4.5",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
@@ -23,10 +23,10 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^10",
-    "eslint-config-next": "16.4.3",
+    "eslint-config-next": "16.4.5",
     "tailwindcss": "^4",
     "typescript": "^5.9.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "packageManager": "pnpm@11.15.1"
 }
