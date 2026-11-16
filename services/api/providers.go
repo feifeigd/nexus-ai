@@ -11,6 +11,7 @@ import (
 	dataent "nexusai/services/api/internal/data/ent"
 	entschema "nexusai/services/api/internal/data/ent/schema"
 	"nexusai/services/api/internal/knowledge"
+	"nexusai/services/api/internal/machinekey"
 	"nexusai/services/api/internal/sshx"
 	"nexusai/services/api/internal/svc"
 )
@@ -37,6 +38,14 @@ func newRunner(c agent.Config, approvals *approval.EntStore, knowledgeService sv
 
 func newKnowledgeStore(client *dataent.Client, driver string) *data.KnowledgeStore {
 	return data.NewKnowledgeStore(client, driver)
+}
+
+func newMachineKeyBox(c *config.Config) (*machinekey.Box, error) {
+	box, err := machinekey.NewBox(c.Auth.AccessSecret)
+	if err != nil {
+		return nil, fmt.Errorf("configure machine key encryption: %w", err)
+	}
+	return box, nil
 }
 
 // newSSHRunner 用 SSH 配置构造远程命令执行器。Timeout 为 0 时由 sshx 使用默认 30s。

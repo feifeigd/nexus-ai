@@ -8,6 +8,7 @@ import (
 
 	"nexusai/services/api/internal/config"
 	"nexusai/services/api/internal/data"
+	"nexusai/services/api/internal/machinekey"
 	"nexusai/services/api/internal/sshx"
 	"nexusai/services/api/internal/svc"
 	"nexusai/services/api/internal/types"
@@ -39,15 +40,20 @@ func newExecMachineTestSvc(t *testing.T, runner sshx.Runner) (*svc.ServiceContex
 		t.Fatalf("create sqlite: %v", err)
 	}
 	t.Cleanup(closeData)
+	keys, err := machinekey.NewBox("test-secret-123")
+	if err != nil {
+		t.Fatalf("create machine key box: %v", err)
+	}
+	machines := data.NewMachineStore(client, keys)
 	svcCtx := svc.NewServiceContext(&config.Config{
 		Auth: config.AuthConfig{AccessSecret: "test-secret-123"},
 		SSH:  config.SSHConfig{AllowedCommands: []string{"uptime", "df", "tail"}},
 	}, svc.ServiceContextDeps{
-		Machines:  data.NewMachineStore(client),
+		Machines:  machines,
 		Audit:     data.NewAuditStore(client),
 		SSHRunner: runner,
 	})
-	return svcCtx, data.NewMachineStore(client), data.NewAuditStore(client)
+	return svcCtx, machines, data.NewAuditStore(client)
 }
 
 func TestExecMachineCommand(t *testing.T) {

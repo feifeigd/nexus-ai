@@ -208,7 +208,7 @@ Kubernetes 部署时不共享根环境文件：非敏感配置通过各 Deployme
 
 | 变量 | 默认值 | 用途 |
 | --- | --- | --- |
-| `NEXUS_AUTH_SECRET` | `nexus-dev-secret-123` | JWT 签名密钥，生产必须覆盖 |
+| `NEXUS_AUTH_SECRET` | `nexus-dev-secret-123` | JWT 签名与机器 SSH 私钥加密根密钥；生产必须覆盖，变更后需重新录入机器私钥 |
 | `NEXUS_ADMIN_PASSWORD` | 空 | seed `admin`（管理员）账号密码 |
 | `NEXUS_AUDITOR_PASSWORD` | 空 | seed `auditor`（审核员）账号密码 |
 | `NEXUS_READONLY_PASSWORD` | 空 | seed `readonly`（只读）账号密码 |
