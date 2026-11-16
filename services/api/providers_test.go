@@ -223,6 +223,7 @@ func setWireTestEnv(t *testing.T) {
 func wireTestConfig(name string) config.Config {
 	return config.Config{
 		Agent: agent.Config{Mode: "mock"},
+		Auth:  config.AuthConfig{AccessSecret: "test-secret-123"},
 		Data: data.Data{Database: data.Database{
 			Driver:       dialect.SQLite,
 			Source:       "file:" + name + "?mode=memory&cache=shared&_fk=1&_txlock=immediate",

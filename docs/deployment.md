@@ -41,7 +41,7 @@ Web 用 `next start` 运行生产构建；Admin 与 Runtime 用其 `dist` 产物
 
 | 变量 | 说明 |
 | --- | --- |
-| `NEXUS_AUTH_SECRET` | JWT 签名密钥，必须用强随机值且长度 ≥ 8 |
+| `NEXUS_AUTH_SECRET` | JWT 签名与机器 SSH 私钥加密根密钥，必须用强随机值且长度 ≥ 8；变更后需重新录入机器私钥 |
 | `NEXUS_OPENAI_*` / `NEXUS_OPENAI_EMBEDDING_*` | 对话/嵌入模型的提供商、密钥与模型 |
 | `NEXUS_POSTGRES_DSN` | PostgreSQL 连接串，配置后启用持久化与 pgvector |
 | `NEXUS_GITHUB_*` / `NEXUS_GITEE_*` | OAuth App 凭据与回调地址（生产回调必须 HTTPS） |
