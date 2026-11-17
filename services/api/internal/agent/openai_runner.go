@@ -110,9 +110,10 @@ type pendingToolCall struct {
 	started   bool
 }
 
-type answerValidation struct {
-	run        func(ctx context.Context, answer, toolResult string) (string, error)
-	toolResult string
+type answerPostProcessing struct {
+	validate    func(ctx context.Context, answer, toolResult string) (string, error)
+	appendix    func(answer string, toolResults []string) (string, error)
+	toolResults []string
 }
 
 func NewOpenAIRunner(config OpenAIConfig, client *http.Client) (*OpenAIRunner, error) {
@@ -315,7 +316,8 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 	assistantCalls := make([]chatCompletionToolCall, 0, len(indexes))
 	toolMessages := make([]chatMessage, 0, len(indexes))
 	followUp := false
-	answerValidations := make([]answerValidation, 0)
+	answerProcessors := make([]answerPostProcessing, 0)
+	answerProcessorIndexes := make(map[string]int)
 	for _, index := range indexes {
 		call := pendingCalls[index]
 		if !call.started || call.arguments.Len() == 0 {
@@ -344,8 +346,17 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 				return fmt.Errorf("execute tool %q: %w", call.name, err)
 			}
 			followUp = true
-			if tool.ValidateAnswer != nil {
-				answerValidations = append(answerValidations, answerValidation{run: tool.ValidateAnswer, toolResult: result})
+			if tool.ValidateAnswer != nil || tool.AnswerAppendix != nil {
+				if processorIndex, exists := answerProcessorIndexes[call.name]; exists {
+					answerProcessors[processorIndex].toolResults = append(answerProcessors[processorIndex].toolResults, result)
+				} else {
+					answerProcessorIndexes[call.name] = len(answerProcessors)
+					answerProcessors = append(answerProcessors, answerPostProcessing{
+						validate:    tool.ValidateAnswer,
+						appendix:    tool.AnswerAppendix,
+						toolResults: []string{result},
+					})
+				}
 			}
 		} else if err := tool.Propose(ctx, proposal); err != nil {
 			return fmt.Errorf("record tool proposal: %w", err)
@@ -382,14 +393,14 @@ func (r *OpenAIRunner) Run(ctx context.Context, input types.AGUIRunInput, emit E
 		followUpMessages = append(followUpMessages, messages...)
 		followUpMessages = append(followUpMessages, chatMessage{Role: "assistant", ToolCalls: assistantCalls})
 		followUpMessages = append(followUpMessages, toolMessages...)
-		if err := r.streamFollowUp(ctx, followUpMessages, messageID+"-follow-up", answerValidations, emit); err != nil {
+		if err := r.streamFollowUp(ctx, followUpMessages, messageID+"-follow-up", answerProcessors, emit); err != nil {
 			return err
 		}
 	}
 	return emit(types.AGUIEvent{Type: "RUN_FINISHED", ThreadID: input.ThreadID, RunID: input.RunID})
 }
 
-func (r *OpenAIRunner) streamFollowUp(ctx context.Context, messages []chatMessage, messageID string, validations []answerValidation, emit EmitFunc) error {
+func (r *OpenAIRunner) streamFollowUp(ctx context.Context, messages []chatMessage, messageID string, processors []answerPostProcessing, emit EmitFunc) error {
 	payload, err := json.Marshal(chatCompletionRequest{Model: r.model, Stream: true, StreamOptions: &streamOptions{IncludeUsage: true}, Messages: messages})
 	if err != nil {
 		return fmt.Errorf("encode read-only tool follow-up request: %w", err)
@@ -469,33 +480,51 @@ func (r *OpenAIRunner) streamFollowUp(ctx context.Context, messages []chatMessag
 	if !streamCompleted {
 		return fmt.Errorf("model provider read-only tool follow-up ended before completion")
 	}
-	notes := make([]string, 0, len(validations))
-	for _, validation := range validations {
-		note, err := validation.run(ctx, answer.String(), validation.toolResult)
-		if err != nil {
-			return fmt.Errorf("validate read-only tool follow-up answer: %w", err)
+	notes := make([]string, 0, len(processors))
+	appendices := make([]string, 0, len(processors))
+	for _, processor := range processors {
+		if processor.validate != nil {
+			for _, toolResult := range processor.toolResults {
+				note, err := processor.validate(ctx, answer.String(), toolResult)
+				if err != nil {
+					return fmt.Errorf("validate read-only tool follow-up answer: %w", err)
+				}
+				if note != "" {
+					notes = append(notes, note)
+				}
+			}
 		}
-		if note != "" { // 不正常
-			notes = append(notes, note)
+		if processor.appendix != nil {
+			appendix, err := processor.appendix(answer.String(), processor.toolResults)
+			if err != nil {
+				return fmt.Errorf("build read-only tool follow-up appendix: %w", err)
+			}
+			if appendix != "" {
+				appendices = append(appendices, appendix)
+			}
 		}
 	}
-	// 如果有验证不通过的情况，记录日志并在回答中附上提示
-	if len(notes) > 0 {
+	emitContent := func(delta string) error {
 		if !textStarted {
 			if err := emit(types.AGUIEvent{Type: "TEXT_MESSAGE_START", MessageID: messageID, Role: "assistant"}); err != nil {
 				return err
 			}
 			textStarted = true
 		}
-		for _, note := range notes {
-			if err := emit(types.AGUIEvent{
-				Type:      "TEXT_MESSAGE_CONTENT",
-				MessageID: messageID,
-				Delta:     "\n\n" + note,
-			}); err != nil {
-				return err
-			}
+		return emit(types.AGUIEvent{Type: "TEXT_MESSAGE_CONTENT", MessageID: messageID, Delta: delta})
+	}
+	// 参考来源是正常回答内容；校验提示单独追加并记录结构化日志。
+	for _, appendix := range appendices {
+		if err := emitContent("\n\n" + appendix); err != nil {
+			return err
 		}
+	}
+	for _, note := range notes {
+		if err := emitContent("\n\n" + note); err != nil {
+			return err
+		}
+	}
+	if len(notes) > 0 {
 		logx.WithContext(ctx).Infow("answer validation note", logx.Field("note", strings.Join(notes, " | ")))
 	}
 	if textStarted {
@@ -525,8 +554,8 @@ func validateTools(tools []Tool) error {
 		if (tool.Execute == nil) == (tool.Propose == nil) {
 			return fmt.Errorf("tool %q requires exactly one execution or proposal handler", tool.Name)
 		}
-		if tool.ValidateAnswer != nil && tool.Execute == nil {
-			return fmt.Errorf("tool %q must have an execute handler to validate answers", tool.Name)
+		if (tool.ValidateAnswer != nil || tool.AnswerAppendix != nil) && tool.Execute == nil {
+			return fmt.Errorf("tool %q must have an execute handler for answer post-processing", tool.Name)
 		}
 		if _, exists := names[tool.Name]; exists {
 			return fmt.Errorf("duplicate tool %q", tool.Name)

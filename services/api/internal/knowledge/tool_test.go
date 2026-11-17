@@ -87,7 +87,7 @@ func TestSearchKnowledgeToolReturnsStructuredMatches(t *testing.T) {
 		t.Fatalf("create knowledge service: %v", err)
 	}
 	tool := service.Tool()
-	if tool.Name != searchKnowledgeToolName || tool.Execute == nil || tool.Propose != nil {
+	if tool.Name != searchKnowledgeToolName || tool.Execute == nil || tool.Propose != nil || tool.AnswerAppendix == nil {
 		t.Fatalf("unexpected read-only tool definition: %+v", tool)
 	}
 	content, err := tool.Execute(context.Background(), agent.ToolProposal{
@@ -233,5 +233,40 @@ func TestValidateSearchAnswer(t *testing.T) {
 				t.Fatalf("note should not list the valid source %q, got %q", test.wantAbsent, note)
 			}
 		})
+	}
+}
+
+func TestSearchKnowledgeAnswerAppendix(t *testing.T) {
+	documentA := "document_" + strings.Repeat("a", 32)
+	documentB := "document_" + strings.Repeat("b", 32)
+	unknown := "document_" + strings.Repeat("f", 32)
+	toolResult := `{"matches":[` +
+		`{"documentId":"` + documentA + `","ordinal":3},` +
+		`{"documentId":"` + documentB + `","ordinal":1}]}`
+	secondToolResult := `{"matches":[` +
+		`{"documentId":"` + documentA + `","ordinal":1},` +
+		`{"documentId":"` + documentA + `","ordinal":1}]}`
+
+	answer := "先参考 " + documentB + "，再参考 " + documentA + " 和 " + documentB + "，最后误引 " + unknown
+	appendix, err := searchKnowledgeAnswerAppendix(answer, []string{toolResult, secondToolResult})
+	if err != nil {
+		t.Fatalf("build answer appendix: %v", err)
+	}
+	want := "**参考来源**\n" +
+		"- `" + documentB + "`（本次检索分块序号：1）\n" +
+		"- `" + documentA + "`（本次检索分块序号：1、3）"
+	if appendix != want {
+		t.Fatalf("unexpected answer appendix:\n%s\nwant:\n%s", appendix, want)
+	}
+	if strings.Contains(appendix, unknown) {
+		t.Fatalf("appendix must exclude an unknown citation: %s", appendix)
+	}
+
+	appendix, err = searchKnowledgeAnswerAppendix("没有引用任何文档", []string{toolResult})
+	if err != nil || appendix != "" {
+		t.Fatalf("expected no appendix without citations, got %q, %v", appendix, err)
+	}
+	if _, err := searchKnowledgeAnswerAppendix(answer, []string{"not-json"}); err == nil {
+		t.Fatal("expected malformed tool result to fail")
 	}
 }

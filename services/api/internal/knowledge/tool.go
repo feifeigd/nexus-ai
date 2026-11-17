@@ -65,6 +65,7 @@ func (s *Service) Tool() agent.Tool {
 		ValidateAnswer: func(ctx context.Context, answer, toolResult string) (string, error) {
 			return validateSearchAnswer(ctx, s.judge, answer, toolResult)
 		},
+		AnswerAppendix: searchKnowledgeAnswerAppendix,
 	}
 }
 
@@ -116,6 +117,50 @@ func validateSearchAnswer(ctx context.Context, judge SupportJudge, answer, toolR
 		notes = append(notes, note)
 	}
 	return strings.Join(notes, "\n"), nil
+}
+
+// searchKnowledgeAnswerAppendix builds a stable reference list from document
+// IDs that the model actually cited. Unknown IDs are deliberately excluded;
+// citationValidationNote reports those separately as validation issues.
+func searchKnowledgeAnswerAppendix(answer string, toolResults []string) (string, error) {
+	ordinalsByDocument := make(map[string][]int)
+	for _, toolResult := range toolResults {
+		var result searchKnowledgeResult
+		if err := json.Unmarshal([]byte(toolResult), &result); err != nil {
+			return "", fmt.Errorf("decode search_knowledge result for answer appendix: %w", err)
+		}
+		for _, match := range result.Matches {
+			ordinalsByDocument[match.DocumentID] = append(ordinalsByDocument[match.DocumentID], match.Ordinal)
+		}
+	}
+
+	var appendix strings.Builder
+	seen := make(map[string]struct{})
+	for _, documentID := range searchKnowledgeDocumentIDPattern.FindAllString(answer, -1) {
+		if _, duplicate := seen[documentID]; duplicate {
+			continue
+		}
+		seen[documentID] = struct{}{}
+		ordinals, retrieved := ordinalsByDocument[documentID]
+		if !retrieved {
+			continue
+		}
+		sort.Ints(ordinals)
+		parts := make([]string, 0, len(ordinals))
+		previous := -1
+		for _, ordinal := range ordinals {
+			if ordinal == previous {
+				continue
+			}
+			parts = append(parts, fmt.Sprintf("%d", ordinal))
+			previous = ordinal
+		}
+		if appendix.Len() == 0 {
+			appendix.WriteString("**参考来源**\n")
+		}
+		fmt.Fprintf(&appendix, "- `%s`（本次检索分块序号：%s）\n", documentID, strings.Join(parts, "、"))
+	}
+	return strings.TrimSuffix(appendix.String(), "\n"), nil
 }
 
 // citationValidationNote lists document IDs cited in the answer that were not
