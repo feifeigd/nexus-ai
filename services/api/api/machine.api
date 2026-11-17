@@ -30,8 +30,9 @@ type UpdateMachineInput {
 	PublicAddress  string `json:"publicAddress,optional"`
 	Region         string `json:"region,optional"`
 	RootPublicKey  string `json:"rootPublicKey,optional"`
-	SSHPrivateKey  string `json:"sshPrivateKey,optional"`
-	JoinedK8s      bool   `json:"joinedK8s,optional"`
+	SSHPrivateKey      string `json:"sshPrivateKey,optional"`
+	ClearSSHPrivateKey bool   `json:"clearSSHPrivateKey,optional"`
+	JoinedK8s          bool   `json:"joinedK8s,optional"`
 }
 
 type DeleteMachineInput {

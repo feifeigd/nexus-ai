@@ -21,6 +21,7 @@ const ACTION_LABELS: Record<string, string> = {
   delete_document: '删除文档',
   create_machine: '创建机器',
   update_machine: '更新机器',
+  clear_machine_ssh_key: '清除 SSH 私钥',
   delete_machine: '删除机器',
   run_ssh_command: '执行 SSH 命令',
 };

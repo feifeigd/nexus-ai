@@ -37,6 +37,7 @@ interface MachineFormValues {
   region?: string;
   rootPublicKey?: string;
   sshPrivateKey?: string;
+  clearSSHPrivateKey?: boolean;
   joinedK8s?: boolean;
 }
 
@@ -171,6 +172,17 @@ export const MachineTable: React.FC<{
   />
 );
 
+export const MachineClearPrivateKeyField: React.FC = () => (
+  <Form.Item
+    name="clearSSHPrivateKey"
+    label="清除已保存的 SSH 私钥"
+    valuePropName="checked"
+    extra="仅在确认不再需要远程执行时开启；开启后保存会清除私钥，但保留机器。"
+  >
+    <Switch checkedChildren="清除" unCheckedChildren="保留" />
+  </Form.Item>
+);
+
 export const MachineFormModal: React.FC<{
   open: boolean;
   editing?: Machine;
@@ -179,6 +191,7 @@ export const MachineFormModal: React.FC<{
   onCancel: () => void;
 }> = ({ open, editing, submitting, onSubmit, onCancel }) => {
   const [form] = Form.useForm<MachineFormValues>();
+  const clearSSHPrivateKey = Form.useWatch('clearSSHPrivateKey', form);
 
   // 用 key 强制表单在「新建 / 编辑不同机器」之间重新挂载，
   // 让 initialValues 生效，避免复用上一次的残留字段值。
@@ -189,6 +202,7 @@ export const MachineFormModal: React.FC<{
         publicAddress: editing.publicAddress,
         region: editing.region,
         rootPublicKey: editing.rootPublicKey,
+        clearSSHPrivateKey: false,
         joinedK8s: editing.joinedK8s,
       }
     : { joinedK8s: false };
@@ -238,13 +252,19 @@ export const MachineFormModal: React.FC<{
         <Form.Item
           name="sshPrivateKey"
           label="SSH 登录私钥"
-          extra="用于远程执行命令（root 登录）。私钥只写不读：编辑时留空保持不变，输入新值则替换。"
+          extra={
+            clearSSHPrivateKey
+              ? '已选择清除私钥，保存后不能再用于远程执行命令。'
+              : '用于远程执行命令（root 登录）。私钥只写不读：编辑时留空保持不变，输入新值则替换。'
+          }
         >
           <Input.TextArea
             placeholder="-----BEGIN OPENSSH PRIVATE KEY-----（可选）"
             autoSize={{ minRows: 3, maxRows: 8 }}
+            disabled={Boolean(clearSSHPrivateKey)}
           />
         </Form.Item>
+        {editing ? <MachineClearPrivateKeyField /> : null}
         <Form.Item
           name="joinedK8s"
           label="是否已加入 K8s 集群"

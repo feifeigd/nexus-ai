@@ -38,20 +38,29 @@ func (l *UpdateMachineLogic) UpdateMachine(req *types.UpdateMachineInput) (*type
 	if privateAddress == "" {
 		return nil, errors.New("私有地址不能为空")
 	}
+	privateKey := strings.TrimSpace(req.SSHPrivateKey)
+	if req.ClearSSHPrivateKey && privateKey != "" {
+		return nil, errors.New("清除私钥时不能同时提交新私钥")
+	}
 	m, err := l.svcCtx.Machines.Update(l.ctx, data.MachineRecord{
-		ID:             req.ID,
-		Name:           strings.TrimSpace(req.Name),
-		PrivateAddress: privateAddress,
-		PublicAddress:  strings.TrimSpace(req.PublicAddress),
-		Region:         strings.TrimSpace(req.Region),
-		RootPublicKey:  strings.TrimSpace(req.RootPublicKey),
-		SSHPrivateKey:  strings.TrimSpace(req.SSHPrivateKey),
-		JoinedK8s:      req.JoinedK8s,
+		ID:                 req.ID,
+		Name:               strings.TrimSpace(req.Name),
+		PrivateAddress:     privateAddress,
+		PublicAddress:      strings.TrimSpace(req.PublicAddress),
+		Region:             strings.TrimSpace(req.Region),
+		RootPublicKey:      strings.TrimSpace(req.RootPublicKey),
+		SSHPrivateKey:      privateKey,
+		ClearSSHPrivateKey: req.ClearSSHPrivateKey,
+		JoinedK8s:          req.JoinedK8s,
 	})
 	if err != nil {
 		return nil, err
 	}
-	recordAudit(l.ctx, l.svcCtx, "update_machine", "machine", m.ID, m.PrivateAddress)
+	action := "update_machine"
+	if req.ClearSSHPrivateKey {
+		action = "clear_machine_ssh_key"
+	}
+	recordAudit(l.ctx, l.svcCtx, action, "machine", m.ID, m.PrivateAddress)
 	resp := machineResponse(m)
 	return &resp, nil
 }

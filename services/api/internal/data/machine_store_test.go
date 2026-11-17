@@ -101,6 +101,22 @@ func TestMachineStoreCRUDEncryptsPrivateKeys(t *testing.T) {
 		t.Fatalf("expected re-encrypted private key, got %q", rotatedCiphertext)
 	}
 
+	// 只有显式清除标志可以删除私钥，机器本身和其它字段保持存在。
+	cleared, err := store.Update(ctx, MachineRecord{
+		ID:                 created.ID,
+		Name:               "web-1",
+		PrivateAddress:     "10.0.0.1",
+		JoinedK8s:          true,
+		ClearSSHPrivateKey: true,
+	})
+	if err != nil || cleared.SSHPrivateKey != "" {
+		t.Fatalf("clear machine private key: cleared=%+v err=%v", cleared, err)
+	}
+	raw, err = client.Machine.Get(ctx, created.ID)
+	if err != nil || derefOrEmpty(raw.SSHPrivateKey) != "" {
+		t.Fatalf("expected raw private key to be cleared: raw=%+v err=%v", raw, err)
+	}
+
 	if err := store.Delete(ctx, created.ID); err != nil {
 		t.Fatalf("delete machine: %v", err)
 	}
