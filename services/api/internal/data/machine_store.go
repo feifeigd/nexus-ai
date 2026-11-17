@@ -16,16 +16,17 @@ import (
 // SSHPrivateKey 是 root 登录私钥，只写不读：仅由 Create/Update 写入、由 Exec 逻辑
 // 内部读取，绝不通过 API 响应或前端列表返回给调用方。
 type MachineRecord struct {
-	ID             string
-	Name           string
-	PrivateAddress string
-	PublicAddress  string
-	Region         string
-	RootPublicKey  string
-	SSHPrivateKey  string
-	JoinedK8s      bool
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID                 string
+	Name               string
+	PrivateAddress     string
+	PublicAddress      string
+	Region             string
+	RootPublicKey      string
+	SSHPrivateKey      string
+	ClearSSHPrivateKey bool
+	JoinedK8s          bool
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 // ErrMachineNotFound 表示机器不存在。
@@ -212,9 +213,11 @@ func applyOptionalUpdate(builder *ent.MachineUpdateOne, m MachineRecord) *ent.Ma
 	} else {
 		builder.ClearRootPublicKey()
 	}
-	// 私钥只写不读：留空表示「保持不变」，而不是清空。否则编辑机器其它字段时，
-	// 前端看不到旧私钥、无法回填，全量更新会意外抹掉已配置的私钥。
-	if m.SSHPrivateKey != "" {
+	// 私钥只写不读：留空表示「保持不变」，而不是清空。只有显式设置
+	// ClearSSHPrivateKey 才清除，避免编辑其它字段时意外抹掉已配置私钥。
+	if m.ClearSSHPrivateKey {
+		builder.ClearSSHPrivateKey()
+	} else if m.SSHPrivateKey != "" {
 		builder.SetSSHPrivateKey(m.SSHPrivateKey)
 	}
 	return builder

@@ -21,6 +21,11 @@ type Tool struct {
 	// detected problems, such as citations to sources outside the tool result.
 	// Reserved for read-only tools that return sourced content.
 	ValidateAnswer func(ctx context.Context, answer, toolResult string) (string, error)
+	// AnswerAppendix optionally builds one deterministic Markdown appendix from
+	// the follow-up answer and all results produced by this tool in the current
+	// run. Unlike ValidateAnswer, it is normal answer content and is not logged
+	// as a validation issue.
+	AnswerAppendix func(answer string, toolResults []string) (string, error)
 }
 
 // 模型提出的一次完整工具调用

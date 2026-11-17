@@ -51,7 +51,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 
 ## 当前进度
 
-当前分支：`main`。
+当前分支：`feat/knowledge-answer-citations`。前置的清除机器 SSH 私钥增量已提交为 `0f3dac4`，尚未合并到 `main`。
 
 截至 2026-11-03，第 1 至 30 步均已完成、合并到 `main` 并推送到 `origin/main`。第 22 步合并提交为 `a44ad27`，第 23 步合并提交为 `4a39302`（含 `c6c4710` 可折叠检索结果卡片），第 24 步为 `f002171`（检索距离阈值），第 25 步为 `22d9a69`（答案级引用校验），第 26 步为 `0c5568f`（检索重排序），第 27 步为 `bc307ef`（答案级事实核验），第 28 步为 `806c5e2`（PostgreSQL + pgvector 实库集成测试），第 29 步为 `feeab12`（语义级事实核验），第 30 步为 `4f05e85`（BM25 关键词打分融合），另有 `a8efcef` 强制 LF 换行配置；本地与远端 `main` 已同步。此后依赖升级到 CopilotKit `1.83.0`（仍锁 `@ag-ui/*` 为 `1.0.2`），dependabot 新增 `@ag-ui/*` ignore 规则，CI 在 Go 测试前新增 `pnpm generate:wire`；相关特性分支已随合并清理。存在未跟踪的 `services/api/__debug_bin.exe*` 调试文件，不要提交。
 
@@ -63,9 +63,9 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - Web 内嵌 CopilotKit Runtime 与 Admin 独立 `apps/agent-runtime` 均已接入 go-zero AG-UI SSE；Agent 支持 Mock 和 OpenAI 兼容 Chat Completions 流式模型。
 - go-zero 提供服务端白名单 `create_ticket` 工具提议、审批列表、批准和拒绝接口；批准后才创建工单，重复决策返回冲突。
 - Admin 提供 AI 聊天、工具审批和工单页面；工单状态按 `open → in_progress → resolved` 顺序流转，不支持删除、跳级或重新打开。
-- Admin 提供机器列表（裸机登记：私有/公网地址、区域、root 公钥与 SSH 私钥、是否加入 K8s；`staff` 只读、`admin` 增删改）与「执行命令」：go-zero 用 `crypto/ssh` 以 root 登录目标机器执行白名单内命令（`uptime / df / free / hostname / uname / systemctl status / docker ps / kubectl get / tail`，逐步开放），回显 stdout/stderr/退出码并写审计 `run_ssh_command`；私钥只写不读、仅注入 go-zero，并使用从 `NEXUS_AUTH_SECRET` 派生的独立密钥进行 AES-256-GCM 加密落库。设计见 `docs/ssh-remote-exec.md`。
+- Admin 提供机器列表（裸机登记：私有/公网地址、区域、root 公钥与 SSH 私钥、是否加入 K8s；`staff` 只读、`admin` 增删改）与「执行命令」：go-zero 用 `crypto/ssh` 以 root 登录目标机器执行白名单内命令（`uptime / df / free / hostname / uname / systemctl status / docker ps / kubectl get / tail`，逐步开放），回显 stdout/stderr/退出码并写审计 `run_ssh_command`；私钥只写不读、仅注入 go-zero，使用从 `NEXUS_AUTH_SECRET` 派生的独立密钥进行 AES-256-GCM 加密落库，并可在编辑机器时显式清除（审计 `clear_machine_ssh_key`）。设计见 `docs/ssh-remote-exec.md`。
 - 知识库支持纯文本文档导入、Unicode 安全分块、1536 维向量生成、文档与分块事务写入，以及文档列表、详情和删除；删除文档时通过外键级联删除分块。
-- Agent 已注册只读 `search_knowledge` 工具：第一次模型请求决定检索，go-zero 生成查询向量并通过 pgvector 按余弦距离检索、过滤超过 `0.5` 阈值的低相关分块、再按 BM25 关键词分数（bigram 词元 + 候选池内局部 IDF）加权重排序，第二次模型请求依据工具结果生成流式回答；go-zero 还会校验回答中的 `documentId` 引用是否来自本次检索结果，并按字面重叠对回答逐句做来源支撑校验，开启 `NEXUS_KNOWLEDGE_SEMANTIC_CHECK` 时改用 NLI/LLM 语义判定（单次非流式批量请求），未开启时回退到字面 bigram 启发式，不可验证或无支撑时在答案末尾追加告警并写结构化日志。该工具不需要人工审批。
+- Agent 已注册只读 `search_knowledge` 工具：第一次模型请求决定检索，go-zero 生成查询向量并通过 pgvector 按余弦距离检索、过滤超过 `0.5` 阈值的低相关分块、再按 BM25 关键词分数（bigram 词元 + 候选池内局部 IDF）加权重排序，第二次模型请求依据工具结果生成流式回答；go-zero 还会校验回答中的 `documentId` 引用是否来自本次检索结果，并按字面重叠对回答逐句做来源支撑校验，开启 `NEXUS_KNOWLEDGE_SEMANTIC_CHECK` 时改用 NLI/LLM 语义判定（单次非流式批量请求），未开启时回退到字面 bigram 启发式，不可验证或无支撑时在答案末尾追加告警并写结构化日志。有效引用会按首次出现顺序整理为 Markdown 参考来源列表，同一轮多次检索结果合并，文档与分块序号均去重，伪造来源不进入列表。该工具不需要人工审批。
 - Admin 为 `search_knowledge` 提供专用检索结果卡片，展示命中文档 ID、分块序号、正文与余弦距离，并与模型最终回答分离；解析、空结果与异常结果均有前端测试覆盖。
 - 对话与嵌入模型可分别配置 OpenAI 兼容提供商、地址、密钥和模型；密钥只注入 go-zero，不下发到 Runtime 或浏览器。
 - `.api` 契约可生成真实 OpenAPI JSON，并通过 `@umijs/max-plugin-openapi` 生成 Admin TypeScript Service；生成文件按 `.gitignore` 规则不纳入 Git，不手动修改。
@@ -114,6 +114,7 @@ NexusAI 是暂定名称。项目旨在构建企业级 AI 应用开发框架，�
 - 知识库端到端问答量化基准（2026-11-04）：新增门控测试 `TestRealModelE2EBenchmark`（`NEXUS_TEST_REAL_MODEL=1`），5 题走完整两段式问答（模型决定检索 → 工具执行 → 生成回答 → 语义核验），平均端到端延迟 8.04s（范围 2.4～18.4s，语义核验开启），每问模型调用 search_knowledge 2 次。token 成本尚未量化（需在 OpenAIRunner 记录 usage）。
 - 知识库问答 token 成本量化（2026-11-04）：`OpenAIRunner` 与 `OpenAISupportJudge` 新增 `Usage` 记录（请求开 `stream_options.include_usage`），基准每问输出对话模型 token（2 次调用 1460～2654）+ 语义核验 token（745～1935），合计约 2200～4500 token/问；嵌入 token 未计（查询约十几 token，可忽略）。成本需按实际模型单价折算。
 - 数据层租户隔离（2026-11-04/05）：`tenant_id` 覆盖 `users`、`token_usages`、`documents`、`chunks`、`approvals`、`tickets` 六张表（迁移 `007_tenant_isolation.sql` 幂等加列与索引），知识库 CreateDocument/List/Get/Delete/SearchSimilar 与审批 propose/List/ListTickets/UpdateTicketStatus/Approve/Reject 均按租户过滤、跨租户操作返回 not found。新增 `TestKnowledgeStoreTenantIsolation`、`TestEntStoreTenantIsolation`。`go build ./...`、`go vet ./...`、`go test ./...`（含 `NEXUS_TEST_POSTGRES_DSN` 门控的 `TestSearchPipelineAgainstPostgres`、`TestKnowledgeStorePostgres`、`TestEntStorePersistsApprovalAndTicketAcrossReopen` 三个真实 pgvector 集成测试实际运行通过）、gofmt、`git diff HEAD --check`、Admin lint（Biome+tsc）均通过；分支已合并 main（`02385e1`）并推送。
+- 标准化知识回答引用列表（2026-11-17）：新增 `Tool.AnswerAppendix` 钩子，将同一工具本轮全部结果合并生成一个确定性 Markdown 附录；知识工具按回答首次引用顺序列出有效 `documentId` 与升序去重的分块序号，排除伪造来源，正常附录与校验异常日志分离。新增引用排序、重复引用、多次检索、无引用、异常结果及 AG-UI 流追加测试；`go test ./...`、`go vet ./...`、`go build ./...`、gofmt 和 `git diff HEAD --check` 均通过。未执行真实模型或浏览器验收，不能标记为已通过。
 
 ### 环境注意事项
 

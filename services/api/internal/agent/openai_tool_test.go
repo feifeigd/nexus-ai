@@ -240,7 +240,7 @@ func TestOpenAIRunnerExecutesReadOnlyToolAndStreamsFollowUp(t *testing.T) {
 	}
 }
 
-func TestOpenAIRunnerAppendsAnswerValidationNote(t *testing.T) {
+func TestOpenAIRunnerAppendsAnswerAppendixAndValidationNote(t *testing.T) {
 	const toolResult = `{"matches":[{"documentId":"document-1","content":"先检查 API 服务。"}]}`
 	requestCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -272,6 +272,9 @@ func TestOpenAIRunnerAppendsAnswerValidationNote(t *testing.T) {
 			}
 			return "", nil
 		},
+		AnswerAppendix: func(_ string, _ []string) (string, error) {
+			return "**参考来源**\n- `document-1`", nil
+		},
 	}})
 	if err != nil {
 		t.Fatalf("create runner: %v", err)
@@ -292,14 +295,23 @@ func TestOpenAIRunnerAppendsAnswerValidationNote(t *testing.T) {
 			answer.WriteString(event.Delta)
 		}
 	}
-	if contentCount != 2 {
-		t.Fatalf("expected model answer plus validation note, got %d content deltas", contentCount)
+	if contentCount != 3 {
+		t.Fatalf("expected model answer, appendix and validation note, got %d content deltas", contentCount)
 	}
-	if !strings.Contains(answer.String(), "先检查 API 服务。") {
-		t.Fatalf("missing model answer: %q", answer.String())
+	text := answer.String()
+	if !strings.Contains(text, "先检查 API 服务。") {
+		t.Fatalf("missing model answer: %q", text)
 	}
-	if !strings.Contains(answer.String(), "document_deadbeef") {
-		t.Fatalf("expected validation note appended to answer, got %q", answer.String())
+	referenceIndex := strings.Index(text, "**参考来源**\n- `document-1`")
+	if referenceIndex < 0 {
+		t.Fatalf("expected answer appendix, got %q", text)
+	}
+	validationIndex := strings.Index(text, "document_deadbeef")
+	if validationIndex < 0 {
+		t.Fatalf("expected validation note appended to answer, got %q", text)
+	}
+	if referenceIndex > validationIndex {
+		t.Fatalf("expected references before validation note, got %q", text)
 	}
 }
 
@@ -311,6 +323,22 @@ func TestOpenAIRunnerRejectsAnswerValidationWithoutExecute(t *testing.T) {
 			return nil
 		},
 		ValidateAnswer: func(context.Context, string, string) (string, error) {
+			return "", nil
+		},
+	}})
+	if err == nil || !strings.Contains(err.Error(), "execute handler") {
+		t.Fatalf("expected execute-handler validation, got %v", err)
+	}
+}
+
+func TestOpenAIRunnerRejectsAnswerAppendixWithoutExecute(t *testing.T) {
+	_, err := NewOpenAIRunnerWithTools(OpenAIConfig{Model: "test-model"}, nil, []Tool{{
+		Name:       "invalid_tool",
+		Parameters: json.RawMessage(`{"type":"object"}`),
+		Propose: func(context.Context, ToolProposal) error {
+			return nil
+		},
+		AnswerAppendix: func(string, []string) (string, error) {
 			return "", nil
 		},
 	}})

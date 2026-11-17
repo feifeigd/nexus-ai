@@ -36,7 +36,7 @@
 | --- | --- | --- |
 | `ssh_private_key` | TEXT（可空） | root 登录私钥（PEM 多行）。只写不读，见安全约束 |
 
-更新语义：`ssh_private_key` 在 `Update` 中**留空表示保持不变**（不是清空），因为私钥只写不读、前端无法回填旧值；其它可选字段仍保持「留空即清空」。要更换/清除私钥，传新值即可（彻底清除需删除机器后重建，作为后续增量可加「清除私钥」入口）。
+更新语义：`ssh_private_key` 在 `Update` 中**留空表示保持不变**（不是清空），因为私钥只写不读、前端无法回填旧值；其它可选字段仍保持「留空即清空」。传新值可更换私钥；显式传 `clearSSHPrivateKey=true` 可只清除私钥并保留机器。清除与提交新私钥互斥，清除操作写审计 `clear_machine_ssh_key`。
 
 迁移：`015_machines_ssh.sql`（PostgreSQL 加列）；SQLite 走 Ent AutoMigrate。
 
@@ -61,6 +61,7 @@ tail
 
 ## 接口
 
+- `PATCH /machines/:id`（`jwt: Auth` + `AdminOnlyMiddleware`）：除机器字段外，支持可选 `clearSSHPrivateKey`；为 `true` 时清除已保存私钥，不能同时提交 `sshPrivateKey`。
 - `POST /machines/:id/exec`（`jwt: Auth` + `AdminOnlyMiddleware`）
 - 入参：`{ "command": "..." }`
 - 出参：`{ "stdout": "...", "stderr": "...", "exitCode": 0 }`

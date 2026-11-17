@@ -1,6 +1,11 @@
+import { Form } from 'antd';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { MachineTable, type Machine } from './Machines';
+import {
+  MachineClearPrivateKeyField,
+  MachineTable,
+  type Machine,
+} from './Machines';
 
 const bareMetal: Machine = {
   id: 'machine_1',
@@ -50,5 +55,20 @@ describe('MachineTable', () => {
 
     expect(html).toContain('已加入');
     expect(html).toContain('—');
+  });
+});
+
+describe('MachineClearPrivateKeyField', () => {
+  it('renders an explicit clear-key switch with a non-destructive machine warning', () => {
+    const html = renderToStaticMarkup(
+      <Form>
+        <MachineClearPrivateKeyField />
+      </Form>,
+    );
+
+    expect(html).toContain('清除已保存的 SSH 私钥');
+    expect(html).toContain('开启后保存会清除私钥，但保留机器');
+    expect(html).toContain('清除');
+    expect(html).toContain('保留');
   });
 });
