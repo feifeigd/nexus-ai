@@ -21,8 +21,8 @@
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
     "@ant-design/pro-components": "^3.1.14-2",
-    "@copilotkit/react-core": "^1.83.0",
-    "antd": "^6.6.7",
+    "@copilotkit/react-core": "^1.89.0",
+    "antd": "^6.7.1",
     "antd-style": "^4.1.0",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.23",
@@ -31,23 +31,23 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@ant-design/cli": "^6.6.7",
-    "@biomejs/biome": "^2.6.4",
+    "@ant-design/cli": "^6.7.1",
+    "@biomejs/biome": "^2.6.8",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/react-helmet": "^6.1.11",
-    "@umijs/max": "^4.7.27",
+    "@umijs/max": "^4.7.34",
     "@umijs/max-plugin-openapi": "^2.0.3",
     "@umijs/openapi": "1.14.1",
-    "@utoo/pack": "1.5.36",
+    "@utoo/pack": "1.6.5",
     "cross-env": "^10.1.0",
     "mockjs": "^1.1.0",
-    "react-doctor": "^0.9.18",
-    "swagger-ui-dist": "^5.34.1",
+    "react-doctor": "^0.9.23",
+    "swagger-ui-dist": "^5.35.1",
     "typescript": "^7.0.2",
-    "vitest": "5.0.5"
+    "vitest": "5.1.1"
   },
   "overrides": {
     "@umijs/plugins": {
